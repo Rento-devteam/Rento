@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build shared (if exists)
+      run: npm run build -w packages/shared || true
+    
+    - name: Lint
+      run: npm run lint --workspaces --if-present
+    
+    - name: Test
+      run: npm run test --workspaces --if-present
+    
+    - name: Build
+      run: npm run build --workspaces
