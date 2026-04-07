@@ -1,0 +1,9 @@
+# По умолчанию назначаем тимлида
+* @Rento-team
+
+# Backend изменения
+/packages/backend/ @бэкендер1 @бэкендер2
+
+# Frontend изменения
+/packages/frontend/ @фронтендер1 @фронтендер2
+
