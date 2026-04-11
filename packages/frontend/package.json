@@ -13,7 +13,7 @@
   "dependencies": {
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "@rento/shared": "^1.0.0"
+    "@rento/shared": "file:../shared"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
