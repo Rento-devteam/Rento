@@ -1,43 +1,56 @@
-# 🚗 Rento - Монорепозиторий NestJS + React
+# 🏠 Rento — Платформа для аренды вещей
 
-[![CI](https://github.com/Rento-team/Rento/actions/workflows/ci.yml/badge.svg)](https://github.com/Rento-team/Rento/actions/workflows/ci.yml)
-[![Node.js](https://img.shields.io/badge/Node.js-20.x-green.svg)](https://nodejs.org/)
-[![NestJS](https://img.shields.io/badge/NestJS-10.x-red.svg)](https://nestjs.com/)
-[![React](https://img.shields.io/badge/React-18.x-blue.svg)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+**Современная платформа для аренды любых вещей**  
+*Монорепозиторий на NestJS + React*
+
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+
+---
 
 ## 📋 О проекте
 
-**Rento** — это платформа для аренды автомобилей. Проект построен на архитектуре монорепозитория с использованием **NestJS** на бэкенде и **React** на фронтенде.
+**Rento** — это удобная и безопасная платформа для аренды вещей между людьми.  
+Проект построен по архитектуре **монорепозитория** с использованием:
+
+- **NestJS** — на бэкенде
+- **React + Vite** — на фронтенде
 
 ### Ключевые особенности
-- 🏗 Монорепозиторий на npm workspaces
-- 🔐 TypeScript строгая типизация
-- 🚀 Быстрая разработка с hot-reload
-- 📦 Изолированные пакеты для бэкенда и фронтенда
+
+- 🏗 **Монорепозиторий** на `npm workspaces`
+- 🔐 **Строгая типизация** TypeScript
+- 🚀 **Горячая перезагрузка** (hot-reload) для быстрой разработки
+- 📦 **Полностью изолированные пакеты** backend и frontend
+- 🔄 **CI/CD** через GitHub Actions
+- 📋 **Conventional Commits** для чистой истории
+
+---
 
 ## 🏗 Структура проекта
+
+```bash
 Rento/
 ├── 📁 packages/
-│ ├── 🖥️ backend/ # NestJS бэкенд
-│ │ ├── src/ # Исходный код
-│ │ ├── test/ # Тесты
-│ │ └── package.json
-│ └── 🎨 frontend/ # React + Vite фронтенд
-│ ├── src/ # Исходный код
-│ ├── public/ # Статические файлы
-│ └── package.json
-├── 📁 .github/ # GitHub конфигурации
-│ ├── workflows/ # CI/CD пайплайны
-│ ├── CODEOWNERS # Назначение ревьюверов
-│ └── pull_request_template.md
-├── 📄 package.json # Корневая конфигурация
-├── 📄 .gitignore # Игнорируемые файлы
-└── 📄 README.md # Документация
-
-text
-
+│   ├── 🖥️ backend/          # NestJS бэкенд
+│   │   ├── src/             # Исходный код
+│   │   ├── test/            # Тесты
+│   │   └── package.json
+│   └── 🎨 frontend/         # React + Vite фронтенд
+│       ├── src/             # Исходный код
+│       ├── public/          # Статические файлы
+│       └── package.json
+├── 📁 .github/
+│   ├── workflows/           # CI/CD пайплайны
+│   ├── CODEOWNERS
+│   └── pull_request_template.md
+├── 📄 package.json          # Корневая конфигурация
+├── 📄 .gitignore
+├── 📄 .env.example
+└── 📄 README.md
+```
 ## 🚀 Быстрый старт
 
 ### Требования
@@ -47,89 +60,114 @@ text
 ### Установка
 
 ```bash
-# Клонируйте репозиторий
+# 1. Клонируйте репозиторий
 git clone https://github.com/Rento-team/Rento.git
 cd Rento
 
-# Установите все зависимости
+# 2. Установите все зависимости
 npm install
-Разработка
-bash
-# Запустить все проекты одновременно
+```
+### Разработка
+
+```bash
+# Запуск всех проектов одновременно (рекомендуется)
 npm run dev
 
 # Или по отдельности:
-npm run dev:backend   # Запуск только бэкенда (http://localhost:3000)
-npm run dev:frontend  # Запуск только фронтенда (http://localhost:5173)
-Сборка
-bash
+npm run dev:backend    # Бэкенд → http://localhost:3000
+npm run dev:frontend   # Фронтенд → http://localhost:5173
+```
+
+### Сборка
+```bash
 # Собрать все проекты
 npm run build
 
-# Собрать конкретный проект
+# Собрать только нужный проект
 npm run build:backend
 npm run build:frontend
-📦 Команды
-Команда	Описание
-npm run dev	Запуск всех проектов в режиме разработки
-npm run dev:backend	Запуск только бэкенда
-npm run dev:frontend	Запуск только фронтенда
-npm run build	Сборка всех проектов
-npm run lint	Проверка кода во всех проектах
-npm run test	Запуск тестов
-npm run clean	Очистка сборок
-🛠 Технологии
-Бэкенд
-NestJS — прогрессивный Node.js фреймворк
+```
 
-TypeScript — типизированный JavaScript
+## 📦 Команды
 
-Jest — тестирование
+| Команда                    | Описание                                              |
+|----------------------------|-------------------------------------------------------|
+| `npm run dev`              | Запуск всех проектов в режиме разработки             |
+| `npm run dev:backend`      | Запуск только бэкенда                                |
+| `npm run dev:frontend`     | Запуск только фронтенда                              |
+| `npm run build`            | Полная сборка всех проектов                          |
+| `npm run build:backend`    | Сборка только бэкенда                                |
+| `npm run build:frontend`   | Сборка только фронтенда                              |
+| `npm run lint`             | Проверка кода ESLint во всех пакетах                 |
+| `npm run test`             | Запуск всех тестов                                   |
+| `npm run clean`            | Очистка папок `dist` и `node_modules`               |
 
-Фронтенд
-React 18 — библиотека для UI
+---
 
-Vite — быстрый сборщик
+## 🛠 Технологии
 
-TypeScript — типизация
+### Бэкенд
+- **NestJS** — прогрессивный Node.js-фреймворк
+- **TypeScript** — строгая типизация
+- **Jest** — тестирование
+- **Prisma / TypeORM** — работа с базой данных
 
-ESLint — линтинг кода
+### Фронтенд
+- **React 18** — современный пользовательский интерфейс
+- **Vite** — сверхбыстрый сборщик
+- **TypeScript** — типизация
+- **ESLint + Prettier** — качество кода
+- **Tailwind CSS / Styled Components** — стилизация (по выбору команды)
 
-🔧 Настройка окружения
-Создайте файлы .env в соответствующих пакетах:
+---
 
-Бэкенд (packages/backend/.env)
-env
+## 🔧 Настройка окружения
+
+Создайте файлы `.env` в соответствующих пакетах:
+
+**Бэкенд** (`packages/backend/.env`)
+```env
 PORT=3000
 NODE_ENV=development
-Фронтенд (packages/frontend/.env)
-env
+DATABASE_URL=postgresql://user:password@localhost:5432/rento
+JWT_SECRET=your-super-secret-jwt-key
+```
+
+**Фронтенд** (`packages/frontend/.env`)
+```env
 VITE_API_URL=http://localhost:3000
+```
 
-Правила коммитов
-Используем Conventional Commits:
+> Примеры файлов окружения находятся в `.env.example`  
+> (в корне проекта и в каждом пакете: `packages/backend/` и `packages/frontend/`).
 
-feat: — новая функциональность
+---
 
-fix: — исправление ошибки
+## 📝 Правила коммитов
 
-docs: — обновление документации
+Мы используем **Conventional Commits** для чистой и понятной истории проекта:
 
-style: — форматирование кода
+- `feat:` — новая функциональность
+- `fix:` — исправление ошибки
+- `docs:` — обновление документации
+- `style:` — форматирование кода
+- `refactor:` — рефакторинг
+- `test:` — добавление или исправление тестов
+- `chore:` — обслуживание проекта (без изменений в коде)
 
-refactor: — рефакторинг
+---
 
-test: — добавление тестов
+## 👥 Команда
 
-chore: — обслуживание проекта
+| Роль                  | Имя                |
+|-----------------------|--------------------|
+| 👨‍💻 Delivery Manager    | Карпеко А.С.      |
+| 👨‍💻 Tester              | Антонов А.Д.      |
+| 👨‍💻 Backender           | Ким А.А.          |
+| 👨‍💻 Frontender          | Луговая Д.А.      |
+| 👨‍💻 Analytic            | Мельникова К.А.   |
+| 👨‍💻 Designer            | Рыбаков Д.С.      |
+| 👨‍💻 Backender           | Терещенков К.А.   |
+| 👨‍💻 Tester              | Фомичева А.С.     |
 
-👥 Команда
-Роль	Имя
-👨‍💻 Delivery Manager	   Карпеко А.С.
-👨‍💻 Tester	           Антонов А.Д.
-👨‍💻 Backender	           Ким А.А.
-👨‍💻 Frontender	       Луговая Д.А.
-👨‍💻 Analytic	           Мельникова К.А.
-👨‍💻 Designer	           Рыбаков Д.С.
-👨‍💻 Backender	           Терещенков К.А.
-👨‍💻 Tester	           Фомичева А.С.
+---
