@@ -11,25 +11,25 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Build shared (if exists)
-      run: npm run build -w packages/shared || true
-    
-    - name: Lint
-      run: npm run lint --workspaces --if-present
-    
-    - name: Test
-      run: npm run test --workspaces --if-present
-    
-    - name: Build
-      run: npm run build --workspaces
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared (if exists)
+        run: npm run build -w shared 2>/dev/null || echo "No shared package, skipping"
+
+      - name: Lint
+        run: npm run lint --if-present -ws
+
+      - name: Test
+        run: npm run test --if-present -ws
+
+      - name: Build
+        run: npm run build --if-present -ws
