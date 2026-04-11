@@ -27,6 +27,5 @@
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
     "lint-staged": "16.4.0"
-  },
-
+  }
 }
