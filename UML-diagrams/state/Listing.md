@@ -1,3 +1,4 @@
+```mermaid
     stateDiagram-v2
     [*] --> Draft: FR-201: Начало создания
 
@@ -25,3 +26,5 @@
     Archived --> [*]: Удалено
    
     Blocked --> [*]: Удалено
+
+```

@@ -1,3 +1,4 @@
+```mermaid
     stateDiagram-v2
     [*] --> Created: Booking.confirm()
 
@@ -37,3 +38,5 @@
     Failed --> [*]
     Completed --> [*]
     Refunded --> [*]
+
+```

@@ -1,3 +1,4 @@
+```mermaid
     flowchart LR
     %% Пользователи
     User[Арендатор / Владелец]
@@ -85,3 +86,4 @@
      Recommender --> PostgreSQL
      TrustScore --> PostgreSQL
      FraudDetection --> Redis
+```

@@ -1,3 +1,4 @@
+```mermaid
     stateDiagram-v2
     [*] --> Draft: Начало написания
 
@@ -17,3 +18,5 @@
    
     DeletedByAuthor --> [*]
     DeletedByModerator --> [*]
+
+```

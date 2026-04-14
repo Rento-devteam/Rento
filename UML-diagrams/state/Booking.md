@@ -1,3 +1,4 @@
+```mermaid
     stateDiagram-v2
     [*] --> Pending: FR-301/FR-303:<br/>Отклик на объявление
 
@@ -48,3 +49,5 @@
     
     Disputed --> Completed: Спор разрешён
     Disputed --> Cancelled: Спор → отмена
+
+```
