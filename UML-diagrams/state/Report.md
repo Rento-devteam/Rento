@@ -1,3 +1,4 @@
+```mermaid
     stateDiagram-v2
     [*] --> Created: Пользователь отправляет жалобу
 
@@ -25,3 +26,5 @@
     Dismissed --> Closed
    
     Closed --> [*]
+
+```

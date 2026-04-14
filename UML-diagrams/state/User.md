@@ -1,3 +1,4 @@
+```mermaid
     stateDiagram-v2
     [*] --> Guest: Заход на сайт
 
@@ -21,3 +22,5 @@
     Suspended --> Banned: Повторное нарушение
    
     Banned --> [*]: Аккаунт удалён
+
+```
