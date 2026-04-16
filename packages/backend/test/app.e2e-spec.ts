@@ -9,8 +9,8 @@ import { UserStatus } from '@prisma/client';
 
 type UserRecord = {
   id: string;
-  email: string;
-  passwordHash: string;
+  email: string | null;
+  passwordHash: string | null;
   status: UserStatus;
   emailConfirmedAt: Date | null;
   telegramId: string | null;
@@ -57,7 +57,7 @@ class InMemoryPrismaService {
       if (where.id) {
         return this.users.find((u) => u.id === where.id) ?? null;
       }
-      if (where.email) {
+      if (where.email !== undefined) {
         return this.users.find((u) => u.email === where.email) ?? null;
       }
       return null;
@@ -82,19 +82,20 @@ class InMemoryPrismaService {
         data,
       }: {
         data: {
-          email: string;
-          passwordHash: string;
+          email?: string;
+          passwordHash?: string;
+          telegramId?: string;
           status: UserStatus;
         };
       }) => {
         const now = new Date();
         const row: UserRecord = {
           id: `user-${++this.seq}`,
-          email: data.email,
-          passwordHash: data.passwordHash,
+          email: data.email ?? null,
+          passwordHash: data.passwordHash ?? null,
           status: data.status,
           emailConfirmedAt: null,
-          telegramId: null,
+          telegramId: data.telegramId ?? null,
           createdAt: now,
           updatedAt: now,
         };
@@ -263,6 +264,7 @@ describe('AppController (e2e)', () => {
   };
 
   beforeEach(async () => {
+    process.env.BOT_SECRET = 'test-bot-secret';
     prisma = new InMemoryPrismaService();
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -329,5 +331,55 @@ describe('AppController (e2e)', () => {
         password: 'StrongPass1!',
       })
       .expect(201);
+  });
+
+  it('allows login after email confirmation even without telegram link', async () => {
+    const registerResponse = await request(app.getHttpServer())
+      .post('/register')
+      .send({
+        email: 'email-only@example.com',
+        password: 'StrongPass1!',
+        confirmPassword: 'StrongPass1!',
+      })
+      .expect(201);
+
+    const userId = registerResponse.body.userId as string;
+    const emailToken = prisma.emailTokens.find((t) => t.userId === userId);
+    expect(emailToken).toBeDefined();
+
+    await request(app.getHttpServer())
+      .get('/confirm-email')
+      .query({ token: emailToken?.token })
+      .expect(200);
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/login')
+      .send({
+        email: 'email-only@example.com',
+        password: 'StrongPass1!',
+      })
+      .expect(201);
+
+    expect(loginResponse.body.accessToken).toBeDefined();
+    expect(loginResponse.body.user.status).toBe(UserStatus.ACTIVE);
+    expect(loginResponse.body.user.email).toBe('email-only@example.com');
+  });
+
+  it('registers and logs in with telegram only flow', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/telegram/auth')
+      .set('x-bot-secret', 'test-bot-secret')
+      .send({
+        telegramId: 'telegram-only-user-001',
+      })
+      .expect(201);
+
+    expect(response.body.accessToken).toBeDefined();
+    expect(response.body.user.status).toBe(UserStatus.ACTIVE);
+    expect(response.body.user.email).toBeNull();
+
+    const user = prisma.users.find((u) => u.telegramId === 'telegram-only-user-001');
+    expect(user).toBeDefined();
+    expect(user?.status).toBe(UserStatus.ACTIVE);
   });
 });

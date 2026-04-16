@@ -16,6 +16,7 @@ import { CompleteRegistrationQueryDto } from './dto/complete-registration-query.
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResendConfirmationDto } from './dto/resend-confirmation.dto';
+import { TelegramAuthDto } from './dto/telegram-auth.dto';
 import { TelegramVerifyDto } from './dto/telegram-verify.dto';
 import { AuthUserStatus, AuthUserStatusValue } from './auth-status';
 import { isStrongPassword } from './password-policy';
@@ -66,7 +67,7 @@ export class AuthService {
 
     const token = await this.createEmailConfirmationToken(user.id);
     await this.emailSender.sendConfirmationEmail({
-      email: user.email,
+      email: email,
       confirmationUrl: `${process.env.APP_BASE_URL ?? 'http://localhost:3000'}/confirm-email?token=${token}`,
     });
 
@@ -80,7 +81,7 @@ export class AuthService {
   async confirmEmail(token: string): Promise<{
     accessToken: string;
     refreshToken: string;
-    user: { id: string; email: string; status: AuthUserStatusValue };
+    user: { id: string; email: string | null; status: AuthUserStatusValue };
   }> {
     const tokenRow = await this.prismaService.emailConfirmationToken.findFirst({
       where: { token, usedAt: null },
@@ -104,7 +105,7 @@ export class AuthService {
         where: { id: tokenRow.userId },
         data: {
           emailConfirmedAt: new Date(),
-          status: AuthUserStatus.PENDING_TELEGRAM_LINK,
+          status: AuthUserStatus.ACTIVE,
         },
       }),
     ]);
@@ -125,7 +126,7 @@ export class AuthService {
 
     const token = await this.createEmailConfirmationToken(user.id);
     await this.emailSender.sendConfirmationEmail({
-      email: user.email,
+      email: email,
       confirmationUrl: `${process.env.APP_BASE_URL ?? 'http://localhost:3000'}/confirm-email?token=${token}`,
     });
 
@@ -135,12 +136,16 @@ export class AuthService {
   async login(dto: LoginDto): Promise<{
     accessToken: string;
     refreshToken: string;
-    user: { id: string; email: string; status: AuthUserStatusValue };
+    user: { id: string; email: string | null; status: AuthUserStatusValue };
   }> {
     const email = dto.email.trim().toLowerCase();
     const user = await this.prismaService.user.findUnique({ where: { email } });
 
     if (!user) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!user.passwordHash) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -151,7 +156,7 @@ export class AuthService {
 
     if (user.status !== AuthUserStatus.ACTIVE) {
       throw new ForbiddenException(
-        'Account is not activated. Confirm email and link Telegram.',
+        'Account is not activated. Confirm email or Telegram.',
       );
     }
 
@@ -200,7 +205,17 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-    if (user.status !== AuthUserStatus.PENDING_TELEGRAM_LINK) {
+    if (!user.emailConfirmedAt) {
+      throw new ForbiddenException('Email confirmation is required before Telegram linking');
+    }
+    if (user.telegramId) {
+      throw new ConflictException('Telegram account is already linked');
+    }
+    if (
+      user.status === AuthUserStatus.BANNED ||
+      user.status === AuthUserStatus.SUSPENDED ||
+      user.status === AuthUserStatus.DELETED
+    ) {
       throw new ForbiddenException('Telegram linking is unavailable for this account state');
     }
 
@@ -228,7 +243,7 @@ export class AuthService {
   ): Promise<{
     accessToken: string;
     refreshToken: string;
-    user: { id: string; email: string; status: AuthUserStatusValue };
+    user: { id: string; email: string | null; status: AuthUserStatusValue };
   }> {
     const codeRow = await this.prismaService.telegramLinkCode.findFirst({
       where: { code: dto.code.trim().toUpperCase(), usedAt: null },
@@ -268,10 +283,39 @@ export class AuthService {
     return this.issueAuthResponse(codeRow.userId);
   }
 
+  async telegramAuth(dto: TelegramAuthDto): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: { id: string; email: string | null; status: AuthUserStatusValue };
+  }> {
+    let user = await this.prismaService.user.findFirst({
+      where: { telegramId: dto.telegramId },
+    });
+
+    if (!user) {
+      user = await this.prismaService.user.create({
+        data: {
+          telegramId: dto.telegramId,
+          status: AuthUserStatus.ACTIVE,
+        },
+      });
+    }
+
+    if (
+      user.status === AuthUserStatus.BANNED ||
+      user.status === AuthUserStatus.SUSPENDED ||
+      user.status === AuthUserStatus.DELETED
+    ) {
+      throw new ForbiddenException('Account is not available');
+    }
+
+    return this.issueAuthResponse(user.id);
+  }
+
   private async issueAuthResponse(userId: string): Promise<{
     accessToken: string;
     refreshToken: string;
-    user: { id: string; email: string; status: AuthUserStatusValue };
+    user: { id: string; email: string | null; status: AuthUserStatusValue };
   }> {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },

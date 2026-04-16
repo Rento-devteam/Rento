@@ -17,8 +17,8 @@ enum UserStatus {
 
 model User {
   id                 String                   @id @default(uuid())
-  email              String                   @unique
-  passwordHash       String
+  email              String?                  @unique
+  passwordHash       String?
   status             UserStatus               @default(PENDING_EMAIL_CONFIRMATION)
   emailConfirmedAt   DateTime?
   telegramId         String?                  @unique

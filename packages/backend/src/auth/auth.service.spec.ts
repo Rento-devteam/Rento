@@ -112,4 +112,38 @@ describe('AuthService', () => {
     expect(response.user.status).toBe(AuthUserStatus.ACTIVE);
     expect(prismaService.$transaction).toHaveBeenCalledTimes(1);
   });
+
+  it('activates account on email confirmation without telegram requirement', async () => {
+    const now = new Date();
+    prismaService.emailConfirmationToken.findFirst.mockResolvedValue({
+      id: 'email-token-1',
+      token: 'confirm-token',
+      userId: 'u2',
+      expiresAt: new Date(now.getTime() + 5 * 60 * 1000),
+      usedAt: null,
+      user: { id: 'u2' },
+    });
+    prismaService.$transaction.mockResolvedValue(undefined);
+    prismaService.user.findUnique.mockResolvedValue({
+      id: 'u2',
+      email: 'email-only@example.com',
+      status: AuthUserStatus.ACTIVE,
+    });
+    jwtTokenService.issueTokenPair.mockResolvedValue({
+      accessToken: 'email-access-token',
+      refreshToken: 'email-refresh-token',
+    });
+
+    const response = await authService.confirmEmail('confirm-token');
+
+    expect(response.accessToken).toBe('email-access-token');
+    expect(response.user.status).toBe(AuthUserStatus.ACTIVE);
+    expect(prismaService.user.update).toHaveBeenCalledWith({
+      where: { id: 'u2' },
+      data: {
+        emailConfirmedAt: expect.any(Date),
+        status: AuthUserStatus.ACTIVE,
+      },
+    });
+  });
 });

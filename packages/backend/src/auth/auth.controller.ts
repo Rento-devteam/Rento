@@ -14,7 +14,9 @@ import { CompleteRegistrationQueryDto } from './dto/complete-registration-query.
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResendConfirmationDto } from './dto/resend-confirmation.dto';
+import { TelegramAuthDto } from './dto/telegram-auth.dto';
 import { TelegramVerifyDto } from './dto/telegram-verify.dto';
+import { BotSecretGuard } from './bot-secret.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller()
@@ -60,5 +62,11 @@ export class AuthController {
   @Post('telegram/verify')
   telegramVerify(@Body() dto: TelegramVerifyDto) {
     return this.authService.verifyTelegram(dto);
+  }
+
+  @UseGuards(BotSecretGuard)
+  @Post('telegram/auth')
+  telegramAuth(@Body() dto: TelegramAuthDto) {
+    return this.authService.telegramAuth(dto);
   }
 }
