@@ -1,0 +1,4 @@
+export const ACCESS_TOKEN_TTL_SECONDS = 60 * 15;
+export const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
+export const EMAIL_CONFIRMATION_TTL_HOURS = 24;
+export const TELEGRAM_CODE_TTL_MINUTES = 15;
