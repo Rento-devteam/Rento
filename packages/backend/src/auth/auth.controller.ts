@@ -8,7 +8,6 @@ import {
   UseGuards,
   UnauthorizedException,
 } from '@nestjs/common';
-import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { CompleteRegistrationQueryDto } from './dto/complete-registration-query.dto';
 import { LoginDto } from './dto/login.dto';
@@ -18,6 +17,7 @@ import { TelegramAuthDto } from './dto/telegram-auth.dto';
 import { TelegramVerifyDto } from './dto/telegram-verify.dto';
 import { BotSecretGuard } from './bot-secret.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import type { RequestWithUser } from './jwt-auth.guard';
 
 @Controller()
 export class AuthController {
@@ -50,7 +50,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post('telegram/link')
-  telegramLink(@Req() request: Request & { user?: { sub: string } }) {
+  telegramLink(@Req() request: RequestWithUser) {
     const userId = request.user?.sub;
     if (!userId) {
       throw new UnauthorizedException('Missing user');

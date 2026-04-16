@@ -23,6 +23,16 @@ import { isStrongPassword } from './password-policy';
 import { EmailSenderStub } from '../email/email-sender.stub';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtTokenService } from '../tokens/jwt-token.service';
+import {
+  buildUserProfileResponse,
+  UserProfileResponse,
+} from '../users/user-profile.mapper';
+
+export interface AuthSuccessResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: UserProfileResponse;
+}
 
 @Injectable()
 export class AuthService {
@@ -78,11 +88,7 @@ export class AuthService {
     };
   }
 
-  async confirmEmail(token: string): Promise<{
-    accessToken: string;
-    refreshToken: string;
-    user: { id: string; email: string | null; status: AuthUserStatusValue };
-  }> {
+  async confirmEmail(token: string): Promise<AuthSuccessResponse> {
     const tokenRow = await this.prismaService.emailConfirmationToken.findFirst({
       where: { token, usedAt: null },
       include: { user: true },
@@ -133,11 +139,7 @@ export class AuthService {
     return { message: 'Confirmation email resent' };
   }
 
-  async login(dto: LoginDto): Promise<{
-    accessToken: string;
-    refreshToken: string;
-    user: { id: string; email: string | null; status: AuthUserStatusValue };
-  }> {
+  async login(dto: LoginDto): Promise<AuthSuccessResponse> {
     const email = dto.email.trim().toLowerCase();
     const user = await this.prismaService.user.findUnique({ where: { email } });
 
@@ -155,9 +157,7 @@ export class AuthService {
     }
 
     if (user.status !== AuthUserStatus.ACTIVE) {
-      throw new ForbiddenException(
-        'Account is not activated. Confirm email or Telegram.',
-      );
+      throw new ForbiddenException('Account is not activated. Confirm your email.');
     }
 
     return this.issueAuthResponse(user.id);
@@ -166,10 +166,7 @@ export class AuthService {
   async completeRegistration(
     query: CompleteRegistrationQueryDto,
   ): Promise<{
-    status:
-      | 'completed'
-      | 'pending_email_confirmation'
-      | 'pending_telegram_link';
+    status: 'completed' | 'pending_email_confirmation';
     nextStep: string | null;
   }> {
     const email = query.email.trim().toLowerCase();
@@ -182,13 +179,6 @@ export class AuthService {
       return {
         status: 'pending_email_confirmation',
         nextStep: 'confirm_email',
-      };
-    }
-
-    if (user.status === AuthUserStatus.PENDING_TELEGRAM_LINK) {
-      return {
-        status: 'pending_telegram_link',
-        nextStep: 'link_telegram',
       };
     }
 
@@ -240,11 +230,7 @@ export class AuthService {
 
   async verifyTelegram(
     dto: TelegramVerifyDto,
-  ): Promise<{
-    accessToken: string;
-    refreshToken: string;
-    user: { id: string; email: string | null; status: AuthUserStatusValue };
-  }> {
+  ): Promise<AuthSuccessResponse> {
     const codeRow = await this.prismaService.telegramLinkCode.findFirst({
       where: { code: dto.code.trim().toUpperCase(), usedAt: null },
     });
@@ -283,11 +269,7 @@ export class AuthService {
     return this.issueAuthResponse(codeRow.userId);
   }
 
-  async telegramAuth(dto: TelegramAuthDto): Promise<{
-    accessToken: string;
-    refreshToken: string;
-    user: { id: string; email: string | null; status: AuthUserStatusValue };
-  }> {
+  async telegramAuth(dto: TelegramAuthDto): Promise<AuthSuccessResponse> {
     let user = await this.prismaService.user.findFirst({
       where: { telegramId: dto.telegramId },
     });
@@ -312,11 +294,7 @@ export class AuthService {
     return this.issueAuthResponse(user.id);
   }
 
-  private async issueAuthResponse(userId: string): Promise<{
-    accessToken: string;
-    refreshToken: string;
-    user: { id: string; email: string | null; status: AuthUserStatusValue };
-  }> {
+  private async issueAuthResponse(userId: string): Promise<AuthSuccessResponse> {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },
     });
@@ -327,11 +305,7 @@ export class AuthService {
     const tokens = await this.jwtTokenService.issueTokenPair(user);
     return {
       ...tokens,
-      user: {
-        id: user.id,
-        email: user.email,
-        status: user.status,
-      },
+      user: buildUserProfileResponse(user),
     };
   }
 

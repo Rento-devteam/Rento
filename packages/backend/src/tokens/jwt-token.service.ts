@@ -22,7 +22,7 @@ export class JwtTokenService {
 
   async issueTokenPair(user: User): Promise<AuthTokenPair> {
     const accessToken = await this.jwtService.signAsync(
-      { sub: user.id, email: user.email, status: user.status },
+      { sub: user.id, email: user.email, role: user.role, status: user.status },
       {
         secret: process.env.JWT_ACCESS_SECRET ?? 'dev_access_secret',
         expiresIn: ACCESS_TOKEN_TTL_SECONDS,
