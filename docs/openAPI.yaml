@@ -1,0 +1,3698 @@
+openapi: 3.1.0
+info:
+  title: Rento API
+  version: 0.1.0
+  summary: Draft API contract generated from project documentation and UML use cases.
+  description: |
+    This OpenAPI draft was derived from the documentation in `docs/`.
+
+    Main alignment decisions:
+    - `deal` and `booking` flows are unified under the `Booking` resource.
+    - authentication is modeled as Bearer token based, although the docs mention both sessions and tokens.
+    - favorites are scoped to the authenticated user even where the UML uses `user_id` in query/body.
+    - public, authenticated, moderation, and internal endpoints are separated by tags.
+
+    The file is intended as a practical baseline for backend/frontend development and can be tightened later.
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+tags:
+  - name: Auth
+  - name: Verification
+  - name: Payment Methods
+  - name: Categories
+  - name: Listings
+  - name: Search
+  - name: Recommendations
+  - name: Favorites
+  - name: Bookings
+  - name: Payments
+  - name: Chat
+  - name: Media
+  - name: Reviews
+  - name: Disputes
+  - name: Reports
+  - name: Moderation
+  - name: Internal
+security:
+  - BearerAuth: []
+paths:
+  /register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created in pending confirmation state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthRegistrationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /confirm-email:
+    get:
+      tags: [Auth]
+      summary: Confirm email by token
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /resend-confirmation:
+    post:
+      tags: [Auth]
+      summary: Resend email confirmation link
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Confirmation email resent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /login:
+    post:
+      tags: [Auth]
+      summary: Sign in by email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /complete-registration:
+    get:
+      tags: [Auth]
+      summary: Get final registration state after login flow
+      security: []
+      responses:
+        '200':
+          description: Registration completion status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [completed, pending_email_confirmation, pending_telegram_link]
+                  nextStep:
+                    type: string
+                    nullable: true
+
+  /telegram/link:
+    post:
+      tags: [Auth]
+      summary: Generate Telegram linking code
+      requestBody:
+        required: false
+      responses:
+        '200':
+          description: Linking instructions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, deepLink]
+                properties:
+                  code:
+                    type: string
+                  deepLink:
+                    type: string
+                    format: uri
+                  qrCodeUrl:
+                    type: string
+                    format: uri
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /telegram/verify:
+    post:
+      tags: [Auth]
+      summary: Verify Telegram link code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, telegramId]
+              properties:
+                code:
+                  type: string
+                telegramId:
+                  type: string
+      responses:
+        '200':
+          description: Telegram linked and account activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /verify/esia/initiate:
+    post:
+      tags: [Verification]
+      summary: Start ESIA verification
+      responses:
+        '200':
+          description: ESIA redirect generated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [redirectUrl]
+                properties:
+                  redirectUrl:
+                    type: string
+                    format: uri
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /verify/esia/callback:
+    get:
+      tags: [Verification]
+      summary: Handle ESIA callback
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Verification callback processed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    $ref: '#/components/schemas/VerificationStatus'
+                  trustScore:
+                    $ref: '#/components/schemas/TrustScore'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /verify/esia/escalate:
+    post:
+      tags: [Verification]
+      summary: Escalate failed verification for manual review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                comment:
+                  type: string
+      responses:
+        '202':
+          description: Verification escalation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /payment/methods:
+    get:
+      tags: [Payment Methods]
+      summary: List saved payment methods
+      responses:
+        '200':
+          description: Saved cards
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BankCard'
+
+  /payment/cards/add:
+    post:
+      tags: [Payment Methods]
+      summary: Add tokenized payment card
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCardRequest'
+      responses:
+        '201':
+          description: Card added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankCard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /users/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [Auth]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName:
+                  type: string
+                phone:
+                  type: string
+                avatarUrl:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Current user profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+
+  /users/me/trust-score:
+    get:
+      tags: [Verification]
+      summary: Get current user trust score
+      responses:
+        '200':
+          description: Trust score snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrustScore'
+
+  /user/{userId}/activity:
+    get:
+      tags: [Recommendations]
+      summary: Get user activity used by recommendation engine
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Activity profile for recommendations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  searches:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  viewedListings:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                  favoriteListings:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                  bookings:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+
+  /categories:
+    get:
+      tags: [Categories]
+      summary: List active categories
+      security: []
+      responses:
+        '200':
+          description: Category tree
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+
+  /listings/create:
+    get:
+      tags: [Listings]
+      summary: Get metadata required to create a listing
+      responses:
+        '200':
+          description: Form metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  priceRules:
+                    type: object
+                    additionalProperties: true
+                  limits:
+                    type: object
+                    properties:
+                      maxPhotos:
+                        type: integer
+                        example: 10
+
+  /listings:
+    get:
+      tags: [Listings]
+      summary: List listings
+      security: []
+      parameters:
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: ownerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ListingStatus'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Listing collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingCollectionResponse'
+    post:
+      tags: [Listings]
+      summary: Create a new listing draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListingCreateRequest'
+      responses:
+        '201':
+          description: Listing draft created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /listings/{listingId}:
+    get:
+      tags: [Listings]
+      summary: Get listing details
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+      responses:
+        '200':
+          description: Listing details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Listings]
+      summary: Update listing draft or active listing
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListingUpdateRequest'
+      responses:
+        '200':
+          description: Listing updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Listings]
+      summary: Archive or delete own listing
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+      responses:
+        '204':
+          description: Listing removed from active inventory
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /listings/{listingId}/photos:
+    get:
+      tags: [Listings]
+      summary: List listing photos
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+      responses:
+        '200':
+          description: Listing photos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ListingPhoto'
+    post:
+      tags: [Listings]
+      summary: Upload a listing photo
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                isPrimary:
+                  type: boolean
+                order:
+                  type: integer
+      responses:
+        '201':
+          description: Photo uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingPhoto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /listings/{listingId}/publish:
+    post:
+      tags: [Listings]
+      summary: Publish listing or send it to moderation
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+      responses:
+        '200':
+          description: Listing status changed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, status]
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  status:
+                    $ref: '#/components/schemas/ListingStatus'
+
+  /listings/{listingId}/calendar:
+    get:
+      tags: [Listings]
+      summary: Get listing calendar with booking and owner blocks
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+        - name: start
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Calendar items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarResponse'
+
+  /listings/{listingId}/bookings:
+    get:
+      tags: [Bookings]
+      summary: List bookings for listing calendar merge
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+      responses:
+        '200':
+          description: Bookings for selected listing
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+
+  /listings/{listingId}/dates/availability:
+    get:
+      tags: [Listings]
+      summary: Check availability for date range
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Availability result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [available]
+                properties:
+                  available:
+                    type: boolean
+                  conflicts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CalendarSlot'
+
+  /listings/{listingId}/calendar/block:
+    post:
+      tags: [Listings]
+      summary: Block listing dates as owner
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarBlockRequest'
+      responses:
+        '200':
+          description: Dates blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Listings]
+      summary: Unblock listing dates
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: force
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: cancelBookings
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Dates unblocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /search:
+    get:
+      tags: [Search]
+      summary: Search listings with text and filters
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: minPrice
+          in: query
+          schema:
+            type: number
+        - name: maxPrice
+          in: query
+          schema:
+            type: number
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+    post:
+      tags: [Search]
+      summary: Search listings using complex filter payload
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+
+  /suggest:
+    get:
+      tags: [Search]
+      summary: Get text search suggestions
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Suggestion list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: string
+
+  /search/autocomplete:
+    get:
+      tags: [Search]
+      summary: Autocomplete search phrase
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Autocomplete options
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: string
+
+  /listings/map:
+    get:
+      tags: [Search]
+      summary: Get listings within map bounds
+      security: []
+      parameters:
+        - name: bounds
+          in: query
+          required: true
+          schema:
+            type: string
+          description: NE,SW coordinate pair
+        - name: zoom
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Listings for map rendering
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MapListing'
+
+  /listings/{listingId}/preview:
+    get:
+      tags: [Search]
+      summary: Get compact listing preview for map card
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+      responses:
+        '200':
+          description: Listing preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListingPreview'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /recommendations/personalized:
+    get:
+      tags: [Recommendations]
+      summary: Get personalized recommendations
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 12
+      responses:
+        '200':
+          description: Recommended listings
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Recommendation'
+                  fallback:
+                    type: boolean
+
+  /recommendations/feedback:
+    post:
+      tags: [Recommendations]
+      summary: Send recommendation feedback event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendationFeedbackRequest'
+      responses:
+        '202':
+          description: Feedback accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /favorites/check:
+    get:
+      tags: [Favorites]
+      summary: Check if listing is in favorites
+      parameters:
+        - name: listingId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Favorite state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [listingId, isFavorited]
+                properties:
+                  listingId:
+                    type: string
+                    format: uuid
+                  isFavorited:
+                    type: boolean
+
+  /favorites:
+    get:
+      tags: [Favorites]
+      summary: List my favorite listings
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Favorite items
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FavoriteItem'
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                  total:
+                    type: integer
+    post:
+      tags: [Favorites]
+      summary: Add listing to favorites
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listingId]
+              properties:
+                listingId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Favorite created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteItem'
+    delete:
+      tags: [Favorites]
+      summary: Remove a single favorite
+      parameters:
+        - name: listingId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Favorite removed
+
+  /favorites/batch:
+    delete:
+      tags: [Favorites]
+      summary: Remove multiple favorites
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listingIds]
+              properties:
+                listingIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '204':
+          description: Favorites removed
+
+  /listings/{listingId}/booking-summary:
+    get:
+      tags: [Bookings]
+      summary: Calculate booking price breakdown for dates
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Booking quote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingSummary'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /bookings:
+    get:
+      tags: [Bookings]
+      summary: List my bookings
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [renter, owner]
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Booking collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                  total:
+                    type: integer
+    post:
+      tags: [Bookings]
+      summary: Create booking and reserve dates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreateRequest'
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '402':
+          description: Payment hold failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /bookings/{bookingId}:
+    get:
+      tags: [Bookings]
+      summary: Get booking details
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Bookings]
+      summary: Cancel booking
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '204':
+          description: Booking cancelled
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /bookings/{bookingId}/retry-payment:
+    post:
+      tags: [Bookings]
+      summary: Retry payment hold with another card
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cardToken]
+              properties:
+                cardToken:
+                  type: string
+      responses:
+        '200':
+          description: Payment recovered and booking confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '402':
+          description: Retry failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /payments/hold:
+    post:
+      tags: [Payments]
+      summary: Create authorization hold for booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentHoldRequest'
+      responses:
+        '200':
+          description: Hold created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentHoldResponse'
+        '402':
+          description: Hold declined
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{bookingId}/handover/start:
+    post:
+      tags: [Bookings]
+      summary: Start handover checklist
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Handover session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /bookings/{bookingId}/handover/photos-complete:
+    post:
+      tags: [Bookings]
+      summary: Mark handover photo upload complete
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Handover photos accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /bookings/{bookingId}/handover/photos:
+    get:
+      tags: [Bookings]
+      summary: Get handover photos and checklist state
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Handover checklist data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+    post:
+      tags: [Bookings]
+      summary: Upload handover checklist items
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChecklistSubmission'
+      responses:
+        '200':
+          description: Handover checklist updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /bookings/{bookingId}/handover/confirm:
+    post:
+      tags: [Bookings]
+      summary: Confirm handover and start rental
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: Booking activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /bookings/{bookingId}/handover/dispute:
+    post:
+      tags: [Bookings]
+      summary: Open handover dispute
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisputeCreateRequest'
+      responses:
+        '201':
+          description: Dispute created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+
+  /bookings/{bookingId}/handover/reject:
+    post:
+      tags: [Bookings]
+      summary: Reject handover before rental starts
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Handover rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /bookings/{bookingId}/return/start:
+    post:
+      tags: [Bookings]
+      summary: Start return checklist
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Return session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /bookings/{bookingId}/return/photos-complete:
+    post:
+      tags: [Bookings]
+      summary: Mark return photo upload complete
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Return photos accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /bookings/{bookingId}/return/photos:
+    get:
+      tags: [Bookings]
+      summary: Get return photos and checklist state
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Return checklist data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+    post:
+      tags: [Bookings]
+      summary: Upload return checklist items
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChecklistSubmission'
+      responses:
+        '200':
+          description: Return checklist updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /bookings/{bookingId}/return/confirm:
+    post:
+      tags: [Bookings]
+      summary: Confirm return and settle booking
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Booking completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /bookings/{bookingId}/return/dispute:
+    post:
+      tags: [Bookings]
+      summary: Open dispute during return flow
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisputeCreateRequest'
+      responses:
+        '201':
+          description: Dispute created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+
+  /bookings/{bookingId}/return/early:
+    post:
+      tags: [Bookings]
+      summary: Request early return
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Early return registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /deals/{dealId}/handover/start:
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for handover start
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Handover session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /deals/{dealId}/handover/photos-complete:
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for handover photos complete
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Handover photos accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /deals/{dealId}/handover/photos:
+    get:
+      tags: [Bookings]
+      summary: Legacy alias for handover photos
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Handover checklist data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for handover checklist upload
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChecklistSubmission'
+      responses:
+        '200':
+          description: Handover checklist updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /deals/{dealId}/handover/confirm:
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for handover confirm
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Booking activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /deals/{dealId}/handover/dispute:
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for handover dispute
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisputeCreateRequest'
+      responses:
+        '201':
+          description: Dispute created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+
+  /deals/{dealId}/handover/reject:
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for handover reject
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Handover rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /deals/{dealId}/return/start:
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for return start
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Return session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /deals/{dealId}/return/photos-complete:
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for return photos complete
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Return photos accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /deals/{dealId}/return/photos:
+    get:
+      tags: [Bookings]
+      summary: Legacy alias for return photos
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Return checklist data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for return checklist upload
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChecklistSubmission'
+      responses:
+        '200':
+          description: Return checklist updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistSession'
+
+  /deals/{dealId}/return/confirm:
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for return confirm
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Booking completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /deals/{dealId}/return/dispute:
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for return dispute
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisputeCreateRequest'
+      responses:
+        '201':
+          description: Dispute created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+
+  /deals/{dealId}/return/early:
+    post:
+      tags: [Bookings]
+      summary: Legacy alias for early return
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Early return registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /deals/{dealId}/dispute/initiate:
+    get:
+      tags: [Disputes]
+      summary: Legacy alias for dispute initiate
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Dispute form context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking:
+                    $ref: '#/components/schemas/Booking'
+                  allowed:
+                    type: boolean
+                  reasons:
+                    type: array
+                    items:
+                      type: string
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /payments/settle:
+    post:
+      tags: [Payments]
+      summary: Settle final booking payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookingId]
+              properties:
+                bookingId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Settlement result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettlementResult'
+
+  /payments/hold-disputed:
+    post:
+      tags: [Payments]
+      summary: Move held funds into disputed state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookingId]
+              properties:
+                bookingId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Funds marked disputed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettlementResult'
+
+  /payments/deposit/release:
+    post:
+      tags: [Payments]
+      summary: Release deposit in full
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookingId]
+              properties:
+                bookingId:
+                  type: string
+                  format: uuid
+                holdId:
+                  type: string
+                  nullable: true
+                amount:
+                  type: number
+                  format: double
+                  nullable: true
+      responses:
+        '200':
+          description: Deposit released
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettlementResult'
+
+  /payments/deposit/partial:
+    post:
+      tags: [Payments]
+      summary: Partially release deposit and capture compensation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookingId, depositAmount, compensationAmount]
+              properties:
+                bookingId:
+                  type: string
+                  format: uuid
+                depositAmount:
+                  type: number
+                  format: double
+                compensationAmount:
+                  type: number
+                  format: double
+      responses:
+        '200':
+          description: Partial deposit settlement completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettlementResult'
+
+  /payments/deposit/capture:
+    post:
+      tags: [Payments]
+      summary: Capture deposit in favor of owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookingId, depositAmount]
+              properties:
+                bookingId:
+                  type: string
+                  format: uuid
+                depositAmount:
+                  type: number
+                  format: double
+      responses:
+        '200':
+          description: Deposit captured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettlementResult'
+
+  /reviews:
+    post:
+      tags: [Reviews]
+      summary: Create a review after booking completion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewCreateRequest'
+      responses:
+        '201':
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /chat/initiate:
+    get:
+      tags: [Chat]
+      summary: Get existing chat or create a new chat
+      parameters:
+        - name: listingId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: bookingId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: recipientId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Chat opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chat'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /chat/{chatId}/messages:
+    get:
+      tags: [Chat]
+      summary: Get message history
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChatMessage'
+    post:
+      tags: [Chat]
+      summary: Send text or media message
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatMessageCreateRequest'
+      responses:
+        '200':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /chat/{chatId}/read:
+    post:
+      tags: [Chat]
+      summary: Mark messages as read
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lastReadTimestamp]
+              properties:
+                lastReadTimestamp:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Read receipt stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /upload:
+    post:
+      tags: [Media]
+      summary: Legacy upload endpoint for listing photos
+      deprecated: true
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                listing_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Media uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUploadResponse'
+
+  /media/upload:
+    post:
+      tags: [Media]
+      summary: Upload media for chat or other flows
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                chatId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                bookingId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                listingId:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        '201':
+          description: Media uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUploadResponse'
+        '413':
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{bookingId}/dispute/initiate:
+    get:
+      tags: [Disputes]
+      summary: Get dispute initiation context for booking
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Dispute form context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking:
+                    $ref: '#/components/schemas/Booking'
+                  allowed:
+                    type: boolean
+                  reasons:
+                    type: array
+                    items:
+                      type: string
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /disputes:
+    get:
+      tags: [Disputes]
+      summary: List disputes visible to current actor
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/DisputeStatus'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Dispute collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Dispute'
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                  total:
+                    type: integer
+    post:
+      tags: [Disputes]
+      summary: Open a dispute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisputeCreateRequest'
+      responses:
+        '201':
+          description: Dispute created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /disputes/{disputeId}:
+    get:
+      tags: [Disputes]
+      summary: Get dispute details
+      parameters:
+        - $ref: '#/components/parameters/DisputeId'
+      responses:
+        '200':
+          description: Dispute details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /disputes/{disputeId}/evidence:
+    post:
+      tags: [Disputes]
+      summary: Add evidence to a dispute
+      parameters:
+        - $ref: '#/components/parameters/DisputeId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '201':
+          description: Evidence attached
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DisputeEvidence'
+
+  /reports:
+    get:
+      tags: [Reports]
+      summary: List my reports
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Report collection
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, pageSize, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+                  page:
+                    type: integer
+                  pageSize:
+                    type: integer
+                  total:
+                    type: integer
+    post:
+      tags: [Reports]
+      summary: Submit a report against user, listing, review, or message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportCreateRequest'
+      responses:
+        '201':
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+
+  /notifications:
+    post:
+      tags: [Internal]
+      summary: Create notification event
+      x-internal: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                recipientUserId:
+                  type: string
+                  format: uuid
+                channel:
+                  type: string
+                  enum: [push, email, sms, in_app]
+                payload:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '202':
+          description: Notification accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /moderation/pending:
+    get:
+      tags: [Moderation]
+      summary: Get pending moderation queue snapshot
+      responses:
+        '200':
+          description: Pending reports and suspicious cases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationQueueResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /moderation/queue:
+    get:
+      tags: [Moderation]
+      summary: Search moderation queue
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: dateRange
+          in: query
+          schema:
+            type: string
+        - name: date_range
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Moderation queue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationQueueResponse'
+
+  /moderation/review/{id}:
+    get:
+      tags: [Moderation]
+      summary: Get moderation review context
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Full moderation context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationReviewContext'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /moderation/listings/{listingId}/delete:
+    post:
+      tags: [Moderation]
+      summary: Delete listing by moderator
+      parameters:
+        - $ref: '#/components/parameters/ListingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Listing removed by moderation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /moderation/users/{userId}/block:
+    post:
+      tags: [Moderation]
+      summary: Block user by moderator
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockUserRequest'
+      responses:
+        '200':
+          description: User blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /moderation/reports/{reportId}/reject:
+    post:
+      tags: [Moderation]
+      summary: Reject report
+      parameters:
+        - $ref: '#/components/parameters/ReportId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Report rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /moderation/users/{userId}/warn:
+    post:
+      tags: [Moderation]
+      summary: Issue warning to user
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Warning stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /moderation/disputes/{disputeId}/resolve:
+    post:
+      tags: [Moderation]
+      summary: Resolve dispute as moderator
+      parameters:
+        - $ref: '#/components/parameters/DisputeId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveDisputeRequest'
+      responses:
+        '200':
+          description: Dispute resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+
+  /internal/trust-score/recalculate:
+    post:
+      tags: [Internal]
+      summary: Recalculate ARS for a user
+      x-internal: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, eventType]
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                eventType:
+                  type: string
+                  enum: [booking_completed, booking_cancelled, dispute_opened, dispute_lost, false_dispute, moderation_warning]
+      responses:
+        '200':
+          description: Trust score recalculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrustScore'
+
+  /internal/users/{userId}/auto-block:
+    post:
+      tags: [Internal]
+      summary: Auto-block user when trust score falls below threshold
+      x-internal: true
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                threshold:
+                  type: number
+                  format: double
+      responses:
+        '200':
+          description: User auto-block processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ListingId:
+      name: listingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DealId:
+      name: dealId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ChatId:
+      name: chatId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DisputeId:
+      name: disputeId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ReportId:
+      name: reportId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: State conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        fullName:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    AuthRegistrationResponse:
+      type: object
+      required: [userId, status, nextStep]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending_confirmation]
+        nextStep:
+          type: string
+          enum: [confirm_email]
+    AuthSuccessResponse:
+      type: object
+      required: [accessToken, user]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+          nullable: true
+        user:
+          $ref: '#/components/schemas/UserProfile'
+    UserRole:
+      type: string
+      enum: [USER, MODERATOR, ADMIN]
+    UserStatus:
+      type: string
+      enum: [ACTIVE, SUSPENDED, BANNED, DELETED]
+    VerificationStatus:
+      type: string
+      enum: [PENDING, VERIFIED, REJECTED, EXPIRED]
+    ListingStatus:
+      type: string
+      enum: [DRAFT, PENDING_MODERATION, ACTIVE, ARCHIVED, BLOCKED]
+    AvailabilityStatus:
+      type: string
+      enum: [AVAILABLE, BOOKED, BLOCKED_BY_OWNER, MAINTENANCE]
+    BookingStatus:
+      type: string
+      enum:
+        - PENDING
+        - PENDING_PAYMENT
+        - PAYMENT_FAILED
+        - CONFIRMED
+        - ACTIVE
+        - COMPLETED
+        - CANCELLED
+        - DISPUTED
+    DisputeStatus:
+      type: string
+      enum:
+        - pending
+        - investigating
+        - resolved
+        - closed
+        - OPEN
+        - UNDER_REVIEW
+        - RESOLVED_RENTER
+        - RESOLVED_OWNER
+        - RESOLVED_SPLIT
+        - CLOSED
+    ReportStatus:
+      type: string
+      enum: [CREATED, PENDING, INVESTIGATING, RESOLVED, DISMISSED, CLOSED, REJECTED]
+    TransactionStatus:
+      type: string
+      enum: [PENDING, PROCESSING, SUCCESS, FAILED, REFUNDED]
+    EscrowStatus:
+      type: string
+      enum: [HELD, PARTIALLY_RELEASED, FULLY_RELEASED, REFUNDED]
+    UserSummary:
+      type: object
+      required: [id, fullName, role, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        role:
+          $ref: '#/components/schemas/UserRole'
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        isVerified:
+          type: boolean
+    UserProfile:
+      allOf:
+        - $ref: '#/components/schemas/UserSummary'
+        - type: object
+          required: [email]
+          properties:
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+              nullable: true
+            trustScore:
+              $ref: '#/components/schemas/TrustScore'
+    TrustScore:
+      type: object
+      required: [currentScore, totalDeals, successfulDeals, lateReturns, disputes, calculatedAt]
+      properties:
+        currentScore:
+          type: number
+          format: double
+        totalDeals:
+          type: integer
+        successfulDeals:
+          type: integer
+        lateReturns:
+          type: integer
+        disputes:
+          type: integer
+        calculatedAt:
+          type: string
+          format: date-time
+    BankCard:
+      type: object
+      required: [id, last4, cardType, isDefault]
+      properties:
+        id:
+          type: string
+          format: uuid
+        last4:
+          type: string
+        cardType:
+          type: string
+        isDefault:
+          type: boolean
+        addedAt:
+          type: string
+          format: date-time
+    AddCardRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+        setAsDefault:
+          type: boolean
+          default: false
+    Category:
+      type: object
+      required: [id, name, slug, isActive]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        icon:
+          type: string
+          nullable: true
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+        order:
+          type: integer
+        isActive:
+          type: boolean
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+    ListingPhoto:
+      type: object
+      required: [id, url, order, isPrimary]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        thumbnailUrl:
+          type: string
+          format: uri
+          nullable: true
+        order:
+          type: integer
+        isPrimary:
+          type: boolean
+        uploadedAt:
+          type: string
+          format: date-time
+    ListingSummary:
+      type: object
+      required: [id, title, pricePerDay, depositAmount, status, owner]
+      properties:
+        id:
+          type: string
+          format: uuid
+        owner:
+          $ref: '#/components/schemas/UserSummary'
+        categoryId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        pricePerDay:
+          type: number
+          format: double
+        pricePerWeek:
+          type: number
+          format: double
+          nullable: true
+        pricePerMonth:
+          type: number
+          format: double
+          nullable: true
+        depositAmount:
+          type: number
+          format: double
+        avgRating:
+          type: number
+          format: double
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ListingStatus'
+        primaryPhotoUrl:
+          type: string
+          format: uri
+          nullable: true
+        latitude:
+          type: number
+          format: double
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ListingDetail:
+      allOf:
+        - $ref: '#/components/schemas/ListingSummary'
+        - type: object
+          properties:
+            photos:
+              type: array
+              items:
+                $ref: '#/components/schemas/ListingPhoto'
+            category:
+              $ref: '#/components/schemas/Category'
+            availability:
+              type: array
+              items:
+                $ref: '#/components/schemas/CalendarSlot'
+    ListingPreview:
+      type: object
+      required: [id, title, pricePerDay]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        pricePerDay:
+          type: number
+          format: double
+        depositAmount:
+          type: number
+          format: double
+        avgRating:
+          type: number
+          format: double
+          nullable: true
+        primaryPhotoUrl:
+          type: string
+          format: uri
+          nullable: true
+        distanceMeters:
+          type: integer
+          nullable: true
+    ListingCollectionResponse:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListingSummary'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+    ListingCreateRequest:
+      type: object
+      required: [categoryId, title, description, pricePerDay, depositAmount]
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        pricePerDay:
+          type: number
+          format: double
+        pricePerWeek:
+          type: number
+          format: double
+        pricePerMonth:
+          type: number
+          format: double
+        depositAmount:
+          type: number
+          format: double
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+    ListingUpdateRequest:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        pricePerDay:
+          type: number
+          format: double
+        pricePerWeek:
+          type: number
+          format: double
+        pricePerMonth:
+          type: number
+          format: double
+        depositAmount:
+          type: number
+          format: double
+        status:
+          $ref: '#/components/schemas/ListingStatus'
+    CalendarSlot:
+      type: object
+      required: [date, status]
+      properties:
+        date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/AvailabilityStatus'
+        reason:
+          type: string
+          nullable: true
+    CalendarResponse:
+      type: object
+      required: [listingId, items]
+      properties:
+        listingId:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarSlot'
+    CalendarBlockRequest:
+      type: object
+      required: [startDate, endDate]
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        reason:
+          type: string
+          nullable: true
+    SearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+        filters:
+          type: object
+          additionalProperties: true
+        page:
+          type: integer
+          default: 1
+        pageSize:
+          type: integer
+          default: 20
+    SearchResponse:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListingSummary'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        suggestion:
+          type: string
+          nullable: true
+        emptyResults:
+          type: boolean
+    MapListing:
+      allOf:
+        - $ref: '#/components/schemas/ListingPreview'
+        - type: object
+          required: [latitude, longitude]
+          properties:
+            latitude:
+              type: number
+              format: double
+            longitude:
+              type: number
+              format: double
+    Recommendation:
+      type: object
+      required: [listing, score, type]
+      properties:
+        listing:
+          $ref: '#/components/schemas/ListingPreview'
+        score:
+          type: number
+          format: double
+        type:
+          type: string
+          enum: [SIMILAR, BEST_CHOICE, NEARBY, TRENDING, PERSONALIZED]
+        reason:
+          type: string
+    RecommendationFeedbackRequest:
+      type: object
+      required: [itemId, actionType]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        actionType:
+          type: string
+          enum: [view, click, hide, book]
+    FavoriteItem:
+      type: object
+      required: [listingId, addedAt, listing]
+      properties:
+        listingId:
+          type: string
+          format: uuid
+        addedAt:
+          type: string
+          format: date-time
+        listing:
+          $ref: '#/components/schemas/ListingPreview'
+    BookingSummary:
+      type: object
+      required: [listingId, startDate, endDate, rentalAmount, depositAmount, totalAmount]
+      properties:
+        listingId:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        rentalAmount:
+          type: number
+          format: double
+        depositAmount:
+          type: number
+          format: double
+        totalAmount:
+          type: number
+          format: double
+        currency:
+          type: string
+          default: RUB
+    BookingCreateRequest:
+      type: object
+      required: [listingId, startDate, endDate]
+      properties:
+        listingId:
+          type: string
+          format: uuid
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        cardToken:
+          type: string
+          nullable: true
+    Booking:
+      type: object
+      required:
+        - id
+        - listing
+        - renter
+        - owner
+        - startDate
+        - endDate
+        - rentAmount
+        - depositAmount
+        - totalAmount
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        dealId:
+          type: string
+          format: uuid
+          nullable: true
+        listing:
+          $ref: '#/components/schemas/ListingPreview'
+        renter:
+          $ref: '#/components/schemas/UserSummary'
+        owner:
+          $ref: '#/components/schemas/UserSummary'
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        rentAmount:
+          type: number
+          format: double
+        depositAmount:
+          type: number
+          format: double
+        totalAmount:
+          type: number
+          format: double
+        holdId:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        confirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+    PaymentHoldRequest:
+      type: object
+      required: [amount, cardToken]
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+          nullable: true
+        dealId:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          type: number
+          format: double
+        cardToken:
+          type: string
+      anyOf:
+        - required: [bookingId]
+        - required: [dealId]
+    PaymentHoldResponse:
+      type: object
+      required: [bookingId, status, amountHeld]
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        holdId:
+          type: string
+        authorizationCode:
+          type: string
+          nullable: true
+        amountHeld:
+          type: number
+          format: double
+    ChecklistItemSubmission:
+      type: object
+      required: [description]
+      properties:
+        description:
+          type: string
+        mediaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        condition:
+          type: string
+          enum: [GOOD, MINOR_DAMAGE, DAMAGED, MISSING]
+        comment:
+          type: string
+          nullable: true
+    ChecklistSubmission:
+      type: object
+      required: [type, items]
+      properties:
+        type:
+          type: string
+          enum: [TAKE, RETURN]
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChecklistItemSubmission'
+    ChecklistSession:
+      type: object
+      required: [bookingId, type, status, items]
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [TAKE, RETURN]
+        status:
+          type: string
+          enum: [STARTED, PHOTOS_UPLOADING, PHOTOS_COMPLETE, CONFIRMED, DISPUTED, REJECTED]
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChecklistItemSubmission'
+    SettlementResult:
+      type: object
+      required: [bookingId, escrowStatus]
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+        escrowStatus:
+          $ref: '#/components/schemas/EscrowStatus'
+        releasedToOwner:
+          type: number
+          format: double
+          nullable: true
+        returnedToRenter:
+          type: number
+          format: double
+          nullable: true
+        capturedFromDeposit:
+          type: number
+          format: double
+          nullable: true
+    Chat:
+      type: object
+      required: [id, participants, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+          format: uuid
+          nullable: true
+        listingId:
+          type: string
+          format: uuid
+          nullable: true
+        participants:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/UserSummary'
+        status:
+          type: string
+          enum: [ACTIVE, READ_ONLY, CLOSED]
+        lastMessageAt:
+          type: string
+          format: date-time
+          nullable: true
+        unreadCount:
+          type: integer
+          nullable: true
+    ChatMessage:
+      type: object
+      required: [id, chatId, senderId, type, sentAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        chatId:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [TEXT, IMAGE, FILE, SYSTEM]
+        content:
+          type: string
+          nullable: true
+        mediaUrl:
+          type: string
+          format: uri
+          nullable: true
+        isRead:
+          type: boolean
+        fraudProbability:
+          type: number
+          format: double
+          nullable: true
+        sentAt:
+          type: string
+          format: date-time
+    ChatMessageCreateRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          nullable: true
+        mediaId:
+          type: string
+          format: uuid
+          nullable: true
+      anyOf:
+        - required: [text]
+        - required: [mediaId]
+    MediaUploadResponse:
+      type: object
+      required: [id, url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        thumbnailUrl:
+          type: string
+          format: uri
+          nullable: true
+        mediaType:
+          type: string
+    ReviewCreateRequest:
+      type: object
+      required: [targetUserId, rating]
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+          nullable: true
+        dealId:
+          type: string
+          format: uuid
+          nullable: true
+        targetUserId:
+          type: string
+          format: uuid
+        listingId:
+          type: string
+          format: uuid
+          nullable: true
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          nullable: true
+      anyOf:
+        - required: [bookingId]
+        - required: [dealId]
+    Review:
+      type: object
+      required: [id, bookingId, authorId, targetUserId, rating, isPublic]
+      properties:
+        id:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+          format: uuid
+        authorId:
+          type: string
+          format: uuid
+        targetUserId:
+          type: string
+          format: uuid
+        listingId:
+          type: string
+          format: uuid
+          nullable: true
+        rating:
+          type: integer
+        comment:
+          type: string
+          nullable: true
+        isPublic:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    DisputeCreateRequest:
+      type: object
+      required: [reason]
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+          nullable: true
+        dealId:
+          type: string
+          format: uuid
+          nullable: true
+        reason:
+          type: string
+        description:
+          type: string
+          nullable: true
+        evidenceMediaIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      anyOf:
+        - required: [bookingId]
+        - required: [dealId]
+    DisputeEvidence:
+      type: object
+      required: [id, disputeId, uploadedById, type, url]
+      properties:
+        id:
+          type: string
+          format: uuid
+        disputeId:
+          type: string
+          format: uuid
+        uploadedById:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [PHOTO, VIDEO, DOCUMENT, CHAT_SCREENSHOT]
+        url:
+          type: string
+          format: uri
+        description:
+          type: string
+          nullable: true
+        uploadedAt:
+          type: string
+          format: date-time
+    Dispute:
+      type: object
+      required: [id, initiatorId, reason, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+          format: uuid
+          nullable: true
+        dealId:
+          type: string
+          format: uuid
+          nullable: true
+        initiatorId:
+          type: string
+          format: uuid
+        assignedModeratorId:
+          type: string
+          format: uuid
+          nullable: true
+        reason:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/DisputeStatus'
+        resolutionType:
+          type: string
+          enum: [FULL_REFUND_RENTER, FULL_PAYOUT_OWNER, SPLIT, FALSE_DISPUTE]
+          nullable: true
+        resolution:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/DisputeEvidence'
+    ReportCreateRequest:
+      type: object
+      required: [targetType, targetId, reason]
+      properties:
+        targetType:
+          type: string
+          enum: [USER, LISTING, REVIEW, MESSAGE]
+        targetId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+        description:
+          type: string
+          nullable: true
+    Report:
+      type: object
+      required: [id, targetType, targetId, reason, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        targetType:
+          type: string
+          enum: [USER, LISTING, REVIEW, MESSAGE]
+        targetId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        moderatorNote:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        processedAt:
+          type: string
+          format: date-time
+          nullable: true
+    ModerationQueueItem:
+      type: object
+      required: [id, type, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [REPORT, SUSPICIOUS_ACTIVITY, DISPUTE]
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        riskScore:
+          type: number
+          format: double
+          nullable: true
+        payload:
+          type: object
+          additionalProperties: true
+    ModerationQueueResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModerationQueueItem'
+    ModerationReviewContext:
+      type: object
+      properties:
+        queueItem:
+          $ref: '#/components/schemas/ModerationQueueItem'
+        report:
+          $ref: '#/components/schemas/Report'
+        listing:
+          $ref: '#/components/schemas/ListingDetail'
+        user:
+          $ref: '#/components/schemas/UserProfile'
+        userHistory:
+          type: object
+          additionalProperties: true
+        activeListings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ListingPreview'
+        activeBookings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+    BlockUserRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+        blockDuration:
+          type: string
+          description: Human readable duration or `permanent`
+          default: permanent
+    ResolveDisputeRequest:
+      type: object
+      required: [resolution]
+      properties:
+        resolution:
+          type: string
+          enum: [in_favor_of_initiator, in_favor_of_respondent, compromise, false_dispute]
+        resolutionDetails:
+          type: string
+          nullable: true
+        splitAmounts:
+          type: object
+          nullable: true
+          properties:
+            renterAmount:
+              type: number
+              format: double
+            ownerAmount:
+              type: number
+              format: double
