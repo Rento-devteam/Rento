@@ -36,6 +36,12 @@ enum RentalPeriod {
   MONTH
 }
 
+enum PaymentMethodStatus {
+  ATTACHED
+  FAILED
+  REVOKED
+}
+
 enum BookingStatus {
   PENDING
   PENDING_PAYMENT
@@ -65,6 +71,7 @@ model User {
   refreshTokens      RefreshToken[]
   listings           Listing[]
   bookingsAsRenter   Booking[]
+  paymentMethods     UserPaymentMethod[]
 }
 
 model EmailConfirmationToken {
@@ -158,6 +165,21 @@ model ListingManualCalendarBlock {
   createdAt DateTime @default(now())
 
   @@index([listingId])
+}
+
+model UserPaymentMethod {
+  id        String              @id @default(uuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String
+  last4     String
+  cardType  String
+  isDefault Boolean             @default(false)
+  status    PaymentMethodStatus @default(ATTACHED)
+  addedAt   DateTime            @default(now())
+
+  @@unique([userId, token])
+  @@index([userId])
 }
 
 model Booking {

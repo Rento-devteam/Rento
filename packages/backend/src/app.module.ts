@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { ListingsModule } from './listings/listings.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { SearchModule } from './search/search.module';
+import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { SearchModule } from './search/search.module';
     ListingsModule,
     CalendarModule,
     SearchModule,
+    PaymentMethodsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
