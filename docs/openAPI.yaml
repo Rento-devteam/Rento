@@ -11,6 +11,7 @@ info:
     - authentication is modeled as Bearer token based, although the docs mention both sessions and tokens.
     - favorites are scoped to the authenticated user even where the UML uses `user_id` in query/body.
     - public, authenticated, moderation, and internal endpoints are separated by tags.
+    - **MVP (listings):** after `POST /listings/{listingId}/publish` the listing becomes `ACTIVE` immediately (no pre-publish moderation queue). The `PENDING_MODERATION` value and all `/moderation/*` operations are **reserved for a future stage** and are not required for MVP.
 
     The file is intended as a practical baseline for backend/frontend development and can be tightened later.
 servers:
@@ -33,6 +34,7 @@ tags:
   - name: Disputes
   - name: Reports
   - name: Moderation
+    description: Post-MVP. Admin/moderation queue and enforcement — not part of the MVP listing publish flow.
   - name: Internal
 security:
   - BearerAuth: []
@@ -469,21 +471,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  categories:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Category'
-                  priceRules:
-                    type: object
-                    additionalProperties: true
-                  limits:
-                    type: object
-                    properties:
-                      maxPhotos:
-                        type: integer
-                        example: 10
+                $ref: '#/components/schemas/ListingCreateMetadata'
 
   /listings:
     get:
@@ -529,8 +517,8 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListingDetail'
-        '400':
+                $ref: '#/components/schemas/ListingCreateResponse'
+        '422':
           $ref: '#/components/responses/BadRequest'
 
   /listings/{listingId}:
@@ -626,14 +614,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListingPhoto'
+                $ref: '#/components/schemas/ListingPhotoUploadResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /listings/{listingId}/publish:
     post:
       tags: [Listings]
-      summary: Publish listing or send it to moderation
+      summary: Publish listing immediately
       parameters:
         - $ref: '#/components/parameters/ListingId'
       responses:
@@ -642,14 +636,15 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [id, status]
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-                  status:
-                    $ref: '#/components/schemas/ListingStatus'
+                $ref: '#/components/schemas/ListingPublishResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /listings/{listingId}/calendar:
     get:
@@ -2731,7 +2726,13 @@ components:
       enum: [PENDING, VERIFIED, REJECTED, EXPIRED]
     ListingStatus:
       type: string
+      description: |
+        MVP: typical owner flow is `DRAFT` → `ACTIVE` after successful publish (with at least one photo).
+        `PENDING_MODERATION` is reserved for a future pre-publish or async moderation queue and is not used in the MVP publish path.
       enum: [DRAFT, PENDING_MODERATION, ACTIVE, ARCHIVED, BLOCKED]
+    RentalPeriod:
+      type: string
+      enum: [HOUR, DAY, WEEK, MONTH]
     AvailabilityStatus:
       type: string
       enum: [AVAILABLE, BOOKED, BLOCKED_BY_OWNER, MAINTENANCE]
@@ -2895,13 +2896,14 @@ components:
           format: date-time
     ListingSummary:
       type: object
-      required: [id, title, pricePerDay, depositAmount, status, owner]
+      required: [id, ownerId, categoryId, title, description, rentalPrice, rentalPeriod, depositAmount, status]
       properties:
         id:
           type: string
           format: uuid
-        owner:
-          $ref: '#/components/schemas/UserSummary'
+        ownerId:
+          type: string
+          format: uuid
         categoryId:
           type: string
           format: uuid
@@ -2909,30 +2911,16 @@ components:
           type: string
         description:
           type: string
-        pricePerDay:
+        rentalPrice:
           type: number
           format: double
-        pricePerWeek:
-          type: number
-          format: double
-          nullable: true
-        pricePerMonth:
-          type: number
-          format: double
-          nullable: true
+        rentalPeriod:
+          $ref: '#/components/schemas/RentalPeriod'
         depositAmount:
           type: number
           format: double
-        avgRating:
-          type: number
-          format: double
-          nullable: true
         status:
           $ref: '#/components/schemas/ListingStatus'
-        primaryPhotoUrl:
-          type: string
-          format: uri
-          nullable: true
         latitude:
           type: number
           format: double
@@ -2958,22 +2946,90 @@ components:
                 $ref: '#/components/schemas/ListingPhoto'
             category:
               $ref: '#/components/schemas/Category'
-            availability:
+    ListingCreateMetadata:
+      type: object
+      required: [categories, priceRules, limits]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        priceRules:
+          type: object
+          required: [currency, supportedPeriods, minPrice, minDeposit]
+          properties:
+            currency:
+              type: string
+              example: RUB
+            supportedPeriods:
               type: array
               items:
-                $ref: '#/components/schemas/CalendarSlot'
+                $ref: '#/components/schemas/RentalPeriod'
+            minPrice:
+              type: number
+              format: double
+            minDeposit:
+              type: number
+              format: double
+        limits:
+          type: object
+          required: [maxPhotos]
+          properties:
+            maxPhotos:
+              type: integer
+              example: 10
+    ListingCreateResponse:
+      allOf:
+        - $ref: '#/components/schemas/ListingDetail'
+        - type: object
+          required: [nextStep, message]
+          properties:
+            nextStep:
+              type: string
+              enum: [upload_photos]
+            message:
+              type: string
+    ListingPhotoUploadResponse:
+      type: object
+      required: [photo, totalPhotos, nextStep, message]
+      properties:
+        photo:
+          $ref: '#/components/schemas/ListingPhoto'
+        totalPhotos:
+          type: integer
+        nextStep:
+          type: string
+          enum: [publish_listing]
+        message:
+          type: string
+    ListingPublishResponse:
+      type: object
+      required: [id, status, nextStep, message]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ListingStatus'
+        nextStep:
+          type: string
+          nullable: true
+        message:
+          type: string
     ListingPreview:
       type: object
-      required: [id, title, pricePerDay]
+      required: [id, title, rentalPrice, rentalPeriod]
       properties:
         id:
           type: string
           format: uuid
         title:
           type: string
-        pricePerDay:
+        rentalPrice:
           type: number
           format: double
+        rentalPeriod:
+          $ref: '#/components/schemas/RentalPeriod'
         depositAmount:
           type: number
           format: double
@@ -3004,7 +3060,7 @@ components:
           type: integer
     ListingCreateRequest:
       type: object
-      required: [categoryId, title, description, pricePerDay, depositAmount]
+      required: [categoryId, title, description, rentalPrice, rentalPeriod, depositAmount]
       properties:
         categoryId:
           type: string
@@ -3013,15 +3069,11 @@ components:
           type: string
         description:
           type: string
-        pricePerDay:
+        rentalPrice:
           type: number
           format: double
-        pricePerWeek:
-          type: number
-          format: double
-        pricePerMonth:
-          type: number
-          format: double
+        rentalPeriod:
+          $ref: '#/components/schemas/RentalPeriod'
         depositAmount:
           type: number
           format: double
@@ -3041,15 +3093,11 @@ components:
           type: string
         description:
           type: string
-        pricePerDay:
+        rentalPrice:
           type: number
           format: double
-        pricePerWeek:
-          type: number
-          format: double
-        pricePerMonth:
-          type: number
-          format: double
+        rentalPeriod:
+          $ref: '#/components/schemas/RentalPeriod'
         depositAmount:
           type: number
           format: double

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateCurrentUserDto } from './dto/update-current-user.dto';
 import {
@@ -47,6 +52,20 @@ export class UsersService {
   async getCurrentUserTrustScore(userId: string) {
     await this.ensureUserExists(userId);
     return buildDefaultTrustScore();
+  }
+
+  async assertUserCanCreateListing(userId: string): Promise<void> {
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userId },
+      select: { id: true, status: true },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new ForbiddenException('Account is not allowed to create listings');
+    }
   }
 
   private async ensureUserExists(userId: string): Promise<void> {

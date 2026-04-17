@@ -20,7 +20,7 @@
       Booking[Модуль бронирования<br/>FR-401..405]
       Chat[Модуль чата<br/>FR-501]
       Dispute[Модуль споров<br/>FR-502]
-      Moderation[Модуль модерации<br/>FR-503..504]
+      Moderation[Модуль модерации FR-503..504<br/>пост-MVP]
      end
     
      subgraph AI [AI Services]
