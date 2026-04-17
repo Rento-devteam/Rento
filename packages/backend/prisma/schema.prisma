@@ -21,6 +21,32 @@ enum UserRole {
   ADMIN
 }
 
+enum ListingStatus {
+  DRAFT
+  PENDING_MODERATION
+  ACTIVE
+  ARCHIVED
+  BLOCKED
+}
+
+enum RentalPeriod {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+}
+
+enum BookingStatus {
+  PENDING
+  PENDING_PAYMENT
+  PAYMENT_FAILED
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
 model User {
   id                 String                   @id @default(uuid())
   email              String?                  @unique
@@ -37,6 +63,8 @@ model User {
   emailTokens        EmailConfirmationToken[]
   telegramLinkCodes  TelegramLinkCode[]
   refreshTokens      RefreshToken[]
+  listings           Listing[]
+  bookingsAsRenter   Booking[]
 }
 
 model EmailConfirmationToken {
@@ -67,4 +95,87 @@ model RefreshToken {
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime @default(now())
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  icon      String?
+  order     Int       @default(0)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  listings  Listing[]
+}
+
+model Listing {
+  id           String         @id @default(uuid())
+  ownerId      String
+  owner        User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  categoryId   String
+  category     Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  title        String
+  description  String
+  rentalPrice  Float
+  rentalPeriod RentalPeriod
+  depositAmount Float
+  status       ListingStatus  @default(DRAFT)
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  photos       ListingPhoto[]
+  manualCalendarBlocks ListingManualCalendarBlock[]
+  bookings     Booking[]
+
+  @@index([ownerId])
+  @@index([categoryId])
+  @@index([status])
+}
+
+model ListingPhoto {
+  id           String   @id @default(uuid())
+  listingId    String
+  listing      Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  url          String
+  thumbnailUrl String?
+  order        Int      @default(0)
+  isPrimary    Boolean  @default(false)
+  uploadedAt   DateTime @default(now())
+
+  @@index([listingId])
+  @@unique([listingId, order])
+}
+
+model ListingManualCalendarBlock {
+  id        String   @id @default(uuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([listingId])
+}
+
+model Booking {
+  id             String        @id @default(uuid())
+  listingId      String
+  listing        Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  renterId       String
+  renter         User          @relation(fields: [renterId], references: [id], onDelete: Cascade)
+  startDate      DateTime      @db.Date
+  endDate        DateTime      @db.Date
+  rentAmount     Float
+  depositAmount  Float
+  totalAmount    Float
+  status         BookingStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([listingId])
+  @@index([renterId])
+  @@index([status])
 }

@@ -366,6 +366,8 @@
             ARCHIVED
             BLOCKED
         }
+
+        note for ListingStatus "MVP: DRAFT to ACTIVE on publish. PENDING_MODERATION reserved for post-MVP moderation queue."
     
         class AvailabilityStatus {
             <<enumeration>>
