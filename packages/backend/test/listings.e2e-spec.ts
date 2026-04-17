@@ -17,6 +17,8 @@ import {
   UploadListingPhotoInput,
 } from '../src/listings/listing-photo-storage.service';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { ListingSearchIndexService } from '../src/search/listing-search-index.service';
+import { createListingSearchIndexStub } from './stub-listing-search-index';
 
 type UserRecord = {
   id: string;
@@ -441,6 +443,8 @@ describe('ListingsController (e2e)', () => {
       })
       .overrideProvider(ListingPhotoStorage)
       .useValue(listingPhotoStorage)
+      .overrideProvider(ListingSearchIndexService)
+      .useValue(createListingSearchIndexStub())
       .compile();
 
     app = moduleFixture.createNestApplication();

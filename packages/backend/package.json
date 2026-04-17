@@ -6,6 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "postinstall": "prisma generate && node scripts/ensure-prisma-client.cjs",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "email:test": "node -r dotenv/config -r ts-node/register src/email/send-test-email.ts",
@@ -23,6 +24,7 @@
     "test:all": "npm test && npm run test:e2e && npm run test:integration",
     "check:local": "docker compose up -d && npx prisma migrate deploy && npm run test:integration",
     "seed:demo-listing": "npx --yes tsx scripts/seed-demo-listing.ts",
+    "search:reindex": "npx --yes tsx scripts/reindex-listings-search.ts",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:migrate": "prisma migrate dev",
@@ -41,6 +43,7 @@
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "@elastic/elasticsearch": "^8.17.0",
     "dotenv": "^17.4.2",
     "multer": "^2.1.1",
     "nodemailer": "^8.0.5",

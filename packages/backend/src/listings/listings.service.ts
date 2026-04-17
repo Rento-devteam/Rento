@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -24,14 +25,18 @@ import {
   mapListingPublishResponse,
 } from './listing.mapper';
 import { ListingPhotoStorage } from './listing-photo-storage.service';
+import { ListingSearchIndexService } from '../search/listing-search-index.service';
 
 @Injectable()
 export class ListingsService {
+  private readonly logger = new Logger(ListingsService.name);
+
   constructor(
     private readonly prismaService: PrismaService,
     private readonly usersService: UsersService,
     @Inject(ListingPhotoStorage)
     private readonly listingPhotoStorage: ListingPhotoStorage,
+    private readonly listingSearchIndex: ListingSearchIndexService,
   ) {}
 
   async getCreateMetadata(userId: string) {
@@ -141,11 +146,15 @@ export class ListingsService {
     }
 
     if (listing.ownerId !== userId) {
-      throw new ForbiddenException('You can only manage your own listing photos');
+      throw new ForbiddenException(
+        'You can only manage your own listing photos',
+      );
     }
 
     if (listing.status !== ListingStatus.DRAFT) {
-      throw new ConflictException('Photos can only be uploaded for draft listings');
+      throw new ConflictException(
+        'Photos can only be uploaded for draft listings',
+      );
     }
 
     if (listing.photos.length >= MAX_LISTING_PHOTOS) {
@@ -153,7 +162,8 @@ export class ListingsService {
     }
 
     const order = this.resolvePhotoOrder(listing.photos, dto.order);
-    const shouldBePrimary = listing.photos.length === 0 || dto.isPrimary === true;
+    const shouldBePrimary =
+      listing.photos.length === 0 || dto.isPrimary === true;
     const uploadedPhoto = await this.listingPhotoStorage.uploadListingPhoto({
       listingId,
       originalFileName: file.originalname,
@@ -178,7 +188,10 @@ export class ListingsService {
       },
     });
 
-    return mapListingPhotoUploadResponse(createdPhoto, listing.photos.length + 1);
+    return mapListingPhotoUploadResponse(
+      createdPhoto,
+      listing.photos.length + 1,
+    );
   }
 
   async publishListing(userId: string, listingId: string) {
@@ -207,7 +220,9 @@ export class ListingsService {
     }
 
     if (listing.photos.length === 0) {
-      throw new BadRequestException('At least one photo is required before publishing');
+      throw new BadRequestException(
+        'At least one photo is required before publishing',
+      );
     }
 
     const updatedListing = await this.prismaService.listing.update({
@@ -220,6 +235,14 @@ export class ListingsService {
         status: true,
       },
     });
+
+    try {
+      await this.listingSearchIndex.indexListing(listingId);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to index listing ${listingId} in Elasticsearch: ${String(err)}`,
+      );
+    }
 
     return mapListingPublishResponse(updatedListing);
   }

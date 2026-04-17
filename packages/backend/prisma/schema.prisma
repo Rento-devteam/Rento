@@ -36,6 +36,12 @@ enum RentalPeriod {
   MONTH
 }
 
+enum PaymentMethodStatus {
+  ATTACHED
+  FAILED
+  REVOKED
+}
+
 enum BookingStatus {
   PENDING
   PENDING_PAYMENT
@@ -65,6 +71,7 @@ model User {
   refreshTokens      RefreshToken[]
   listings           Listing[]
   bookingsAsRenter   Booking[]
+  paymentMethods     UserPaymentMethod[]
 }
 
 model EmailConfirmationToken {
@@ -160,17 +167,42 @@ model ListingManualCalendarBlock {
   @@index([listingId])
 }
 
+model UserPaymentMethod {
+  id        String              @id @default(uuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String
+  last4     String
+  cardType  String
+  isDefault Boolean             @default(false)
+  status    PaymentMethodStatus @default(ATTACHED)
+  addedAt   DateTime            @default(now())
+
+  @@unique([userId, token])
+  @@index([userId])
+}
+
 model Booking {
   id             String        @id @default(uuid())
   listingId      String
   listing        Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
   renterId       String
   renter         User          @relation(fields: [renterId], references: [id], onDelete: Cascade)
+  // Day-level projection (kept for compatibility with day calendar views).
   startDate      DateTime      @db.Date
   endDate        DateTime      @db.Date
+
+  // Datetime interval for hour-based rentals and precise overlaps.
+  // Nullable temporarily to allow backfilling via migration; API will require it.
+  startAt        DateTime?
+  endAt          DateTime?
   rentAmount     Float
   depositAmount  Float
   totalAmount    Float
+  amountHeld     Float?
+  paymentHoldId  String?
+  paymentGateway String?
+  paymentAuthorizationCode String?
   status         BookingStatus @default(PENDING)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -178,4 +210,5 @@ model Booking {
   @@index([listingId])
   @@index([renterId])
   @@index([status])
+  @@index([startAt, endAt])
 }
