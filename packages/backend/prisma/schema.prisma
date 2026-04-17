@@ -188,11 +188,21 @@ model Booking {
   listing        Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
   renterId       String
   renter         User          @relation(fields: [renterId], references: [id], onDelete: Cascade)
+  // Day-level projection (kept for compatibility with day calendar views).
   startDate      DateTime      @db.Date
   endDate        DateTime      @db.Date
+
+  // Datetime interval for hour-based rentals and precise overlaps.
+  // Nullable temporarily to allow backfilling via migration; API will require it.
+  startAt        DateTime?
+  endAt          DateTime?
   rentAmount     Float
   depositAmount  Float
   totalAmount    Float
+  amountHeld     Float?
+  paymentHoldId  String?
+  paymentGateway String?
+  paymentAuthorizationCode String?
   status         BookingStatus @default(PENDING)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -200,4 +210,5 @@ model Booking {
   @@index([listingId])
   @@index([renterId])
   @@index([status])
+  @@index([startAt, endAt])
 }

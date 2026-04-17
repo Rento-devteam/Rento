@@ -6,6 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "postinstall": "prisma generate && node scripts/ensure-prisma-client.cjs",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "email:test": "node -r dotenv/config -r ts-node/register src/email/send-test-email.ts",
