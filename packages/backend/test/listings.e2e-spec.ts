@@ -315,6 +315,23 @@ class InMemoryPrismaService {
     ),
   };
 
+  listingManualCalendarBlock = {
+    findMany: jest.fn(async () => []),
+    deleteMany: jest.fn(async () => ({ count: 0 })),
+    create: jest.fn(async () => ({})),
+  };
+
+  booking = {
+    findMany: jest.fn(async () => []),
+    findFirst: jest.fn(async () => null),
+    updateMany: jest.fn(async () => ({ count: 0 })),
+  };
+
+  $transaction = jest.fn(
+    async (fn: (client: InMemoryPrismaService) => Promise<unknown>) =>
+      fn(this),
+  );
+
   private getListingPhotos(listingId: string) {
     return this.listingPhotos
       .filter((photo) => photo.listingId === listingId)
