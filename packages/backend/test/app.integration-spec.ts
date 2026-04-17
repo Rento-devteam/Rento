@@ -6,7 +6,9 @@ import { UserStatus } from '@prisma/client';
 import { AppModule } from '../src/app.module';
 import { EmailSenderStub } from '../src/email/email-sender.stub';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { ListingSearchIndexService } from '../src/search/listing-search-index.service';
 import { cleanDatabase } from './db/clean-database';
+import { createListingSearchIndexStub } from './stub-listing-search-index';
 
 describe('App (integration, Postgres)', () => {
   let app: INestApplication<App>;
@@ -22,6 +24,8 @@ describe('App (integration, Postgres)', () => {
     })
       .overrideProvider(EmailSenderStub)
       .useValue(emailSender)
+      .overrideProvider(ListingSearchIndexService)
+      .useValue(createListingSearchIndexStub())
       .compile();
 
     app = moduleFixture.createNestApplication();

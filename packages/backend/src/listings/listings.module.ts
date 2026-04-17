@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { SearchModule } from '../search/search.module';
 import { UsersModule } from '../users/users.module';
 import {
   ListingPhotoStorage,
@@ -9,7 +10,7 @@ import { ListingsController } from './listings.controller';
 import { ListingsService } from './listings.service';
 
 @Module({
-  imports: [AuthModule, UsersModule],
+  imports: [AuthModule, UsersModule, SearchModule],
   controllers: [ListingsController],
   providers: [
     ListingsService,

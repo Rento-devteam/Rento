@@ -18,7 +18,9 @@ import {
   UploadListingPhotoInput,
 } from '../src/listings/listing-photo-storage.service';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { ListingSearchIndexService } from '../src/search/listing-search-index.service';
 import { cleanDatabase } from './db/clean-database';
+import { createListingSearchIndexStub } from './stub-listing-search-index';
 
 class FakeListingPhotoStorage implements ListingPhotoStorage {
   uploadListingPhoto = jest.fn(
@@ -52,6 +54,8 @@ describe('Calendar (integration, Postgres)', () => {
       })
       .overrideProvider(ListingPhotoStorage)
       .useValue(new FakeListingPhotoStorage())
+      .overrideProvider(ListingSearchIndexService)
+      .useValue(createListingSearchIndexStub())
       .compile();
 
     app = moduleFixture.createNestApplication();

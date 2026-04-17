@@ -5,7 +5,9 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { EmailSenderStub } from '../src/email/email-sender.stub';
+import { ListingSearchIndexService } from '../src/search/listing-search-index.service';
 import { UserStatus } from '@prisma/client';
+import { createListingSearchIndexStub } from './stub-listing-search-index';
 
 type UserRecord = {
   id: string;
@@ -273,6 +275,8 @@ describe('AppController (e2e)', () => {
       .useValue(prisma)
       .overrideProvider(EmailSenderStub)
       .useValue(emailSender)
+      .overrideProvider(ListingSearchIndexService)
+      .useValue(createListingSearchIndexStub())
       .compile();
 
     app = moduleFixture.createNestApplication();
