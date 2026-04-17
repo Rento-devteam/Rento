@@ -95,6 +95,10 @@ describe('AuthService', () => {
     prismaService.user.findUnique.mockResolvedValue({
       id: 'u1',
       email: 'active@example.com',
+      fullName: null,
+      phone: null,
+      avatarUrl: null,
+      role: 'USER',
       status: AuthUserStatus.ACTIVE,
     });
     jwtTokenService.issueTokenPair.mockResolvedValue({
@@ -110,6 +114,7 @@ describe('AuthService', () => {
     expect(response.accessToken).toBe('access-token');
     expect(response.refreshToken).toBe('refresh-token');
     expect(response.user.status).toBe(AuthUserStatus.ACTIVE);
+    expect(response.user.role).toBe('USER');
     expect(prismaService.$transaction).toHaveBeenCalledTimes(1);
   });
 
@@ -127,6 +132,10 @@ describe('AuthService', () => {
     prismaService.user.findUnique.mockResolvedValue({
       id: 'u2',
       email: 'email-only@example.com',
+      fullName: null,
+      phone: null,
+      avatarUrl: null,
+      role: 'USER',
       status: AuthUserStatus.ACTIVE,
     });
     jwtTokenService.issueTokenPair.mockResolvedValue({
@@ -138,12 +147,30 @@ describe('AuthService', () => {
 
     expect(response.accessToken).toBe('email-access-token');
     expect(response.user.status).toBe(AuthUserStatus.ACTIVE);
+    expect(response.user.fullName).toBeNull();
     expect(prismaService.user.update).toHaveBeenCalledWith({
       where: { id: 'u2' },
       data: {
         emailConfirmedAt: expect.any(Date),
         status: AuthUserStatus.ACTIVE,
       },
+    });
+  });
+
+  it('returns completed registration state for active account', async () => {
+    prismaService.user.findUnique.mockResolvedValue({
+      id: 'u3',
+      email: 'active@example.com',
+      status: AuthUserStatus.ACTIVE,
+    });
+
+    const result = await authService.completeRegistration({
+      email: 'active@example.com',
+    });
+
+    expect(result).toEqual({
+      status: 'completed',
+      nextStep: null,
     });
   });
 });

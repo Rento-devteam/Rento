@@ -1,0 +1,86 @@
+import { NotFoundException } from '@nestjs/common';
+import { UsersService } from './users.service';
+
+describe('UsersService', () => {
+  const prismaService = {
+    user: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+  };
+
+  let usersService: UsersService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    usersService = new UsersService(prismaService as never);
+  });
+
+  it('returns current user profile with default trust score', async () => {
+    prismaService.user.findUnique.mockResolvedValue({
+      id: 'u1',
+      email: 'user@example.com',
+      fullName: 'Rento User',
+      phone: '+79990000000',
+      avatarUrl: 'https://example.com/avatar.png',
+      role: 'USER',
+      status: 'ACTIVE',
+    });
+
+    const result = await usersService.getCurrentUser('u1');
+
+    expect(result).toMatchObject({
+      id: 'u1',
+      email: 'user@example.com',
+      fullName: 'Rento User',
+      role: 'USER',
+      status: 'ACTIVE',
+      isVerified: false,
+    });
+    expect(result.trustScore).toMatchObject({
+      currentScore: 0,
+      totalDeals: 0,
+      successfulDeals: 0,
+      lateReturns: 0,
+      disputes: 0,
+    });
+  });
+
+  it('normalizes empty profile fields to null on update', async () => {
+    prismaService.user.update.mockResolvedValue({
+      id: 'u1',
+      email: 'user@example.com',
+      fullName: null,
+      phone: null,
+      avatarUrl: null,
+      role: 'USER',
+      status: 'ACTIVE',
+    });
+
+    const result = await usersService.updateCurrentUser('u1', {
+      fullName: '   ',
+      phone: '  ',
+      avatarUrl: '  ',
+    });
+
+    expect(prismaService.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: {
+        fullName: null,
+        phone: null,
+        avatarUrl: null,
+      },
+    });
+    expect(result.fullName).toBeNull();
+    expect(result.phone).toBeNull();
+    expect(result.avatarUrl).toBeNull();
+  });
+
+  it('throws when trust score is requested for missing user', async () => {
+    prismaService.user.findUnique.mockResolvedValue(null);
+
+    await expect(usersService.getCurrentUserTrustScore('missing')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+});
