@@ -73,7 +73,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Email confirmed
+          description: Email confirmed and account activated for email/password login; Telegram linking remains optional
           content:
             application/json:
               schema:
@@ -98,7 +98,7 @@ paths:
                   type: string
                   format: email
       responses:
-        '200':
+        '201':
           description: Confirmation email resent
           content:
             application/json:
@@ -119,7 +119,7 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
       responses:
-        '200':
+        '201':
           description: Authenticated
           content:
             application/json:
@@ -133,8 +133,15 @@ paths:
   /complete-registration:
     get:
       tags: [Auth]
-      summary: Get final registration state after login flow
+      summary: Get registration completion state for email confirmation flow
       security: []
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
       responses:
         '200':
           description: Registration completion status
@@ -145,7 +152,7 @@ paths:
                 properties:
                   status:
                     type: string
-                    enum: [completed, pending_email_confirmation, pending_telegram_link]
+                    enum: [completed, pending_email_confirmation]
                   nextStep:
                     type: string
                     nullable: true
@@ -153,11 +160,11 @@ paths:
   /telegram/link:
     post:
       tags: [Auth]
-      summary: Generate Telegram linking code
+      summary: Generate Telegram linking code for an authenticated email-confirmed account
       requestBody:
         required: false
       responses:
-        '200':
+        '201':
           description: Linking instructions
           content:
             application/json:
@@ -195,7 +202,7 @@ paths:
                 telegramId:
                   type: string
       responses:
-        '200':
+        '201':
           description: Telegram linked and account activated
           content:
             application/json:
@@ -203,6 +210,36 @@ paths:
                 $ref: '#/components/schemas/AuthSuccessResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
+
+  /telegram/auth:
+    post:
+      tags: [Auth]
+      summary: Register or sign in using Telegram identity
+      security: []
+      parameters:
+        - name: x-bot-secret
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Shared secret used by Telegram bot backend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramAuthRequest'
+      responses:
+        '201':
+          description: Telegram-authenticated account session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /verify/esia/initiate:
     post:
@@ -2647,6 +2684,18 @@ components:
           format: email
         password:
           type: string
+    TelegramAuthRequest:
+      type: object
+      required: [telegramId]
+      properties:
+        telegramId:
+          type: string
+        username:
+          type: string
+          nullable: true
+        firstName:
+          type: string
+          nullable: true
     AuthRegistrationResponse:
       type: object
       required: [userId, status, nextStep]
@@ -2728,6 +2777,7 @@ components:
           format: uuid
         fullName:
           type: string
+          nullable: true
         avatarUrl:
           type: string
           format: uri
@@ -2747,6 +2797,7 @@ components:
             email:
               type: string
               format: email
+              nullable: true
             phone:
               type: string
               nullable: true
