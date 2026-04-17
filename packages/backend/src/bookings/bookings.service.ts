@@ -17,6 +17,7 @@ export class BookingsService {
       where: {
         listingId,
         status: { in: CALENDAR_BLOCKING_BOOKING_STATUSES },
+        // Day projection keeps calendar day-view stable even for hour-based rentals.
         AND: [{ startDate: { lte: rangeEnd } }, { endDate: { gte: rangeStart } }],
       },
       select: {
