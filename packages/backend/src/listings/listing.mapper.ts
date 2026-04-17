@@ -74,10 +74,48 @@ export function mapListingDetail(listing: ListingRecord) {
   };
 }
 
+export function mapListingPhoto(photo: ListingPhotoRecord) {
+  return {
+    id: photo.id,
+    url: photo.url,
+    thumbnailUrl: photo.thumbnailUrl,
+    order: photo.order,
+    isPrimary: photo.isPrimary,
+    uploadedAt: photo.uploadedAt.toISOString(),
+  };
+}
+
+export function mapListingPhotosResponse(photos: ListingPhotoRecord[]) {
+  return {
+    items: photos.map(mapListingPhoto),
+  };
+}
+
 export function mapListingCreatedResponse(listing: ListingRecord) {
   return {
     ...mapListingDetail(listing),
     nextStep: 'upload_photos' as const,
-    message: 'Draft created. Upload photos to continue.',
+    message: 'Draft created. Upload at least one photo to continue.',
+  };
+}
+
+export function mapListingPhotoUploadResponse(
+  photo: ListingPhotoRecord,
+  totalPhotos: number,
+) {
+  return {
+    photo: mapListingPhoto(photo),
+    totalPhotos,
+    nextStep: 'publish_listing' as const,
+    message: 'Photo uploaded. Publish the listing when ready.',
+  };
+}
+
+export function mapListingPublishResponse(listing: Pick<ListingRecord, 'id' | 'status'>) {
+  return {
+    id: listing.id,
+    status: listing.status,
+    nextStep: null,
+    message: 'Listing published successfully.',
   };
 }

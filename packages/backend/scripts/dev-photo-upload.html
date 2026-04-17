@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <title>Rento — загрузка фото объявления (dev)</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 36rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.5;
+      }
+      label {
+        display: block;
+        margin-top: 1rem;
+        font-weight: 600;
+      }
+      input[type='text'],
+      input[type='url'] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.4rem 0.5rem;
+      }
+      button {
+        margin-top: 1.25rem;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+      }
+      pre {
+        background: #f4f4f5;
+        padding: 1rem;
+        overflow: auto;
+        font-size: 0.85rem;
+      }
+      .hint {
+        color: #52525b;
+        font-size: 0.9rem;
+        font-weight: normal;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Загрузка фото (dev)</h1>
+    <p>
+      Откройте эту страницу через локальный HTTP-сервер (не <code>file://</code>), иначе браузер
+      заблокирует запрос. Например:
+      <code>npx --yes serve scripts -p 3456</code> из каталога <code>packages/backend</code>,
+      затем <code>http://localhost:3456/dev-photo-upload.html</code>
+    </p>
+
+    <label>API base URL <span class="hint">(без слэша в конце)</span></label>
+    <input type="url" id="base" value="http://localhost:3000" />
+
+    <label>Bearer access token</label>
+    <input type="text" id="token" placeholder="eyJhbG..." autocomplete="off" />
+
+    <label>Listing ID (UUID черновика)</label>
+    <input type="text" id="listingId" placeholder="из ответа seed:demo-listing или POST /listings" />
+
+    <label>Файл</label>
+    <input type="file" id="file" accept="image/jpeg,image/png,image/webp" />
+
+    <label><input type="checkbox" id="primary" checked /> isPrimary</label>
+
+    <button type="button" id="send">Загрузить</button>
+
+    <h2>Ответ</h2>
+    <pre id="out">—</pre>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      $('send').onclick = async () => {
+        const base = $('base').value.replace(/\/+$/, '');
+        const token = $('token').value.trim();
+        const listingId = $('listingId').value.trim();
+        const fileInput = $('file');
+        const file = fileInput.files && fileInput.files[0];
+
+        if (!token || !listingId || !file) {
+          $('out').textContent = 'Заполните token, listingId и выберите файл.';
+          return;
+        }
+
+        const fd = new FormData();
+        fd.append('file', file, file.name);
+        if ($('primary').checked) fd.append('isPrimary', 'true');
+
+        $('out').textContent = 'Отправка…';
+
+        try {
+          const res = await fetch(`${base}/listings/${listingId}/photos`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: fd,
+          });
+          const text = await res.text();
+          let pretty = text;
+          try {
+            pretty = JSON.stringify(JSON.parse(text), null, 2);
+          } catch {
+            /* plain text */
+          }
+          $('out').textContent = `${res.status} ${res.statusText}\n\n${pretty}`;
+        } catch (e) {
+          $('out').textContent = String(e);
+        }
+      };
+    </script>
+  </body>
+</html>
