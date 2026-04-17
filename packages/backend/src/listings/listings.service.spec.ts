@@ -15,6 +15,10 @@ describe('ListingsService', () => {
     uploadListingPhoto: jest.fn(),
   };
 
+  const listingSearchIndex = {
+    indexListing: jest.fn(async () => undefined),
+  };
+
   const prismaService = {
     category: {
       findMany: jest.fn(),
@@ -39,6 +43,7 @@ describe('ListingsService', () => {
       prismaService as never,
       usersService as never,
       listingPhotoStorage as never,
+      listingSearchIndex as never,
     );
   });
 
@@ -260,6 +265,7 @@ describe('ListingsService', () => {
       nextStep: null,
       message: 'Listing published successfully.',
     });
+    expect(listingSearchIndex.indexListing).toHaveBeenCalledWith('listing-1');
   });
 
   it('rejects publishing without photos', async () => {

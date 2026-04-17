@@ -57,6 +57,19 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Search (Elasticsearch, UC-09)
+
+Local stack includes Elasticsearch on port **9200** (`docker compose up -d`). Set `ELASTICSEARCH_NODE` in `.env` (see `.env.example`). The app creates index `rento-listings` (override with `ELASTICSEARCH_LISTINGS_INDEX`) on startup.
+
+**HTTP**
+
+- `GET /search` — query params: `q`, `page`, `limit`, `categoryId`, `minPrice`, `maxPrice`, `lat`, `lon`, `distanceKm`, `sort` (`relevance` | `price_asc` | `price_desc` | `newest`). Response: `results`, `totalCount`, `emptyResults`, `suggestion`, `relaxedMatch`, `popularCategories` (when empty).
+- `GET /search/autocomplete?q=…&limit=…` — JSON array of title strings.
+
+Active listings are indexed when published (`POST /listings/:id/publish`). Backfill: `npm run search:reindex`.
+
+**Integration tests:** e2e and Postgres integration suites stub `ListingSearchIndexService` so they do not require a running Elasticsearch node. To test search against a real cluster, run ES locally and call the HTTP endpoints manually or add a dedicated integration spec with `ELASTICSEARCH_NODE` set.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
