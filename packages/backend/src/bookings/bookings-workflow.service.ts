@@ -8,9 +8,18 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { BookingStatus, PaymentMethodStatus, Prisma, UserStatus } from '@prisma/client';
+import {
+  BookingStatus,
+  PaymentMethodStatus,
+  Prisma,
+  UserStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { PAYMENT_HOLD_GATEWAY, PaymentHoldDeclinedError, type PaymentHoldGateway } from '../payments-hold/payment-hold.gateway';
+import {
+  PAYMENT_HOLD_GATEWAY,
+  PaymentHoldDeclinedError,
+  type PaymentHoldGateway,
+} from '../payments-hold/payment-hold.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { computeDayProjection } from './booking-dates';
 import { computeUnits } from './booking-pricing';
@@ -22,7 +31,8 @@ export class BookingsWorkflowService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(PAYMENT_HOLD_GATEWAY) private readonly holdGateway: PaymentHoldGateway,
+    @Inject(PAYMENT_HOLD_GATEWAY)
+    private readonly holdGateway: PaymentHoldGateway,
     private readonly notifications: NotificationsService,
   ) {}
 
@@ -67,7 +77,10 @@ export class BookingsWorkflowService {
       throw new ForbiddenException('You cannot book your own listing');
     }
 
-    const paymentMethod = await this.resolvePaymentMethod(params.renterId, params.cardId);
+    const paymentMethod = await this.resolvePaymentMethod(
+      params.renterId,
+      params.cardId,
+    );
 
     const units = computeUnits(listing.rentalPeriod, startAt, endAt);
     const rentAmount = round2(listing.rentalPrice * units);
@@ -186,7 +199,11 @@ export class BookingsWorkflowService {
     }
   }
 
-  async retryPayment(params: { renterId: string; bookingId: string; cardId: string }) {
+  async retryPayment(params: {
+    renterId: string;
+    bookingId: string;
+    cardId: string;
+  }) {
     const booking = await this.prisma.booking.findFirst({
       where: { id: params.bookingId, renterId: params.renterId },
       select: {
@@ -206,7 +223,10 @@ export class BookingsWorkflowService {
       throw new ConflictException('Booking is not eligible for retry');
     }
 
-    const paymentMethod = await this.resolvePaymentMethod(params.renterId, params.cardId);
+    const paymentMethod = await this.resolvePaymentMethod(
+      params.renterId,
+      params.cardId,
+    );
     const idempotencyKey = `booking_retry_hold:${booking.id}:${paymentMethod.token}`;
 
     try {
@@ -293,4 +313,3 @@ export class BookingsWorkflowService {
 function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
-

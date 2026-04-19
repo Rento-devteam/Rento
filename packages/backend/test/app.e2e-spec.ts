@@ -55,17 +55,23 @@ class InMemoryPrismaService {
   public refreshTokens: RefreshTokenRecord[] = [];
 
   user = {
-    findUnique: jest.fn(async ({ where }: { where: { id?: string; email?: string } }) => {
-      if (where.id) {
-        return this.users.find((u) => u.id === where.id) ?? null;
-      }
-      if (where.email !== undefined) {
-        return this.users.find((u) => u.email === where.email) ?? null;
-      }
-      return null;
-    }),
+    findUnique: jest.fn(
+      async ({ where }: { where: { id?: string; email?: string } }) => {
+        if (where.id) {
+          return this.users.find((u) => u.id === where.id) ?? null;
+        }
+        if (where.email !== undefined) {
+          return this.users.find((u) => u.email === where.email) ?? null;
+        }
+        return null;
+      },
+    ),
     findFirst: jest.fn(
-      async ({ where }: { where: { telegramId?: string; id?: { not?: string } } }) => {
+      async ({
+        where,
+      }: {
+        where: { telegramId?: string; id?: { not?: string } };
+      }) => {
         return (
           this.users.find((u) => {
             if (where.telegramId && u.telegramId !== where.telegramId) {
@@ -311,7 +317,10 @@ describe('AppController (e2e)', () => {
 
     const linkResponse = await request(app.getHttpServer())
       .post('/telegram/link')
-      .set('Authorization', `Bearer ${confirmResponse.body.accessToken as string}`)
+      .set(
+        'Authorization',
+        `Bearer ${confirmResponse.body.accessToken as string}`,
+      )
       .expect(201);
 
     expect(linkResponse.body.code).toBeDefined();
@@ -382,7 +391,9 @@ describe('AppController (e2e)', () => {
     expect(response.body.user.status).toBe(UserStatus.ACTIVE);
     expect(response.body.user.email).toBeNull();
 
-    const user = prisma.users.find((u) => u.telegramId === 'telegram-only-user-001');
+    const user = prisma.users.find(
+      (u) => u.telegramId === 'telegram-only-user-001',
+    );
     expect(user).toBeDefined();
     expect(user?.status).toBe(UserStatus.ACTIVE);
   });

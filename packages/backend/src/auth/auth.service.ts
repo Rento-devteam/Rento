@@ -67,10 +67,16 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
+    const fullName =
+      dto.fullName !== undefined && String(dto.fullName).trim() !== ''
+        ? String(dto.fullName).trim()
+        : undefined;
+
     const user = await this.prismaService.user.create({
       data: {
         email,
         passwordHash,
+        fullName,
         status: AuthUserStatus.PENDING_EMAIL_CONFIRMATION,
       },
     });
@@ -119,7 +125,9 @@ export class AuthService {
     return this.issueAuthResponse(tokenRow.userId);
   }
 
-  async resendConfirmation(dto: ResendConfirmationDto): Promise<{ message: string }> {
+  async resendConfirmation(
+    dto: ResendConfirmationDto,
+  ): Promise<{ message: string }> {
     const email = dto.email.trim().toLowerCase();
     const user = await this.prismaService.user.findUnique({ where: { email } });
     if (!user) {
@@ -157,15 +165,15 @@ export class AuthService {
     }
 
     if (user.status !== AuthUserStatus.ACTIVE) {
-      throw new ForbiddenException('Account is not activated. Confirm your email.');
+      throw new ForbiddenException(
+        'Account is not activated. Confirm your email.',
+      );
     }
 
     return this.issueAuthResponse(user.id);
   }
 
-  async completeRegistration(
-    query: CompleteRegistrationQueryDto,
-  ): Promise<{
+  async completeRegistration(query: CompleteRegistrationQueryDto): Promise<{
     status: 'completed' | 'pending_email_confirmation';
     nextStep: string | null;
   }> {
@@ -191,12 +199,16 @@ export class AuthService {
   async generateTelegramLink(
     userId: string,
   ): Promise<{ code: string; deepLink: string; qrCodeUrl: null }> {
-    const user = await this.prismaService.user.findUnique({ where: { id: userId } });
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userId },
+    });
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
     if (!user.emailConfirmedAt) {
-      throw new ForbiddenException('Email confirmation is required before Telegram linking');
+      throw new ForbiddenException(
+        'Email confirmation is required before Telegram linking',
+      );
     }
     if (user.telegramId) {
       throw new ConflictException('Telegram account is already linked');
@@ -206,11 +218,15 @@ export class AuthService {
       user.status === AuthUserStatus.SUSPENDED ||
       user.status === AuthUserStatus.DELETED
     ) {
-      throw new ForbiddenException('Telegram linking is unavailable for this account state');
+      throw new ForbiddenException(
+        'Telegram linking is unavailable for this account state',
+      );
     }
 
     const code = randomBytes(4).toString('hex').toUpperCase();
-    const expiresAt = new Date(Date.now() + TELEGRAM_CODE_TTL_MINUTES * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + TELEGRAM_CODE_TTL_MINUTES * 60 * 1000,
+    );
 
     await this.prismaService.telegramLinkCode.create({
       data: {
@@ -220,7 +236,8 @@ export class AuthService {
       },
     });
 
-    const botBase = process.env.TELEGRAM_BOT_DEEPLINK_BASE ?? 'https://t.me/rento_bot?start=';
+    const botBase =
+      process.env.TELEGRAM_BOT_DEEPLINK_BASE ?? 'https://t.me/rento_bot?start=';
     return {
       code,
       deepLink: `${botBase}${code}`,
@@ -228,9 +245,7 @@ export class AuthService {
     };
   }
 
-  async verifyTelegram(
-    dto: TelegramVerifyDto,
-  ): Promise<AuthSuccessResponse> {
+  async verifyTelegram(dto: TelegramVerifyDto): Promise<AuthSuccessResponse> {
     const codeRow = await this.prismaService.telegramLinkCode.findFirst({
       where: { code: dto.code.trim().toUpperCase(), usedAt: null },
     });
@@ -294,7 +309,9 @@ export class AuthService {
     return this.issueAuthResponse(user.id);
   }
 
-  private async issueAuthResponse(userId: string): Promise<AuthSuccessResponse> {
+  private async issueAuthResponse(
+    userId: string,
+  ): Promise<AuthSuccessResponse> {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },
     });
@@ -311,7 +328,9 @@ export class AuthService {
 
   private async createEmailConfirmationToken(userId: string): Promise<string> {
     const token = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + EMAIL_CONFIRMATION_TTL_HOURS * 60 * 60 * 1000);
+    const expiresAt = new Date(
+      Date.now() + EMAIL_CONFIRMATION_TTL_HOURS * 60 * 60 * 1000,
+    );
     await this.prismaService.emailConfirmationToken.create({
       data: {
         token,

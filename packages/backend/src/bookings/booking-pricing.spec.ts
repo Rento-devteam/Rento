@@ -8,4 +8,3 @@ describe('computeUnits', () => {
     expect(computeUnits(RentalPeriod.HOUR, start, end)).toBe(2);
   });
 });
-

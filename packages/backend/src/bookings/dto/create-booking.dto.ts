@@ -9,4 +9,3 @@ export class CreateBookingDto extends BookingDatetimeRangeDto {
   @IsUUID()
   cardId?: string;
 }
-

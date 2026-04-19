@@ -33,7 +33,10 @@ export class BookingsApiController {
 
   @Post('bookings')
   @HttpCode(HttpStatus.CREATED)
-  createBooking(@Req() request: RequestWithUser, @Body() dto: CreateBookingDto) {
+  createBooking(
+    @Req() request: RequestWithUser,
+    @Body() dto: CreateBookingDto,
+  ) {
     return this.workflow.createBooking({
       renterId: this.getUserId(request),
       listingId: dto.listingId,
@@ -65,4 +68,3 @@ export class BookingsApiController {
     return userId;
   }
 }
-

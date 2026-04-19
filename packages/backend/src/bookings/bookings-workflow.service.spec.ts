@@ -1,4 +1,8 @@
-import { ConflictException, HttpException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  NotFoundException,
+} from '@nestjs/common';
 import { BookingStatus, UserStatus } from '@prisma/client';
 import { PaymentHoldDeclinedError } from '../payments-hold/payment-hold.gateway';
 import { BookingsWorkflowService } from './bookings-workflow.service';
@@ -30,7 +34,10 @@ describe('BookingsWorkflowService', () => {
   });
 
   it('returns 409 when dates overlap', async () => {
-    prisma.user.findUnique.mockResolvedValue({ id: 'r1', status: UserStatus.ACTIVE });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'r1',
+      status: UserStatus.ACTIVE,
+    });
     prisma.listing.findUnique.mockResolvedValue({
       id: 'l1',
       ownerId: 'o1',
@@ -61,7 +68,10 @@ describe('BookingsWorkflowService', () => {
   });
 
   it('returns 402 when hold is declined', async () => {
-    prisma.user.findUnique.mockResolvedValue({ id: 'r1', status: UserStatus.ACTIVE });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'r1',
+      status: UserStatus.ACTIVE,
+    });
     prisma.listing.findUnique.mockResolvedValue({
       id: 'l1',
       ownerId: 'o1',
@@ -69,7 +79,9 @@ describe('BookingsWorkflowService', () => {
       rentalPeriod: 'HOUR',
       depositAmount: 50,
     });
-    prisma.userPaymentMethod.findFirst.mockResolvedValue({ token: 'tok_decline' });
+    prisma.userPaymentMethod.findFirst.mockResolvedValue({
+      token: 'tok_decline',
+    });
 
     prisma.$transaction.mockImplementation(async (fn: any) => {
       const tx = {
@@ -101,7 +113,10 @@ describe('BookingsWorkflowService', () => {
   });
 
   it('confirms booking and sends notifications on success', async () => {
-    prisma.user.findUnique.mockResolvedValue({ id: 'r1', status: UserStatus.ACTIVE });
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'r1',
+      status: UserStatus.ACTIVE,
+    });
     prisma.listing.findUnique.mockResolvedValue({
       id: 'l1',
       ownerId: 'o1',
@@ -149,4 +164,3 @@ describe('BookingsWorkflowService', () => {
     });
   });
 });
-

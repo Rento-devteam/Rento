@@ -28,7 +28,10 @@ export class BookingsController {
     @Param('listingId', ParseUUIDPipe) listingId: string,
     @Query() query: BookingDatetimeRangeDto,
   ) {
-    return this.summary.getBookingSummary(listingId, query.startAt, query.endAt);
+    return this.summary.getBookingSummary(
+      listingId,
+      query.startAt,
+      query.endAt,
+    );
   }
 }
-

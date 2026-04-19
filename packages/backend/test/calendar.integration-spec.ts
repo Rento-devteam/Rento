@@ -138,14 +138,18 @@ describe('Calendar (integration, Postgres)', () => {
 
   it('returns all AVAILABLE days for an empty calendar', async () => {
     const response = await request(app.getHttpServer())
-      .get(`/listings/${listingId}/calendar?start=${rangeStart}&end=${rangeEnd}`)
+      .get(
+        `/listings/${listingId}/calendar?start=${rangeStart}&end=${rangeEnd}`,
+      )
       .expect(200);
 
     expect(response.body.listingId).toBe(listingId);
     expect(response.body.items).toHaveLength(30);
-    expect(response.body.items.every((i: { status: string }) => i.status === 'AVAILABLE')).toBe(
-      true,
-    );
+    expect(
+      response.body.items.every(
+        (i: { status: string }) => i.status === 'AVAILABLE',
+      ),
+    ).toBe(true);
   });
 
   it('blocks dates as owner and surfaces them on the calendar', async () => {
@@ -156,7 +160,9 @@ describe('Calendar (integration, Postgres)', () => {
       .expect(200);
 
     const calendar = await request(app.getHttpServer())
-      .get(`/listings/${listingId}/calendar?start=${rangeStart}&end=${rangeEnd}`)
+      .get(
+        `/listings/${listingId}/calendar?start=${rangeStart}&end=${rangeEnd}`,
+      )
       .expect(200);
 
     const blocked = calendar.body.items.filter(
@@ -164,7 +170,9 @@ describe('Calendar (integration, Postgres)', () => {
         i.date >= '2026-04-10' && i.date <= '2026-04-12',
     );
     expect(blocked).toHaveLength(3);
-    expect(blocked.every((i: { status: string }) => i.status === 'BLOCKED_BY_OWNER')).toBe(true);
+    expect(
+      blocked.every((i: { status: string }) => i.status === 'BLOCKED_BY_OWNER'),
+    ).toBe(true);
   });
 
   it('rejects manual block when a booking already covers the range', async () => {
@@ -203,10 +211,14 @@ describe('Calendar (integration, Postgres)', () => {
     });
 
     const calendar = await request(app.getHttpServer())
-      .get(`/listings/${listingId}/calendar?start=${rangeStart}&end=${rangeEnd}`)
+      .get(
+        `/listings/${listingId}/calendar?start=${rangeStart}&end=${rangeEnd}`,
+      )
       .expect(200);
 
-    const booked = calendar.body.items.filter((i: { status: string }) => i.status === 'BOOKED');
+    const booked = calendar.body.items.filter(
+      (i: { status: string }) => i.status === 'BOOKED',
+    );
     expect(booked.map((i: { date: string }) => i.date).sort()).toEqual([
       '2026-04-05',
       '2026-04-06',
@@ -286,7 +298,9 @@ describe('Calendar (integration, Postgres)', () => {
       where: { listingId },
     });
     expect(updated?.status).toBe(BookingStatus.CANCELLED);
-    expect(await prisma.listingManualCalendarBlock.count({ where: { listingId } })).toBe(0);
+    expect(
+      await prisma.listingManualCalendarBlock.count({ where: { listingId } }),
+    ).toBe(0);
   });
 
   async function token(userId: string) {

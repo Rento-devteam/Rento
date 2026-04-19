@@ -7,9 +7,11 @@ on:
     branches: [main, develop]
 
 jobs:
-  test:
+  ci:
     runs-on: ubuntu-latest
-    
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rento_ci?schema=public
+
     steps:
       - uses: actions/checkout@v4
 
@@ -17,19 +19,39 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install shared dependencies
+        working-directory: packages/shared
+        run: npm install --no-package-lock
 
-      - name: Build shared (if exists)
-        run: npm run build -w shared 2>/dev/null || echo "No shared package, skipping"
+      - name: Build shared
+        working-directory: packages/shared
+        run: npm run build
 
-      - name: Lint
-        run: npm run lint --if-present -ws
+      - name: Install frontend dependencies
+        working-directory: packages/frontend
+        run: npm install --no-package-lock
 
-      - name: Test
-        run: npm run test --if-present -ws
+      - name: Frontend lint
+        working-directory: packages/frontend
+        run: npm run lint
 
-      - name: Build
-        run: npm run build --if-present -ws
+      - name: Frontend test
+        working-directory: packages/frontend
+        run: npm test
+
+      - name: Frontend build
+        working-directory: packages/frontend
+        run: npm run build
+
+      - name: Install backend dependencies
+        working-directory: packages/backend
+        run: npm install --no-package-lock
+
+      - name: Backend unit tests
+        working-directory: packages/backend
+        run: npm test -- --runInBand
+
+      - name: Backend build
+        working-directory: packages/backend
+        run: npm run build

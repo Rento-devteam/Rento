@@ -4,4 +4,3 @@ export class RetryBookingPaymentDto {
   @IsUUID()
   cardId!: string;
 }
-

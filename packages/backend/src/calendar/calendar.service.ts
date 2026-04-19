@@ -58,7 +58,10 @@ export class CalendarService {
     const manualBlocks = await this.prisma.listingManualCalendarBlock.findMany({
       where: {
         listingId,
-        AND: [{ startDate: { lte: rangeEnd } }, { endDate: { gte: rangeStart } }],
+        AND: [
+          { startDate: { lte: rangeEnd } },
+          { endDate: { gte: rangeStart } },
+        ],
       },
     });
 
@@ -142,7 +145,9 @@ export class CalendarService {
       throw new NotFoundException('Listing not found');
     }
     if (listing.ownerId !== ownerId) {
-      throw new ForbiddenException('You can only manage your own listing calendar');
+      throw new ForbiddenException(
+        'You can only manage your own listing calendar',
+      );
     }
 
     const rangeStart = this.parseDateParam(startDate, 'startDate');
@@ -162,9 +167,7 @@ export class CalendarService {
     }
 
     const normalizedReason =
-      reason === null || reason === undefined
-        ? null
-        : reason.trim() || null;
+      reason === null || reason === undefined ? null : reason.trim() || null;
 
     await this.prisma.$transaction(async (tx) => {
       const overlapping = await tx.listingManualCalendarBlock.findMany({
@@ -232,19 +235,20 @@ export class CalendarService {
       throw new NotFoundException('Listing not found');
     }
     if (listing.ownerId !== ownerId) {
-      throw new ForbiddenException('You can only manage your own listing calendar');
+      throw new ForbiddenException(
+        'You can only manage your own listing calendar',
+      );
     }
 
     const rangeStart = this.parseDateParam(start, 'start');
     const rangeEnd = this.parseDateParam(end, 'end');
     this.assertRangeOrder(rangeStart, rangeEnd);
 
-    const bookingOverlap =
-      await this.bookingsService.hasBlockingBookingOverlap(
-        listingId,
-        rangeStart,
-        rangeEnd,
-      );
+    const bookingOverlap = await this.bookingsService.hasBlockingBookingOverlap(
+      listingId,
+      rangeStart,
+      rangeEnd,
+    );
 
     if (bookingOverlap && !force) {
       throw new ConflictException(

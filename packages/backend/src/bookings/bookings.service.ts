@@ -18,7 +18,10 @@ export class BookingsService {
         listingId,
         status: { in: CALENDAR_BLOCKING_BOOKING_STATUSES },
         // Day projection keeps calendar day-view stable even for hour-based rentals.
-        AND: [{ startDate: { lte: rangeEnd } }, { endDate: { gte: rangeStart } }],
+        AND: [
+          { startDate: { lte: rangeEnd } },
+          { endDate: { gte: rangeStart } },
+        ],
       },
       select: {
         startDate: true,
@@ -36,7 +39,10 @@ export class BookingsService {
     for (const row of bookings) {
       const from = row.startDate > rangeStart ? row.startDate : rangeStart;
       const to = row.endDate < rangeEnd ? row.endDate : rangeEnd;
-      for (const d of eachUtcDateInclusive(utcDateOnly(from), utcDateOnly(to))) {
+      for (const d of eachUtcDateInclusive(
+        utcDateOnly(from),
+        utcDateOnly(to),
+      )) {
         booked.add(d);
       }
     }
@@ -52,7 +58,10 @@ export class BookingsService {
       where: {
         listingId,
         status: { in: CALENDAR_BLOCKING_BOOKING_STATUSES },
-        AND: [{ startDate: { lte: rangeEnd } }, { endDate: { gte: rangeStart } }],
+        AND: [
+          { startDate: { lte: rangeEnd } },
+          { endDate: { gte: rangeStart } },
+        ],
       },
       select: { id: true },
     });
@@ -69,7 +78,10 @@ export class BookingsService {
       where: {
         listingId,
         status: { in: CALENDAR_BLOCKING_BOOKING_STATUSES },
-        AND: [{ startDate: { lte: rangeEnd } }, { endDate: { gte: rangeStart } }],
+        AND: [
+          { startDate: { lte: rangeEnd } },
+          { endDate: { gte: rangeStart } },
+        ],
       },
       data: { status: BookingStatus.CANCELLED },
     });

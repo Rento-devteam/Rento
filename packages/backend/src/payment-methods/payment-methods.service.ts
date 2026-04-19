@@ -34,7 +34,9 @@ export class PaymentMethodsService {
 
     if (existing) {
       if (existing.status === PaymentMethodStatus.ATTACHED) {
-        throw new ConflictException('This card is already attached to your account');
+        throw new ConflictException(
+          'This card is already attached to your account',
+        );
       }
       // Card was previously revoked/failed — re-attach it
       const reattached = await this.prisma.$transaction(async (tx) => {

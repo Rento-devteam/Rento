@@ -1,0 +1,816 @@
+/* Токены по макетам AuthentificationScreen (Figma / скриншоты) */
+.auth-figma-page {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px 32px;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #e8eeff 0%, #f5f7fc 45%, #fafbff 100%);
+}
+
+.auth-figma-modal {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  padding: 48px 28px 36px;
+  background: #ffffff;
+  border: 1px solid #a0c4ff;
+  border-radius: 20px;
+  box-shadow:
+    0 4px 24px rgba(46, 58, 89, 0.08),
+    0 1px 3px rgba(46, 58, 89, 0.06);
+  text-align: center;
+  /* Градиент снизу как на макете */
+  background-image:
+    linear-gradient(180deg, #ffffff 0%, #ffffff 58%, #f3f7ff 100%);
+}
+
+.auth-figma-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  font-size: 1.75rem;
+  line-height: 1;
+  color: #1a1a24;
+  cursor: pointer;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-figma-close:hover {
+  background: rgba(101, 144, 255, 0.12);
+}
+
+.auth-figma-close:focus-visible {
+  outline: 2px solid #85a5ff;
+  outline-offset: 2px;
+}
+
+.auth-figma-logo-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.rento-auth-logo-image {
+  display: block;
+  width: 112px;
+  height: 112px;
+  object-fit: contain;
+}
+
+.auth-figma-title {
+  margin: 0 0 22px;
+  font-family: var(--rento-font, inherit);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2e3a59;
+  letter-spacing: -0.02em;
+}
+
+.auth-figma-subtitle {
+  margin: 0 0 20px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #2e3a59;
+}
+
+.auth-figma-fields {
+  text-align: left;
+}
+
+.auth-figma-field {
+  margin-bottom: 14px;
+}
+
+.auth-figma-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #2e3a59;
+}
+
+.auth-figma-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 0.9375rem;
+  color: #1a1a24;
+  background: #fff;
+  border: 1px solid #adc6ff;
+  border-radius: 12px;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.auth-figma-input::placeholder {
+  color: #9aa3b8;
+}
+
+.auth-figma-input:focus {
+  outline: none;
+  border-color: #85a5ff;
+  box-shadow: 0 0 0 3px rgba(133, 165, 255, 0.25);
+}
+
+.auth-figma-hint {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.35;
+}
+
+.auth-figma-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.auth-figma-btn-primary {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 20px;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #f8fbff;
+  background: #85a5ff;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+
+.auth-figma-btn-primary:hover:not(:disabled) {
+  background: #6d8fef;
+}
+
+.auth-figma-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+a.auth-figma-btn-primary {
+  text-decoration: none;
+  text-align: center;
+}
+
+.auth-figma-btn-lime {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 20px;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #2e3a59;
+  background: #a0e635;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.auth-figma-btn-lime:hover {
+  background: #92d428;
+}
+
+.auth-figma-btn-lime:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-figma-link {
+  margin-top: 18px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #2e3a59;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.auth-figma-link:hover {
+  color: #5b21b6;
+}
+
+.auth-figma-oauth-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 20px;
+}
+
+.auth-figma-oauth-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #2e3a59;
+  background: #fff;
+  border: 1px solid #a0c4ff;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.auth-figma-oauth-row:hover:not(:disabled) {
+  background: #f6f8ff;
+  border-color: #85a5ff;
+}
+
+.auth-figma-oauth-row:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.auth-figma-oauth-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-figma-alert {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.auth-figma-alert--err {
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.auth-figma-alert--ok {
+  background: rgba(22, 163, 74, 0.08);
+  color: #15803d;
+  border: 1px solid rgba(22, 163, 74, 0.2);
+}
+
+.home-figma {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  min-height: 60svh;
+}
+
+.home-figma__inner {
+  max-width: 420px;
+  text-align: center;
+}
+
+.home-figma__title {
+  margin: 0 0 12px;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2e3a59;
+  letter-spacing: -0.03em;
+}
+
+.home-figma__lead {
+  margin: 0 0 28px;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #5c6578;
+}
+
+.home-figma__muted {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #5c6578;
+}
+
+.home-figma__strong {
+  color: #2e3a59;
+}
+
+.home-figma__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+a.home-figma__link-btn {
+  text-decoration: none;
+  text-align: center;
+  display: block;
+  box-sizing: border-box;
+}
+
+.auth-figma-section-title {
+  margin: 20px 0 10px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #2e3a59;
+  text-align: left;
+}
+
+/* Слот под иконку приложения: использует public/Logo.svg */
+.auth-figma-app-icon-slot {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 16px;
+  border-radius: 22px;
+  border: 2px dashed #adc6ff;
+  background: linear-gradient(145deg, #f8faff 0%, #eef3ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.auth-figma-app-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.auth-figma-app-icon-fallback {
+  display: block;
+  width: 40%;
+  height: 40%;
+  border-radius: 8px;
+  background: rgba(133, 165, 255, 0.25);
+}
+
+/* Шапка приложения (главная) */
+.app-header {
+  background: #fff;
+  border: 1px solid #6aa5ff;
+  border-bottom: none;
+}
+
+.app-header__inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.app-header__left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.app-header__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header__admin {
+  border: none;
+  background: transparent;
+  color: #1f2937;
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.app-header__icon-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #111827;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-header__auth-link {
+  margin-left: 6px;
+  color: #1f2937;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.app-header__auth-link:hover {
+  text-decoration: underline;
+}
+
+.app-header__icon {
+  width: 18px;
+  height: 18px;
+  stroke: #111827;
+  stroke-width: 1.7;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rento-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  color: #2e3a59;
+  font-weight: 600;
+  font-size: 2rem;
+  letter-spacing: -0.04em;
+}
+
+.rento-logo__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rento-logo__image {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  display: block;
+}
+
+.rento-logo__text {
+  color: #2e3a59;
+}
+
+.catalog-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 14px 24px;
+  border: 1px solid #6aa5ff;
+  border-top: none;
+  background: #fff;
+  min-height: calc(100svh - 56px);
+}
+
+.catalog-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 8px 0 12px;
+  align-items: center;
+}
+
+.catalog-toolbar__search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.catalog-toolbar__search {
+  flex: 1;
+  min-width: 180px;
+  border: 1px solid #adc6ff;
+  border-radius: 6px;
+  padding: 9px 12px;
+  font: inherit;
+}
+
+.catalog-toolbar__submit {
+  border: 1px solid #adc6ff;
+  border-radius: 6px;
+  background: #f5f7ff;
+  padding: 9px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.catalog-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.catalog-toolbar__filter-toggle {
+  border: 1px solid #adc6ff;
+  border-radius: 6px;
+  background: #f5f7ff;
+  padding: 9px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.catalog-toolbar__geo-btn {
+  border: 1px solid #adc6ff;
+  border-radius: 6px;
+  background: #f5f7ff;
+  padding: 9px 12px;
+  font: inherit;
+}
+
+.catalog-categories {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+
+.catalog-category-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #d4ddeb;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f7faff 0%, #eef4ff 100%);
+  color: #1f2937;
+  text-align: left;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.15;
+  min-height: 64px;
+  cursor: pointer;
+}
+
+.catalog-category-chip--active {
+  border-color: #8fb4ff;
+  box-shadow: inset 0 0 0 1px rgba(143, 180, 255, 0.35);
+}
+
+.catalog-category-chip__icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: rgba(156, 187, 252, 0.28);
+}
+
+.catalog-filters {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fafafa;
+}
+
+.catalog-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.catalog-filters__field input,
+.catalog-filters__field select {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.catalog-filters__apply {
+  align-self: end;
+  border: 1px solid #adc6ff;
+  border-radius: 8px;
+  background: #e8f1ff;
+  padding: 9px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.catalog-page__title {
+  margin: 8px 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #d1d5db;
+  font-size: 2rem;
+  font-weight: 500;
+  color: #2f2f35;
+}
+
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.catalog-grid__status {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  color: #4b5563;
+}
+
+.catalog-grid__status--error {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.catalog-card {
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 330px;
+}
+
+.catalog-card__image-wrap {
+  position: relative;
+}
+
+.catalog-card__image {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+
+.catalog-card__favorite {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: none;
+  background: transparent;
+  font-size: 1.2rem;
+}
+
+.catalog-card__title {
+  font-size: 1.65rem;
+  margin: 10px 0 0;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.catalog-card__description {
+  margin: 3px 0 0;
+  color: #4b5563;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.catalog-card__divider {
+  margin: 10px 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.catalog-card__price {
+  margin: 0;
+  color: #111827;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.catalog-card__city {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.catalog-card__map-btn {
+  margin-top: auto;
+  align-self: center;
+  border: none;
+  border-radius: 999px;
+  background: #111827;
+  color: #fff;
+  font-size: 0.72rem;
+  padding: 4px 10px;
+}
+
+.register-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 110px;
+  background: rgba(17, 24, 39, 0.2);
+}
+
+.register-overlay__modal {
+  position: relative;
+  width: min(95vw, 360px);
+  border: 1px solid #adc6ff;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 78%, #dbe8ff 100%);
+  padding: 14px 14px 12px;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.25);
+}
+
+.register-overlay__close {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  border: none;
+  background: transparent;
+  color: #111827;
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.register-overlay__title {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: 1.9rem;
+  font-weight: 600;
+  color: #2e3a59;
+}
+
+.auth-figma-link-btn {
+  margin-top: 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #2e3a59;
+  font: inherit;
+  font-size: 0.92rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 1100px) {
+  .catalog-categories {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .catalog-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .app-header__inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .catalog-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .catalog-categories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .catalog-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .catalog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-categories {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .register-overlay {
+    padding-top: 70px;
+  }
+}
