@@ -47,7 +47,12 @@ function AppLayout() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {isModalOpen && activeTab ? (
-        <AuthModal initialTab={activeTab} onClose={closeAuth} onTabChange={setManualTab} />
+        <AuthModal
+          key={activeTab}
+          initialTab={activeTab}
+          onClose={closeAuth}
+          onTabChange={setManualTab}
+        />
       ) : null}
     </div>
   )

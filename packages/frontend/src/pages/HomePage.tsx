@@ -104,7 +104,10 @@ export function HomePage() {
   }
 
   useEffect(() => {
-    void loadCatalog()
+    queueMicrotask(() => {
+      void loadCatalog()
+    })
+    // Mount-only: фильтры и поиск применяются кнопками «Найти» / «Применить».
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

@@ -20,10 +20,6 @@ export function AuthModal({ initialTab, onClose, onTabChange }: AuthModalProps) 
   const [tab, setTab] = useState<AuthTab>(initialTab)
 
   useEffect(() => {
-    setTab(initialTab)
-  }, [initialTab])
-
-  useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose()
     }
