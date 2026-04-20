@@ -3,76 +3,110 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../lib/apiClient'
 import { useAuth } from '../auth/AuthContext'
 import { authApi } from '../auth/authApi'
-import { AuthFigmaShell } from '../components/AuthFigmaShell'
+import { BrandLogo } from '../components/BrandLogo'
+
+type Status = 'loading' | 'ok' | 'err'
 
 export function ConfirmEmailPage() {
   const [params] = useSearchParams()
   const token = params.get('token')
   const { applyAuthSuccess } = useAuth()
-  const [status, setStatus] = useState<'loading' | 'ok' | 'err'>(
-    token ? 'loading' : 'err',
-  )
+  const [status, setStatus] = useState<Status>(token ? 'loading' : 'err')
   const [message, setMessage] = useState<string | null>(
     token ? null : 'В ссылке нет токена подтверждения.',
   )
 
   useEffect(() => {
-    if (!token) {
-      return
-    }
-
+    if (!token) return
     const ac = new AbortController()
     ;(async () => {
       try {
         const res = await authApi.confirmEmail(token, { signal: ac.signal })
         applyAuthSuccess(res)
         setStatus('ok')
-        setMessage('Email подтверждён, вы вошли в аккаунт.')
+        setMessage('Email подтверждён — добро пожаловать в Rento.')
       } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          return
-        }
+        if (err instanceof Error && err.name === 'AbortError') return
         setStatus('err')
-        if (err instanceof ApiError) {
-          setMessage(err.message)
-        } else {
-          setMessage('Не удалось подтвердить email.')
-        }
+        setMessage(err instanceof ApiError ? err.message : 'Не удалось подтвердить email.')
       }
     })()
-
     return () => ac.abort()
   }, [token, applyAuthSuccess])
 
   return (
-    <AuthFigmaShell>
-      <h1 className="auth-figma-title">Подтверждение email</h1>
-      {status === 'loading' ? (
-        <p className="auth-figma-hint" style={{ textAlign: 'center' }}>
-          Проверяем ссылку…
-        </p>
-      ) : null}
-      {status === 'ok' ? (
-        <>
-          <div className="auth-figma-alert auth-figma-alert--ok">{message}</div>
-          <div className="auth-figma-stack">
-            <Link className="auth-figma-btn-primary" to="/" style={{ textDecoration: 'none' }}>
+    <div className="confirm">
+      <div className="confirm__card">
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+          <BrandLogo />
+        </div>
+
+        {status === 'loading' ? (
+          <>
+            <div className="confirm__icon" aria-hidden>
+              <SpinnerIcon />
+            </div>
+            <h1 className="confirm__title">Проверяем ссылку…</h1>
+            <p className="confirm__msg">Это займёт пару секунд.</p>
+          </>
+        ) : null}
+
+        {status === 'ok' ? (
+          <>
+            <div className="confirm__icon confirm__icon--success" aria-hidden>
+              <CheckIcon />
+            </div>
+            <h1 className="confirm__title">Готово!</h1>
+            <p className="confirm__msg">{message}</p>
+            <Link className="btn btn--primary btn--block" to="/">
               На главную
             </Link>
-          </div>
-        </>
-      ) : null}
-      {status === 'err' ? (
-        <>
-          <div className="auth-figma-alert auth-figma-alert--err">{message}</div>
-          <p className="auth-figma-hint" style={{ textAlign: 'center', marginBottom: 12 }}>
-            Запросите новое письмо на странице регистрации или войдите, если уже подтверждали ранее.
-          </p>
-          <Link className="auth-figma-link" to="/register">
-            К регистрации
-          </Link>
-        </>
-      ) : null}
-    </AuthFigmaShell>
+          </>
+        ) : null}
+
+        {status === 'err' ? (
+          <>
+            <div className="confirm__icon confirm__icon--error" aria-hidden>
+              <AlertIcon />
+            </div>
+            <h1 className="confirm__title">Не получилось</h1>
+            <p className="confirm__msg">{message}</p>
+            <Link className="btn btn--primary btn--block" to="/register">
+              К регистрации
+            </Link>
+          </>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M5 12l4 4 10-10" />
+    </svg>
+  )
+}
+
+function AlertIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M12 7v6" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" />
+      <circle cx="12" cy="12" r="9" />
+    </svg>
+  )
+}
+
+function SpinnerIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      style={{ animation: 'spin 1s linear infinite' }}
+    >
+      <path d="M12 3a9 9 0 1 0 9 9" />
+    </svg>
   )
 }

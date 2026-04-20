@@ -1,16 +1,19 @@
 import { Link } from 'react-router-dom'
 
-export function BrandLogo({ large }: { large?: boolean }) {
+/** `public/Logo.svg` — при `vite build` попадает в `dist/Logo.svg`. */
+export const LOGO_SRC = '/Logo.svg'
+
+interface BrandLogoProps {
+  to?: string
+}
+
+export function BrandLogo({ to = '/' }: BrandLogoProps) {
   return (
-    <Link
-      to="/"
-      className={`rento-logo ${large ? 'rento-logo--lg' : ''}`}
-      aria-label="Rento — на главную"
-    >
-      <span className="rento-logo__mark" aria-hidden>
-        <img src="/Logo.svg" alt="" className="rento-logo__image" />
+    <Link to={to} className="brand" aria-label="Rento — на главную">
+      <span className="brand__mark" aria-hidden>
+        <img src={LOGO_SRC} alt="" className="brand__mark-img" width={32} height={32} />
       </span>
-      <span className="rento-logo__text">Rento</span>
+      <span>Rento</span>
     </Link>
   )
 }

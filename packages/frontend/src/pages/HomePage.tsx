@@ -1,57 +1,77 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ApiError } from '../lib/apiClient'
+import type { ICategory, IListing, RentalPeriod } from '@rento/shared'
 import { searchCatalog } from '../catalog/catalogApi'
-import type { ICategory, IListing } from '@rento/shared'
-import { useAuth } from '../auth/AuthContext'
-import { authApi } from '../auth/authApi'
-import { isStrongPassword, PASSWORD_HINT } from '../auth/passwordPolicy'
-import { AppIconSlot } from '../components/AppIconSlot'
-import { IconTelegram } from '../components/oauthIcons'
+import { ApiError } from '../lib/apiClient'
+type SortApi = 'relevance' | 'newest' | 'price_asc' | 'price_desc'
+type SortPreset = 'cheap' | 'expensive' | 'popular' | 'near' | 'new'
+type RentalFilter = RentalPeriod | 'ALL'
 
-type SortValue = 'relevance' | 'newest' | 'price_asc' | 'price_desc'
-type AuthMode = 'login' | 'register'
-type RegisterStep = 'form' | 'telegram'
-
-interface HomePageProps {
-  initialAuthMode?: AuthMode
+interface SectionTile {
+  key: string
+  title: string
+  categoryId?: string
+  iconKey: SectionIconKey
 }
 
-export function HomePage({ initialAuthMode }: HomePageProps) {
-  const navigate = useNavigate()
-  const { login, register } = useAuth()
+type SectionIconKey = 'repair' | 'family' | 'auto' | 'home' | 'pets' | 'tech' | 'hobby' | 'default'
 
+const DEFAULT_SECTIONS: SectionTile[] = [
+  { key: 'repair', title: 'Для ремонта', iconKey: 'repair' },
+  { key: 'family', title: 'Для семьи', iconKey: 'family' },
+  { key: 'auto', title: 'Для авто', iconKey: 'auto' },
+  { key: 'home', title: 'Для дома', iconKey: 'home' },
+  { key: 'pets', title: 'Для питомцев', iconKey: 'pets' },
+  { key: 'tech', title: 'Для техники', iconKey: 'tech' },
+]
+
+const SORT_TO_API: Record<SortPreset, SortApi> = {
+  cheap: 'price_asc',
+  expensive: 'price_desc',
+  popular: 'relevance',
+  near: 'relevance',
+  new: 'newest',
+}
+
+const SORT_PRESETS: Array<{ value: SortPreset; label: string }> = [
+  { value: 'cheap', label: 'Недорогие' },
+  { value: 'expensive', label: 'Дорогие' },
+  { value: 'popular', label: 'Популярные' },
+  { value: 'near', label: 'Близко' },
+  { value: 'new', label: 'Новинки' },
+]
+
+const RENTAL_FILTERS: Array<{ value: RentalFilter; label: string }> = [
+  { value: 'ALL', label: 'Все' },
+  { value: 'HOUR', label: 'Почасовая' },
+  { value: 'DAY', label: 'Посуточная' },
+  { value: 'WEEK', label: 'Понедельная' },
+  { value: 'MONTH', label: 'Помесячная' },
+]
+
+const POPULAR_CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Минск', 'Гродно', 'Екатеринбург']
+
+export function HomePage() {
   const [q, setQ] = useState('')
   const [city, setCity] = useState('')
+  const [cityDraft, setCityDraft] = useState('')
+  const [cityOpen, setCityOpen] = useState(false)
+  const cityRef = useRef<HTMLDivElement | null>(null)
+
   const [categoryId, setCategoryId] = useState('')
+  const [filterOpen, setFilterOpen] = useState(false)
+
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
-  const [sort, setSort] = useState<SortValue>('relevance')
-  const [filterOpen, setFilterOpen] = useState(false)
+  const [radiusFrom, setRadiusFrom] = useState('1')
+  const [radiusTo, setRadiusTo] = useState('30')
+  const [sortPreset, setSortPreset] = useState<SortPreset>('popular')
+  const [rentalFilter, setRentalFilter] = useState<RentalFilter>('ALL')
+
   const [items, setItems] = useState<IListing[]>([])
   const [categories, setCategories] = useState<ICategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showAuthModal, setShowAuthModal] = useState(initialAuthMode != null)
-  const [authMode, setAuthMode] = useState<AuthMode>(initialAuthMode ?? 'register')
-  const [registerStep, setRegisterStep] = useState<RegisterStep>('form')
-
-  const [loginEmail, setLoginEmail] = useState('')
-  const [loginPassword, setLoginPassword] = useState('')
-  const [loginPending, setLoginPending] = useState(false)
-  const [loginError, setLoginError] = useState<string | null>(null)
-
-  const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [registerError, setRegisterError] = useState<string | null>(null)
-  const [registerSuccess, setRegisterSuccess] = useState<string | null>(null)
-  const [registerPending, setRegisterPending] = useState(false)
-  const [resendEmail, setResendEmail] = useState('')
-  const [resendFeedback, setResendFeedback] = useState<string | null>(null)
-  const [resendPending, setResendPending] = useState(false)
 
   async function loadCatalog() {
     setLoading(true)
@@ -63,26 +83,20 @@ export function HomePage({ initialAuthMode }: HomePageProps) {
         categoryId: categoryId || undefined,
         minPrice: minPrice ? Number(minPrice) : undefined,
         maxPrice: maxPrice ? Number(maxPrice) : undefined,
-        sort,
+        sort: SORT_TO_API[sortPreset],
         page: 1,
         limit: 24,
       })
       setItems(response.results)
 
-      const categoryMap = new Map<string, ICategory>()
-      for (const cat of response.popularCategories) {
-        categoryMap.set(cat.id, cat)
-      }
-      for (const listing of response.results) {
-        categoryMap.set(listing.category.id, listing.category)
-      }
-      setCategories([...categoryMap.values()])
+      const map = new Map<string, ICategory>()
+      for (const cat of response.popularCategories) map.set(cat.id, cat)
+      for (const listing of response.results) map.set(listing.category.id, listing.category)
+      setCategories([...map.values()])
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? err.message
-          : 'Не удалось загрузить карточки. Попробуйте ещё раз.'
-      setError(message)
+      setError(
+        err instanceof ApiError ? err.message : 'Не удалось загрузить карточки. Попробуйте ещё раз.',
+      )
       setItems([])
     } finally {
       setLoading(false)
@@ -95,434 +109,472 @@ export function HomePage({ initialAuthMode }: HomePageProps) {
   }, [])
 
   useEffect(() => {
-    if (initialAuthMode) {
-      setShowAuthModal(true)
-      setAuthMode(initialAuthMode)
+    if (!cityOpen) return
+    function onClick(event: MouseEvent) {
+      if (cityRef.current && !cityRef.current.contains(event.target as Node)) {
+        setCityOpen(false)
+      }
     }
-  }, [initialAuthMode])
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [cityOpen])
 
-  const empty = useMemo(() => !loading && !error && items.length === 0, [loading, error, items])
+  const sections: SectionTile[] = useMemo(() => {
+    if (categories.length === 0) return DEFAULT_SECTIONS
+    return categories.slice(0, 6).map<SectionTile>((cat) => ({
+      key: cat.id,
+      categoryId: cat.id,
+      title: cat.name,
+      iconKey: matchIcon(cat.name),
+    }))
+  }, [categories])
 
-  const onSubmit = (event: FormEvent) => {
+  const visibleItems = useMemo(() => {
+    if (rentalFilter === 'ALL') return items
+    return items.filter((item) => item.rentalPeriod === rentalFilter)
+  }, [items, rentalFilter])
+
+  const cityOptions = useMemo(() => {
+    const set = new Set<string>(POPULAR_CITIES)
+    for (const item of items) {
+      const cityName = extractCityName(item.description)
+      if (cityName) set.add(cityName)
+    }
+    const list = [...set]
+    const needle = cityDraft.trim().toLowerCase()
+    const filtered = needle ? list.filter((option) => option.toLowerCase().includes(needle)) : list
+    return filtered.sort((a, b) => a.localeCompare(b, 'ru')).slice(0, 8)
+  }, [items, cityDraft])
+
+  function onSubmitSearch(event: FormEvent) {
     event.preventDefault()
     void loadCatalog()
   }
 
-  const chipCategories = useMemo(() => {
-    return categories.slice(0, 6)
-  }, [categories])
-
-  async function onLoginSubmit(event: FormEvent) {
-    event.preventDefault()
-    setLoginError(null)
-    setLoginPending(true)
-    try {
-      await login(loginEmail, loginPassword)
-      closeAuthModal()
-    } catch (err) {
-      setLoginError(err instanceof ApiError ? err.message : 'Не удалось выполнить вход')
-    } finally {
-      setLoginPending(false)
-    }
+  function selectCity(next: string) {
+    setCity(next)
+    setCityDraft(next)
+    setCityOpen(false)
+    void loadCatalog()
   }
 
-  async function onRegisterSubmit(event: FormEvent) {
-    event.preventDefault()
-    setRegisterError(null)
-    setRegisterSuccess(null)
-
-    if (password !== confirmPassword) {
-      setRegisterError('Пароли не совпадают')
-      return
-    }
-    if (!isStrongPassword(password)) {
-      setRegisterError(PASSWORD_HINT)
-      return
-    }
-
-    setRegisterPending(true)
-    try {
-      await register(
-        email,
-        password,
-        confirmPassword,
-        fullName.trim() ? fullName.trim() : undefined,
-      )
-      setRegisterSuccess('Аккаунт создан. Подтвердите email по ссылке из письма.')
-      setResendEmail(email)
-    } catch (err) {
-      setRegisterError(
-        err instanceof ApiError ? err.message : 'Не удалось зарегистрироваться',
-      )
-    } finally {
-      setRegisterPending(false)
-    }
-  }
-
-  async function onResendSubmit(event: FormEvent) {
-    event.preventDefault()
-    setResendPending(true)
-    setResendFeedback(null)
-    try {
-      const res = await authApi.resendConfirmation(resendEmail)
-      setResendFeedback(res.message)
-    } catch (err) {
-      setResendFeedback(err instanceof ApiError ? err.message : 'Не удалось отправить письмо')
-    } finally {
-      setResendPending(false)
-    }
-  }
-
-  function closeAuthModal() {
-    setShowAuthModal(false)
-    if (initialAuthMode) {
-      navigate('/', { replace: true })
-    }
-  }
-
-  function openLogin() {
-    setAuthMode('login')
-    setShowAuthModal(true)
-    setLoginError(null)
-    navigate('/login', { replace: true })
-  }
-
-  function openRegister() {
-    setAuthMode('register')
-    setShowAuthModal(true)
-    setRegisterStep('form')
-    navigate('/register', { replace: true })
+  function toggleCategory(nextId: string) {
+    setCategoryId((current) => (current === nextId ? '' : nextId))
+    setTimeout(() => void loadCatalog(), 0)
   }
 
   return (
-    <main className="catalog-page">
-      <form className="catalog-toolbar" onSubmit={onSubmit}>
-        <div className="catalog-toolbar__search-wrap">
-          <input
-            className="catalog-toolbar__search"
-            type="text"
-            placeholder="поиск в вашем городе"
-            value={q}
-            onChange={(event) => setQ(event.target.value)}
-          />
-          <button type="submit" className="catalog-toolbar__submit">
+    <main>
+      <section className="container hero" aria-label="Поиск по каталогу">
+        <h1 className="hero__title">Аренда вещей без лишних сложностей</h1>
+        <p className="hero__subtitle">
+          Найдите то, что нужно, на час, день или месяц. Поиск по городу, фильтрация по цене и
+          радиусу — всё в одном окне.
+        </p>
+
+        <form className="search-bar" onSubmit={onSubmitSearch}>
+          <div className="search-bar__field">
+            <SearchIcon />
+            <input
+              className="search-bar__input"
+              type="text"
+              placeholder="Что ищем? Дрель, мольберт, велосипед…"
+              value={q}
+              onChange={(event) => setQ(event.target.value)}
+            />
+          </div>
+
+          <div className="city-popover" ref={cityRef}>
+            <button
+              type="button"
+              className={`search-bar__chip${city ? ' search-bar__chip--active' : ''}`}
+              onClick={() => {
+                setCityOpen((open) => !open)
+                setCityDraft(city)
+              }}
+              aria-haspopup="dialog"
+              aria-expanded={cityOpen}
+            >
+              <PinIcon />
+              {city || 'Город'}
+            </button>
+            {cityOpen ? (
+              <div className="city-popover__panel" role="dialog" aria-label="Выбор города">
+                <input
+                  className="city-popover__input"
+                  type="text"
+                  autoFocus
+                  placeholder="Введите город"
+                  value={cityDraft}
+                  onChange={(event) => setCityDraft(event.target.value)}
+                />
+                <div className="city-popover__list">
+                  {cityOptions.length === 0 ? (
+                    <p className="city-popover__empty">Ничего не найдено</p>
+                  ) : (
+                    cityOptions.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className="city-popover__option"
+                        onClick={() => selectCity(option)}
+                      >
+                        {option}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <button
+            type="button"
+            className={`search-bar__chip${filterOpen ? ' search-bar__chip--active' : ''}`}
+            onClick={() => setFilterOpen((open) => !open)}
+            aria-expanded={filterOpen}
+          >
+            <FilterIcon />
+            Фильтры
+          </button>
+
+          <button type="submit" className="search-bar__submit">
             Найти
           </button>
-        </div>
-        <div className="catalog-toolbar__actions">
-          <button
-            type="button"
-            className="catalog-toolbar__filter-toggle"
-            onClick={() => setFilterOpen((state) => !state)}
-          >
-            фильтрация
-          </button>
-          <button type="button" className="catalog-toolbar__geo-btn" disabled>
-            📍
-          </button>
-        </div>
-      </form>
+        </form>
+      </section>
 
-      <section className="catalog-categories" aria-label="Категории">
-        {chipCategories.map((category) => (
-          <button
-            key={category.id}
-            type="button"
-            className={`catalog-category-chip${
-              category.id === categoryId ? ' catalog-category-chip--active' : ''
-            }`}
-            onClick={() => {
-              setCategoryId((current) => (current === category.id ? '' : category.id))
-              void setTimeout(() => {
-                void loadCatalog()
-              }, 0)
-            }}
-          >
-            <span>{category.name}</span>
-            <span className="catalog-category-chip__icon" aria-hidden />
-          </button>
-        ))}
+      <section className="container" aria-label="Разделы">
+        <div className="sections">
+          {sections.map((tile) => (
+            <button
+              key={tile.key}
+              type="button"
+              className={`section-tile${
+                tile.categoryId && tile.categoryId === categoryId ? ' section-tile--active' : ''
+              }`}
+              onClick={() => tile.categoryId && toggleCategory(tile.categoryId)}
+            >
+              <span className="section-tile__title">{tile.title}</span>
+              <span className="section-tile__icon" aria-hidden>
+                <SectionIcon kind={tile.iconKey} />
+              </span>
+            </button>
+          ))}
+        </div>
       </section>
 
       {filterOpen ? (
-        <section className="catalog-filters" aria-label="Фильтры">
-          <label className="catalog-filters__field">
-            <span>Город</span>
-            <input
-              type="text"
-              value={city}
-              onChange={(event) => setCity(event.target.value)}
-              placeholder="Москва"
-            />
-          </label>
-          <label className="catalog-filters__field">
-            <span>Категория</span>
-            <select
-              value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
-            >
-              <option value="">Все</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="catalog-filters__field">
-            <span>Цена от</span>
-            <input
-              type="number"
-              min={0}
-              value={minPrice}
-              onChange={(event) => setMinPrice(event.target.value)}
-              placeholder="0"
-            />
-          </label>
-          <label className="catalog-filters__field">
-            <span>Цена до</span>
-            <input
-              type="number"
-              min={0}
-              value={maxPrice}
-              onChange={(event) => setMaxPrice(event.target.value)}
-              placeholder="10000"
-            />
-          </label>
-          <label className="catalog-filters__field">
-            <span>Сортировка</span>
-            <select value={sort} onChange={(event) => setSort(event.target.value as SortValue)}>
-              <option value="relevance">По релевантности</option>
-              <option value="newest">Сначала новые</option>
-              <option value="price_asc">Цена: по возрастанию</option>
-              <option value="price_desc">Цена: по убыванию</option>
-            </select>
-          </label>
-          <button type="button" className="catalog-filters__apply" onClick={() => void loadCatalog()}>
-            Применить
-          </button>
-        </section>
-      ) : null}
-
-      <h1 className="catalog-page__title">КАТАЛОГ</h1>
-      <section className="catalog-grid" aria-live="polite">
-        {loading ? <p className="catalog-grid__status">Загрузка карточек…</p> : null}
-        {error ? <p className="catalog-grid__status catalog-grid__status--error">{error}</p> : null}
-        {empty ? (
-          <p className="catalog-grid__status">
-            Ничего не найдено. Попробуйте изменить параметры фильтрации.
-          </p>
-        ) : null}
-        {items.map((item) => (
-          <article key={item.id} className="catalog-card">
-            <div className="catalog-card__image-wrap">
-              <img
-                src={item.photos[0]?.url ?? '/Logo.svg'}
-                alt={item.title}
-                className="catalog-card__image"
-              />
-              <button type="button" className="catalog-card__favorite" disabled>
-                ♡
-              </button>
+        <section className="container" aria-label="Фильтры">
+          <div className="filters">
+            <div className="filters__row">
+              <span className="filters__label">Цена</span>
+              <div className="filters__range">
+                <span>от</span>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="300"
+                  value={minPrice}
+                  onChange={(event) => setMinPrice(event.target.value)}
+                />
+                <span>до</span>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="12000"
+                  value={maxPrice}
+                  onChange={(event) => setMaxPrice(event.target.value)}
+                />
+                <span>₽</span>
+              </div>
             </div>
-            <h2 className="catalog-card__title">{item.title}</h2>
-            <p className="catalog-card__description">{item.description}</p>
-            <div className="catalog-card__divider" />
-            <p className="catalog-card__price">{formatHourPrice(item)}₽/час</p>
-            <p className="catalog-card__price">{formatDayPrice(item)}₽/сутки</p>
-            <p className="catalog-card__city">{extractCity(item.description)}</p>
-            <button type="button" className="catalog-card__map-btn" disabled>
-              Показать на карте
-            </button>
-          </article>
-        ))}
-      </section>
 
-      {showAuthModal ? (
-        <section className="register-overlay" aria-label="Авторизация">
-          <div className="register-overlay__modal">
-            <button type="button" className="register-overlay__close" onClick={closeAuthModal}>
-              ×
+            <div className="filters__row">
+              <span className="filters__label">Радиус поиска</span>
+              <div className="filters__range">
+                <span>от</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={radiusFrom}
+                  onChange={(event) => setRadiusFrom(event.target.value)}
+                />
+                <span>до</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={radiusTo}
+                  onChange={(event) => setRadiusTo(event.target.value)}
+                />
+                <span>км</span>
+              </div>
+            </div>
+
+            <div className="filters__row filters__row--stack">
+              <span className="filters__label">Показать сначала</span>
+              <div className="chip-group">
+                {SORT_PRESETS.map((preset) => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    className={`chip${sortPreset === preset.value ? ' chip--active' : ''}`}
+                    onClick={() => setSortPreset(preset.value)}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="filters__divider" />
+
+            <div className="filters__row filters__row--stack">
+              <span className="filters__label">Тип аренды</span>
+              <div className="radio-group">
+                {RENTAL_FILTERS.map((rental) => (
+                  <label key={rental.value}>
+                    <input
+                      type="radio"
+                      name="rentalType"
+                      checked={rentalFilter === rental.value}
+                      onChange={() => setRentalFilter(rental.value)}
+                    />
+                    {rental.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn--brand filters__apply"
+              onClick={() => void loadCatalog()}
+            >
+              Применить
             </button>
-            {authMode === 'login' ? (
-              <>
-                <h2 className="register-overlay__title">Вход</h2>
-                {loginError ? (
-                  <p className="auth-figma-alert auth-figma-alert--err">{loginError}</p>
-                ) : null}
-                <form className="auth-figma-fields" onSubmit={onLoginSubmit}>
-                  <label className="auth-figma-field">
-                    <span>Email</span>
-                    <input
-                      className="auth-figma-input"
-                      type="email"
-                      required
-                      value={loginEmail}
-                      onChange={(event) => setLoginEmail(event.target.value)}
-                    />
-                  </label>
-                  <label className="auth-figma-field">
-                    <span>Пароль</span>
-                    <input
-                      className="auth-figma-input"
-                      type="password"
-                      required
-                      value={loginPassword}
-                      onChange={(event) => setLoginPassword(event.target.value)}
-                    />
-                  </label>
-                  <div className="auth-figma-stack">
-                    <button type="submit" className="auth-figma-btn-primary" disabled={loginPending}>
-                      {loginPending ? 'Вход...' : 'Войти'}
-                    </button>
-                  </div>
-                </form>
-                <button type="button" className="auth-figma-link-btn" onClick={openRegister}>
-                  Нет аккаунта? Зарегистрироваться
-                </button>
-              </>
-            ) : registerStep === 'telegram' ? (
-              <>
-                <AppIconSlot />
-                <h2 className="register-overlay__title">Продолжить с помощью</h2>
-                <a
-                  className="auth-figma-oauth-row"
-                  href={import.meta.env.VITE_TELEGRAM_BOT_DEEPLINK ?? 'https://t.me/rento_bot'}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <span className="auth-figma-oauth-icon">
-                    <IconTelegram />
-                  </span>
-                  Зарегистрироваться через Telegram
-                </a>
-                <button
-                  type="button"
-                  className="auth-figma-btn-lime"
-                  onClick={() => setRegisterStep('form')}
-                >
-                  Назад
-                </button>
-              </>
-            ) : (
-              <>
-                <h2 className="register-overlay__title">Регистрация</h2>
-                {registerError ? (
-                  <p className="auth-figma-alert auth-figma-alert--err">{registerError}</p>
-                ) : null}
-                {registerSuccess ? (
-                  <p className="auth-figma-alert auth-figma-alert--ok">{registerSuccess}</p>
-                ) : null}
-                {!registerSuccess ? (
-                  <form className="auth-figma-fields" onSubmit={onRegisterSubmit}>
-                    <label className="auth-figma-field">
-                      <span>Имя пользователя</span>
-                      <input
-                        className="auth-figma-input"
-                        value={fullName}
-                        onChange={(event) => setFullName(event.target.value)}
-                      />
-                    </label>
-                    <label className="auth-figma-field">
-                      <span>Email</span>
-                      <input
-                        className="auth-figma-input"
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                      />
-                    </label>
-                    <label className="auth-figma-field">
-                      <span>Пароль</span>
-                      <input
-                        className="auth-figma-input"
-                        type="password"
-                        required
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                      />
-                    </label>
-                    <label className="auth-figma-field">
-                      <span>Подтвердите пароль</span>
-                      <input
-                        className="auth-figma-input"
-                        type="password"
-                        required
-                        value={confirmPassword}
-                        onChange={(event) => setConfirmPassword(event.target.value)}
-                      />
-                    </label>
-                    <div className="auth-figma-stack">
-                      <button
-                        type="submit"
-                        className="auth-figma-btn-primary"
-                        disabled={registerPending}
-                      >
-                        {registerPending ? 'Отправка...' : 'Зарегистрироваться'}
-                      </button>
-                      <button
-                        type="button"
-                        className="auth-figma-btn-lime"
-                        onClick={() => setRegisterStep('telegram')}
-                      >
-                        Войти другим способом
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <form className="auth-figma-fields" onSubmit={onResendSubmit}>
-                    <label className="auth-figma-field">
-                      <span>Email</span>
-                      <input
-                        className="auth-figma-input"
-                        type="email"
-                        required
-                        value={resendEmail}
-                        onChange={(event) => setResendEmail(event.target.value)}
-                      />
-                    </label>
-                    {resendFeedback ? (
-                      <p className="auth-figma-alert auth-figma-alert--ok">{resendFeedback}</p>
-                    ) : null}
-                    <button
-                      type="submit"
-                      className="auth-figma-btn-primary"
-                      disabled={resendPending}
-                    >
-                      {resendPending ? 'Отправка...' : 'Отправить снова'}
-                    </button>
-                  </form>
-                )}
-                <button type="button" className="auth-figma-link-btn" onClick={openLogin}>
-                  У меня уже есть аккаунт
-                </button>
-              </>
-            )}
           </div>
         </section>
       ) : null}
+
+      <section className="container catalog" aria-live="polite">
+        <div className="catalog__header">
+          <h2 className="catalog__title">Каталог</h2>
+          <span className="catalog__meta">
+            {loading ? 'Загрузка…' : `Найдено: ${visibleItems.length}`}
+          </span>
+        </div>
+
+        {error ? <div className="status status--error">{error}</div> : null}
+
+        <div className="catalog__grid">
+          {loading
+            ? Array.from({ length: 8 }).map((_, index) => <div key={index} className="skeleton" />)
+            : visibleItems.map((item) => <Card key={item.id} item={item} />)}
+
+          {!loading && !error && visibleItems.length === 0 ? (
+            <div className="status">
+              По запросу ничего не найдено. Попробуйте изменить параметры фильтрации.
+            </div>
+          ) : null}
+        </div>
+      </section>
     </main>
   )
 }
 
-function formatHourPrice(item: IListing): number {
-  if (item.rentalPeriod === 'HOUR') return Math.round(item.rentalPrice)
-  if (item.rentalPeriod === 'DAY') return Math.max(1, Math.round(item.rentalPrice / 24))
-  return Math.max(1, Math.round(item.rentalPrice))
+function Card({ item }: { item: IListing }) {
+  const cover = item.photos[0]?.url
+  const cityName = extractCity(item.description)
+  const period = periodLabel(item.rentalPeriod)
+  return (
+    <article className="card">
+      <div className="card__image-wrap">
+        {cover ? <img src={cover} alt={item.title} className="card__image" /> : null}
+        <span className="card__badge">{period}</span>
+        <button type="button" className="card__favorite" aria-label="В избранное">
+          <HeartIcon />
+        </button>
+      </div>
+      <div className="card__body">
+        <h3 className="card__title">{item.title}</h3>
+        <p className="card__desc">{item.description}</p>
+        <div className="card__prices">
+          <span className="card__price-main">{formatPrice(item)}</span>
+          <span className="card__price-secondary">{secondaryPrice(item)}</span>
+        </div>
+      </div>
+      <div className="card__footer">
+        <span>
+          <PinIcon />
+          {cityName}
+        </span>
+        <span>{item.depositAmount > 0 ? `Залог ${item.depositAmount.toLocaleString('ru-RU')}₽` : 'Без залога'}</span>
+      </div>
+    </article>
+  )
 }
 
-function formatDayPrice(item: IListing): number {
-  if (item.rentalPeriod === 'DAY') return Math.round(item.rentalPrice)
-  if (item.rentalPeriod === 'HOUR') return Math.round(item.rentalPrice * 24)
-  return Math.round(item.rentalPrice)
+/* ---------- helpers ---------- */
+
+function formatPrice(item: IListing): string {
+  const currency = '₽'
+  const unit =
+    item.rentalPeriod === 'HOUR'
+      ? '/час'
+      : item.rentalPeriod === 'DAY'
+        ? '/сутки'
+        : item.rentalPeriod === 'WEEK'
+          ? '/неделя'
+          : '/месяц'
+  return `${Math.round(item.rentalPrice).toLocaleString('ru-RU')}${currency}${unit}`
+}
+
+function secondaryPrice(item: IListing): string {
+  if (item.rentalPeriod === 'HOUR') {
+    return `${Math.round(item.rentalPrice * 24).toLocaleString('ru-RU')}₽/сутки`
+  }
+  if (item.rentalPeriod === 'DAY') {
+    return `${Math.max(1, Math.round(item.rentalPrice / 24)).toLocaleString('ru-RU')}₽/час`
+  }
+  return ''
+}
+
+function periodLabel(period: RentalPeriod): string {
+  switch (period) {
+    case 'HOUR':
+      return 'Почасовая'
+    case 'DAY':
+      return 'Посуточная'
+    case 'WEEK':
+      return 'Понедельная'
+    case 'MONTH':
+      return 'Помесячная'
+  }
 }
 
 function extractCity(description: string): string {
-  const cityMatch = description.match(/г\.\s*[^,]+,[^,]+/i)
-  if (cityMatch?.[0]) {
-    return cityMatch[0]
+  const match = description.match(/г\.\s*[^,]+,?[^,]*/i)
+  return match?.[0]?.trim() ?? 'г. Москва'
+}
+
+function extractCityName(description: string): string | null {
+  const match = description.match(/г\.\s*([^,]+)/i)
+  return match?.[1]?.trim() ?? null
+}
+
+function matchIcon(name: string): SectionIconKey {
+  const needle = name.toLowerCase()
+  if (needle.includes('ремонт')) return 'repair'
+  if (needle.includes('семь') || needle.includes('дет')) return 'family'
+  if (needle.includes('авто') || needle.includes('транспорт')) return 'auto'
+  if (needle.includes('дом') || needle.includes('интерьер')) return 'home'
+  if (needle.includes('пит')) return 'pets'
+  if (needle.includes('техн') || needle.includes('электрон')) return 'tech'
+  if (needle.includes('хобб') || needle.includes('спорт')) return 'hobby'
+  return 'default'
+}
+
+/* ---------- icons ---------- */
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </svg>
+  )
+}
+
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M4 6h16M7 12h10M10 18h4" />
+    </svg>
+  )
+}
+
+function PinIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </svg>
+  )
+}
+
+function HeartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.7A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+    </svg>
+  )
+}
+
+function SectionIcon({ kind }: { kind: SectionIconKey }) {
+  switch (kind) {
+    case 'repair':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden>
+          <path d="M14.7 6.3a3.5 3.5 0 0 1 4.9 4.9L14 17.8l-4.9-4.9 5.6-6.6z" />
+          <path d="M4 20l5-5" />
+        </svg>
+      )
+    case 'family':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden>
+          <circle cx="9" cy="8" r="3" />
+          <circle cx="17" cy="10" r="2.5" />
+          <path d="M3 20c0-3 3-5 6-5s6 2 6 5" />
+          <path d="M14 20c.3-2 2-3 4-3s3.5 1 4 3" />
+        </svg>
+      )
+    case 'auto':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden>
+          <path d="M5 15v-3l2-5h10l2 5v3" />
+          <path d="M3 15h18" />
+          <circle cx="7.5" cy="17" r="1.5" />
+          <circle cx="16.5" cy="17" r="1.5" />
+        </svg>
+      )
+    case 'home':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden>
+          <path d="M4 11l8-7 8 7" />
+          <path d="M6 10v9h12v-9" />
+          <path d="M10 19v-4h4v4" />
+        </svg>
+      )
+    case 'pets':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden>
+          <circle cx="6" cy="10" r="1.8" />
+          <circle cx="18" cy="10" r="1.8" />
+          <circle cx="9" cy="6" r="1.5" />
+          <circle cx="15" cy="6" r="1.5" />
+          <path d="M8 16c0-2 2-3 4-3s4 1 4 3-2 4-4 4-4-2-4-4z" />
+        </svg>
+      )
+    case 'tech':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden>
+          <rect x="3" y="5" width="18" height="12" rx="1.5" />
+          <path d="M2 20h20" />
+        </svg>
+      )
+    case 'hobby':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden>
+          <circle cx="12" cy="12" r="8" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )
+    default:
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden>
+          <rect x="5" y="5" width="14" height="14" rx="3" />
+        </svg>
+      )
   }
-  return 'г. Москва, адрес уточняйте'
 }
