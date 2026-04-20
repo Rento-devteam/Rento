@@ -61,7 +61,9 @@ describe('ListingsService', () => {
 
     const result = await service.getCreateMetadata('user-1');
 
-    expect(usersService.assertUserCanCreateListing).toHaveBeenCalledWith('user-1');
+    expect(usersService.assertUserCanCreateListing).toHaveBeenCalledWith(
+      'user-1',
+    );
     expect(result.categories).toHaveLength(1);
     expect(result.priceRules.supportedPeriods).toEqual(
       Object.values(RentalPeriod),
@@ -127,7 +129,9 @@ describe('ListingsService', () => {
     );
     expect(result.status).toBe(ListingStatus.DRAFT);
     expect(result.nextStep).toBe('upload_photos');
-    expect(result.message).toBe('Draft created. Upload at least one photo to continue.');
+    expect(result.message).toBe(
+      'Draft created. Upload at least one photo to continue.',
+    );
   });
 
   it('rejects inactive or missing categories', async () => {
@@ -167,16 +171,11 @@ describe('ListingsService', () => {
       uploadedAt: new Date('2026-04-17T12:00:00.000Z'),
     });
 
-    const result = await service.uploadPhoto(
-      'user-1',
-      'listing-1',
-      {},
-      {
-        originalname: 'photo.png',
-        mimetype: 'image/png',
-        buffer: Buffer.from('image'),
-      } as Express.Multer.File,
-    );
+    const result = await service.uploadPhoto('user-1', 'listing-1', {}, {
+      originalname: 'photo.png',
+      mimetype: 'image/png',
+      buffer: Buffer.from('image'),
+    } as Express.Multer.File);
 
     expect(listingPhotoStorage.uploadListingPhoto).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -205,16 +204,11 @@ describe('ListingsService', () => {
     });
 
     await expect(
-      service.uploadPhoto(
-        'user-1',
-        'listing-1',
-        {},
-        {
-          originalname: 'photo.png',
-          mimetype: 'image/png',
-          buffer: Buffer.from('image'),
-        } as Express.Multer.File,
-      ),
+      service.uploadPhoto('user-1', 'listing-1', {}, {
+        originalname: 'photo.png',
+        mimetype: 'image/png',
+        buffer: Buffer.from('image'),
+      } as Express.Multer.File),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -227,16 +221,11 @@ describe('ListingsService', () => {
     });
 
     await expect(
-      service.uploadPhoto(
-        'user-1',
-        'listing-1',
-        { order: 0 },
-        {
-          originalname: 'photo.png',
-          mimetype: 'image/png',
-          buffer: Buffer.from('image'),
-        } as Express.Multer.File,
-      ),
+      service.uploadPhoto('user-1', 'listing-1', { order: 0 }, {
+        originalname: 'photo.png',
+        mimetype: 'image/png',
+        buffer: Buffer.from('image'),
+      } as Express.Multer.File),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 

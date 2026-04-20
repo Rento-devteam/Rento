@@ -118,7 +118,9 @@ class InMemoryPrismaService {
         orderBy?: Array<{ order?: 'asc' | 'desc'; name?: 'asc' | 'desc' }>;
       }) => {
         const filtered = this.categories.filter((category) =>
-          where?.isActive === undefined ? true : category.isActive === where.isActive,
+          where?.isActive === undefined
+            ? true
+            : category.isActive === where.isActive,
         );
         return filtered.sort((left, right) => {
           if (left.order !== right.order) {
@@ -128,15 +130,18 @@ class InMemoryPrismaService {
         });
       },
     ),
-    findFirst: jest.fn(async ({ where }: { where: { id: string; isActive?: boolean } }) => {
-      return (
-        this.categories.find(
-          (category) =>
-            category.id === where.id &&
-            (where.isActive === undefined || category.isActive === where.isActive),
-        ) ?? null
-      );
-    }),
+    findFirst: jest.fn(
+      async ({ where }: { where: { id: string; isActive?: boolean } }) => {
+        return (
+          this.categories.find(
+            (category) =>
+              category.id === where.id &&
+              (where.isActive === undefined ||
+                category.isActive === where.isActive),
+          ) ?? null
+        );
+      },
+    ),
   };
 
   listing = {
@@ -208,7 +213,8 @@ class InMemoryPrismaService {
             | { select: { id: true } };
         };
       }) => {
-        const listing = this.listings.find((entry) => entry.id === where.id) ?? null;
+        const listing =
+          this.listings.find((entry) => entry.id === where.id) ?? null;
         if (!listing) {
           return null;
         }
@@ -330,8 +336,7 @@ class InMemoryPrismaService {
   };
 
   $transaction = jest.fn(
-    async (fn: (client: InMemoryPrismaService) => Promise<unknown>) =>
-      fn(this),
+    async (fn: (client: InMemoryPrismaService) => Promise<unknown>) => fn(this),
   );
 
   private getListingPhotos(listingId: string) {
@@ -461,7 +466,10 @@ describe('ListingsController (e2e)', () => {
   it('returns listing create metadata for active users', async () => {
     const response = await request(app.getHttpServer())
       .get('/listings/create')
-      .set('Authorization', `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`)
+      .set(
+        'Authorization',
+        `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`,
+      )
       .expect(200);
 
     expect(response.body.categories).toHaveLength(1);
@@ -475,7 +483,10 @@ describe('ListingsController (e2e)', () => {
   it('rejects invalid payloads with 422', async () => {
     await request(app.getHttpServer())
       .post('/listings')
-      .set('Authorization', `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`)
+      .set(
+        'Authorization',
+        `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`,
+      )
       .send({
         categoryId: activeCategoryId,
         title: '',
@@ -486,7 +497,10 @@ describe('ListingsController (e2e)', () => {
   it('rejects negative rental price and deposit with 422', async () => {
     await request(app.getHttpServer())
       .post('/listings')
-      .set('Authorization', `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`)
+      .set(
+        'Authorization',
+        `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`,
+      )
       .send({
         categoryId: activeCategoryId,
         title: 'Drill',
@@ -501,7 +515,10 @@ describe('ListingsController (e2e)', () => {
   it('rejects blocked users', async () => {
     await request(app.getHttpServer())
       .post('/listings')
-      .set('Authorization', `Bearer ${await issueAccessToken(bannedUserId, UserStatus.BANNED)}`)
+      .set(
+        'Authorization',
+        `Bearer ${await issueAccessToken(bannedUserId, UserStatus.BANNED)}`,
+      )
       .send({
         categoryId: activeCategoryId,
         title: 'Drill',
@@ -516,7 +533,10 @@ describe('ListingsController (e2e)', () => {
   it('creates a listing draft and returns next step', async () => {
     const response = await request(app.getHttpServer())
       .post('/listings')
-      .set('Authorization', `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`)
+      .set(
+        'Authorization',
+        `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`,
+      )
       .send({
         categoryId: activeCategoryId,
         title: 'Cordless Drill',
@@ -565,7 +585,9 @@ describe('ListingsController (e2e)', () => {
       })
       .expect(201);
 
-    expect(response.body.photo.url).toContain(`/listings/${listingId}/photo.png`);
+    expect(response.body.photo.url).toContain(
+      `/listings/${listingId}/photo.png`,
+    );
     expect(response.body.nextStep).toBe('publish_listing');
     expect(response.body.totalPhotos).toBe(1);
     expect(prisma.listingPhotos).toHaveLength(1);
@@ -672,9 +694,9 @@ describe('ListingsController (e2e)', () => {
     expect(response.body.status).toBe(ListingStatus.ACTIVE);
     expect(response.body.nextStep).toBeNull();
     expect(response.body.message).toBe('Listing published successfully.');
-    expect(prisma.listings.find((listing) => listing.id === listingId)?.status).toBe(
-      ListingStatus.ACTIVE,
-    );
+    expect(
+      prisma.listings.find((listing) => listing.id === listingId)?.status,
+    ).toBe(ListingStatus.ACTIVE);
   });
 
   async function issueAccessToken(userId: string, status: UserStatus) {

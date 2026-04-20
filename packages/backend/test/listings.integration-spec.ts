@@ -136,7 +136,10 @@ describe('ListingsController (integration, Postgres)', () => {
   it('returns listing create metadata for active users', async () => {
     const response = await request(app.getHttpServer())
       .get('/listings/create')
-      .set('Authorization', `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`)
+      .set(
+        'Authorization',
+        `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`,
+      )
       .expect(200);
 
     expect(response.body.categories).toHaveLength(1);
@@ -150,7 +153,10 @@ describe('ListingsController (integration, Postgres)', () => {
   it('rejects invalid payloads with 422', async () => {
     await request(app.getHttpServer())
       .post('/listings')
-      .set('Authorization', `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`)
+      .set(
+        'Authorization',
+        `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`,
+      )
       .send({
         categoryId: activeCategoryId,
         title: '',
@@ -161,7 +167,10 @@ describe('ListingsController (integration, Postgres)', () => {
   it('rejects negative rental price and deposit with 422', async () => {
     await request(app.getHttpServer())
       .post('/listings')
-      .set('Authorization', `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`)
+      .set(
+        'Authorization',
+        `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`,
+      )
       .send({
         categoryId: activeCategoryId,
         title: 'Drill',
@@ -176,7 +185,10 @@ describe('ListingsController (integration, Postgres)', () => {
   it('rejects blocked users', async () => {
     await request(app.getHttpServer())
       .post('/listings')
-      .set('Authorization', `Bearer ${await issueAccessToken(bannedUserId, UserStatus.BANNED)}`)
+      .set(
+        'Authorization',
+        `Bearer ${await issueAccessToken(bannedUserId, UserStatus.BANNED)}`,
+      )
       .send({
         categoryId: activeCategoryId,
         title: 'Drill',
@@ -191,7 +203,10 @@ describe('ListingsController (integration, Postgres)', () => {
   it('creates a listing draft and returns next step', async () => {
     const response = await request(app.getHttpServer())
       .post('/listings')
-      .set('Authorization', `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`)
+      .set(
+        'Authorization',
+        `Bearer ${await issueAccessToken(activeUserId, UserStatus.ACTIVE)}`,
+      )
       .send({
         categoryId: activeCategoryId,
         title: 'Cordless Drill',
@@ -242,7 +257,9 @@ describe('ListingsController (integration, Postgres)', () => {
       })
       .expect(201);
 
-    expect(response.body.photo.url).toContain(`/listings/${listingId}/photo.png`);
+    expect(response.body.photo.url).toContain(
+      `/listings/${listingId}/photo.png`,
+    );
     expect(response.body.nextStep).toBe('publish_listing');
     expect(response.body.totalPhotos).toBe(1);
     expect(await prisma.listingPhoto.count()).toBe(1);
@@ -351,7 +368,9 @@ describe('ListingsController (integration, Postgres)', () => {
     expect(response.body.nextStep).toBeNull();
     expect(response.body.message).toBe('Listing published successfully.');
 
-    const updated = await prisma.listing.findUnique({ where: { id: listingId } });
+    const updated = await prisma.listing.findUnique({
+      where: { id: listingId },
+    });
     expect(updated?.status).toBe(ListingStatus.ACTIVE);
   });
 

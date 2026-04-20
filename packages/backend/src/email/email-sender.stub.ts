@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 export interface SendConfirmationInput {
@@ -18,7 +22,8 @@ export class EmailSenderStub {
   private readonly smtpFrom = process.env.SMTP_FROM ?? '';
   private readonly smtpRequireTls =
     (process.env.SMTP_REQUIRE_TLS ?? 'true').toLowerCase() === 'true';
-  private readonly smtpDebug = (process.env.SMTP_DEBUG ?? 'false').toLowerCase() === 'true';
+  private readonly smtpDebug =
+    (process.env.SMTP_DEBUG ?? 'false').toLowerCase() === 'true';
   private readonly isSmtpConfigured =
     (Boolean(this.smtpService) || Boolean(this.smtpHost)) &&
     Boolean(this.smtpUser) &&
@@ -70,6 +75,8 @@ export class EmailSenderStub {
       html: `<p>Please confirm your email by opening this link:</p><p><a href="${input.confirmationUrl}">${input.confirmationUrl}</a></p>`,
     });
 
-    this.logger.log(`Confirmation email sent to ${input.email} (messageId=${info.messageId})`);
+    this.logger.log(
+      `Confirmation email sent to ${input.email} (messageId=${info.messageId})`,
+    );
   }
 }

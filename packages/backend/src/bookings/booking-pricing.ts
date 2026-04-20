@@ -28,4 +28,3 @@ export function computeUnits(
       throw new BadRequestException('Unsupported rental period');
   }
 }
-

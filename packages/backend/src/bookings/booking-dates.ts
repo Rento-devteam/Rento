@@ -1,7 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { utcDateOnly } from '../util/date-only';
 
-export function computeDayProjection(startAt: Date, endAt: Date): {
+export function computeDayProjection(
+  startAt: Date,
+  endAt: Date,
+): {
   startDate: Date;
   endDate: Date;
 } {
@@ -13,4 +16,3 @@ export function computeDayProjection(startAt: Date, endAt: Date): {
   const endDate = utcDateOnly(endMinusEpsilon);
   return { startDate, endDate };
 }
-

@@ -36,4 +36,3 @@ export interface PaymentHoldGateway {
 
 export const PAYMENT_HOLD_GATEWAY: InjectionToken<PaymentHoldGateway> =
   'PAYMENT_HOLD_GATEWAY';
-

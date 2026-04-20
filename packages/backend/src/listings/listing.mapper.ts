@@ -111,7 +111,9 @@ export function mapListingPhotoUploadResponse(
   };
 }
 
-export function mapListingPublishResponse(listing: Pick<ListingRecord, 'id' | 'status'>) {
+export function mapListingPublishResponse(
+  listing: Pick<ListingRecord, 'id' | 'status'>,
+) {
   return {
     id: listing.id,
     status: listing.status,
