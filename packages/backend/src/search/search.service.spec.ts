@@ -1,15 +1,19 @@
-import { ServiceUnavailableException } from '@nestjs/common';
 import { ListingStatus, RentalPeriod } from '@prisma/client';
-import { SearchSort } from './dto/search-query.dto';
 import { SearchService } from './search.service';
 
 describe('SearchService', () => {
   const prismaService = {
     listing: {
+      count: jest.fn(),
       findMany: jest.fn(),
+      createMany: jest.fn(),
+    },
+    user: {
+      upsert: jest.fn(),
     },
     category: {
       findMany: jest.fn(),
+      upsert: jest.fn(),
     },
   };
 
@@ -17,12 +21,20 @@ describe('SearchService', () => {
   const client = {
     search: mockSearch,
   };
+  const listingSearchIndex = {
+    indexListing: jest.fn(),
+  };
 
   let service: SearchService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new SearchService(client as never, prismaService as never);
+    prismaService.listing.count.mockResolvedValue(1);
+    service = new SearchService(
+      client as never,
+      prismaService as never,
+      listingSearchIndex as never,
+    );
   });
 
   it('normalizeQuery strips stop words and lowercases', () => {
@@ -76,7 +88,7 @@ describe('SearchService', () => {
       q: 'дрель',
       page: 1,
       limit: 20,
-      sort: SearchSort.relevance,
+      sort: 'relevance',
     });
 
     expect(mockSearch).toHaveBeenCalled();
@@ -117,11 +129,37 @@ describe('SearchService', () => {
     expect(result.popularCategories[0].slug).toBe('tools');
   });
 
-  it('throws ServiceUnavailable when Elasticsearch fails', async () => {
+  it('falls back to database search when Elasticsearch fails', async () => {
     mockSearch.mockRejectedValueOnce(new Error('connection refused'));
+    const listing = {
+      id: 'a',
+      ownerId: 'u1',
+      categoryId: 'c1',
+      title: 'A',
+      description: 'г. Москва, Тверская',
+      rentalPrice: 120,
+      rentalPeriod: RentalPeriod.HOUR,
+      depositAmount: 500,
+      status: ListingStatus.ACTIVE,
+      latitude: null,
+      longitude: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      category: {
+        id: 'c1',
+        name: 'Cat',
+        slug: 'cat',
+        icon: null,
+        order: 0,
+        isActive: true,
+      },
+      photos: [],
+    };
+    prismaService.listing.findMany.mockResolvedValue([listing]);
+    prismaService.listing.count.mockResolvedValue(1);
 
-    await expect(service.search({ q: 'x' })).rejects.toBeInstanceOf(
-      ServiceUnavailableException,
-    );
+    const result = await service.search({ q: 'x', page: 1, limit: 10 });
+    expect(result.totalCount).toBe(1);
+    expect(result.results[0]?.id).toBe('a');
   });
 });

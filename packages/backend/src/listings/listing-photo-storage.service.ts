@@ -71,7 +71,10 @@ export class S3ListingPhotoStorageService implements ListingPhotoStorage {
         }),
       );
     } catch (error) {
-      this.logger.error(`Failed to upload listing photo for ${input.listingId}`, error);
+      this.logger.error(
+        `Failed to upload listing photo for ${input.listingId}`,
+        error,
+      );
       throw new InternalServerErrorException('Failed to upload listing photo');
     }
 
@@ -83,7 +86,9 @@ export class S3ListingPhotoStorageService implements ListingPhotoStorage {
 
   private buildObjectKey(listingId: string, originalFileName: string): string {
     const fileExtension = extname(originalFileName).toLowerCase();
-    const safeExtension = /^[.a-z0-9]+$/.test(fileExtension) ? fileExtension : '';
+    const safeExtension = /^[.a-z0-9]+$/.test(fileExtension)
+      ? fileExtension
+      : '';
 
     return `listings/${listingId}/${randomUUID()}${safeExtension}`;
   }

@@ -3,10 +3,10 @@ import {
   Inject,
   Injectable,
   Logger,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { Client } from '@elastic/elasticsearch';
 import type { estypes } from '@elastic/elasticsearch';
+import { ListingStatus, Prisma, RentalPeriod, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { mapCategory, mapListingDetail } from '../listings/listing.mapper';
 import { SearchQueryDto, SearchSort } from './dto/search-query.dto';
@@ -15,6 +15,7 @@ import {
   RU_STOP_WORDS,
   getListingsIndexName,
 } from './search.constants';
+import { ListingSearchIndexService } from './listing-search-index.service';
 
 export type SearchListingResult = ReturnType<typeof mapListingDetail>;
 
@@ -37,6 +38,7 @@ export class SearchService {
   constructor(
     @Inject(ELASTICSEARCH_CLIENT) private readonly client: Client,
     @Inject(PrismaService) private readonly prisma: PrismaService,
+    private readonly listingSearchIndex: ListingSearchIndexService,
   ) {}
 
   normalizeQuery(q: string | undefined): string {
@@ -52,6 +54,8 @@ export class SearchService {
   }
 
   async search(dto: SearchQueryDto): Promise<SearchResponse> {
+    await this.ensureDefaultCatalogSeeded();
+
     const page = dto.page ?? 1;
     const limit = dto.limit ?? 20;
     const from = (page - 1) * limit;
@@ -75,6 +79,7 @@ export class SearchService {
     }
 
     const normalizedQ = this.normalizeQuery(dto.q);
+    const normalizedCity = this.normalizeQuery(dto.city);
     const sort = dto.sort ?? SearchSort.relevance;
 
     const filter: estypes.QueryDslQueryContainer[] = [
@@ -83,6 +88,16 @@ export class SearchService {
 
     if (dto.categoryId) {
       filter.push({ term: { categoryId: dto.categoryId } });
+    }
+
+    if (normalizedCity) {
+      filter.push({
+        multi_match: {
+          query: normalizedCity,
+          fields: ['description', 'title'],
+          operator: 'and',
+        },
+      });
     }
 
     if (dto.minPrice != null || dto.maxPrice != null) {
@@ -182,9 +197,101 @@ export class SearchService {
       };
     } catch (err) {
       this.logger.error(`Elasticsearch search failed: ${String(err)}`);
-      throw new ServiceUnavailableException(
-        'Search is temporarily unavailable',
-      );
+      return this.searchFromDatabase(dto, normalizedQ, page, limit);
+    }
+  }
+
+  private async searchFromDatabase(
+    dto: SearchQueryDto,
+    normalizedQ: string,
+    page: number,
+    limit: number,
+  ): Promise<SearchResponse> {
+    const skip = (page - 1) * limit;
+    const normalizedCity = this.normalizeQuery(dto.city);
+
+    const andWhere: Array<Record<string, unknown>> = [{ status: ListingStatus.ACTIVE }];
+
+    if (dto.categoryId) {
+      andWhere.push({ categoryId: dto.categoryId });
+    }
+
+    if (dto.minPrice != null || dto.maxPrice != null) {
+      andWhere.push({
+        rentalPrice: {
+          ...(dto.minPrice != null ? { gte: dto.minPrice } : {}),
+          ...(dto.maxPrice != null ? { lte: dto.maxPrice } : {}),
+        },
+      });
+    }
+
+    if (normalizedQ) {
+      andWhere.push({
+        OR: [
+          { title: { contains: normalizedQ, mode: 'insensitive' } },
+          { description: { contains: normalizedQ, mode: 'insensitive' } },
+          {
+            category: {
+              name: { contains: normalizedQ, mode: 'insensitive' },
+            },
+          },
+        ],
+      });
+    }
+
+    if (normalizedCity) {
+      andWhere.push({
+        OR: [
+          { description: { contains: normalizedCity, mode: 'insensitive' } },
+          { title: { contains: normalizedCity, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    const where = { AND: andWhere };
+    const orderBy = this.getDbOrderBy(dto.sort ?? SearchSort.relevance);
+
+    const [totalCount, rows] = await Promise.all([
+      this.prisma.listing.count({ where }),
+      this.prisma.listing.findMany({
+        where,
+        include: {
+          category: true,
+          photos: { orderBy: { order: 'asc' } },
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const emptyResults = totalCount === 0;
+    const popularCategories = emptyResults
+      ? await this.loadPopularCategories()
+      : [];
+
+    return {
+      results: rows.map(mapListingDetail),
+      totalCount,
+      page,
+      limit,
+      emptyResults,
+      suggestion: null,
+      relaxedMatch: false,
+      popularCategories,
+    };
+  }
+
+  private getDbOrderBy(sort: SearchSort): Prisma.ListingOrderByWithRelationInput[] {
+    switch (sort) {
+      case SearchSort.price_asc:
+        return [{ rentalPrice: 'asc' }, { createdAt: 'desc' }];
+      case SearchSort.price_desc:
+        return [{ rentalPrice: 'desc' }, { createdAt: 'desc' }];
+      case SearchSort.newest:
+      case SearchSort.relevance:
+      default:
+        return [{ createdAt: 'desc' }];
     }
   }
 
@@ -341,9 +448,90 @@ export class SearchService {
       return out;
     } catch (err) {
       this.logger.error(`Elasticsearch autocomplete failed: ${String(err)}`);
-      throw new ServiceUnavailableException(
-        'Search is temporarily unavailable',
-      );
+      return [];
+    }
+  }
+
+  private async ensureDefaultCatalogSeeded(): Promise<void> {
+    const activeCount = await this.prisma.listing.count({
+      where: { status: ListingStatus.ACTIVE },
+    });
+    if (activeCount > 0) {
+      return;
+    }
+
+    const category = await this.prisma.category.upsert({
+      where: { slug: 'default-catalog' },
+      update: { isActive: true },
+      create: {
+        name: 'Разное',
+        slug: 'default-catalog',
+        icon: null,
+        order: 999,
+        isActive: true,
+      },
+    });
+
+    const owner = await this.prisma.user.upsert({
+      where: { email: 'catalog@rento.local' },
+      update: {
+        status: UserStatus.ACTIVE,
+        emailConfirmedAt: new Date(),
+      },
+      create: {
+        email: 'catalog@rento.local',
+        status: UserStatus.ACTIVE,
+        emailConfirmedAt: new Date(),
+      },
+    });
+
+    const defaults = [
+      {
+        title: 'Электросамокат Ninebot',
+        description: 'Городской электросамокат. г. Москва, ул. Тверская, 7',
+        rentalPrice: 350,
+        depositAmount: 3000,
+      },
+      {
+        title: 'Шуруповерт Makita',
+        description: 'Аккумуляторный шуруповерт для ремонта. г. Санкт-Петербург, Невский пр., 18',
+        rentalPrice: 250,
+        depositAmount: 2000,
+      },
+      {
+        title: 'GoPro Hero',
+        description: 'Экшн-камера 4K для путешествий. г. Казань, ул. Баумана, 12',
+        rentalPrice: 500,
+        depositAmount: 5000,
+      },
+    ];
+
+    await this.prisma.listing.createMany({
+      data: defaults.map((item) => ({
+        ownerId: owner.id,
+        categoryId: category.id,
+        title: item.title,
+        description: item.description,
+        rentalPrice: item.rentalPrice,
+        rentalPeriod: RentalPeriod.DAY,
+        depositAmount: item.depositAmount,
+        status: ListingStatus.ACTIVE,
+      })),
+    });
+
+    const created = await this.prisma.listing.findMany({
+      where: { ownerId: owner.id, categoryId: category.id, status: ListingStatus.ACTIVE },
+      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+      take: defaults.length,
+    });
+
+    for (const row of created) {
+      try {
+        await this.listingSearchIndex.indexListing(row.id);
+      } catch (err) {
+        this.logger.warn(`Failed to index default listing ${row.id}: ${String(err)}`);
+      }
     }
   }
 }

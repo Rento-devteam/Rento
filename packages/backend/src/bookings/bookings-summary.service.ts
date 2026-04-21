@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeUnits } from './booking-pricing';
 
@@ -15,7 +19,12 @@ export class BookingsSummaryService {
 
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, rentalPrice: true, rentalPeriod: true, depositAmount: true },
+      select: {
+        id: true,
+        rentalPrice: true,
+        rentalPeriod: true,
+        depositAmount: true,
+      },
     });
     if (!listing) {
       throw new NotFoundException('Listing not found');
@@ -50,4 +59,3 @@ export class BookingsSummaryService {
 function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
-

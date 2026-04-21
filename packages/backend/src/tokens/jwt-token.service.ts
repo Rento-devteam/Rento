@@ -41,9 +41,7 @@ export class JwtTokenService {
       data: {
         userId: user.id,
         tokenHash: createHash('sha256').update(refreshToken).digest('hex'),
-        expiresAt: new Date(
-          Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000,
-        ),
+        expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000),
       },
     });
 

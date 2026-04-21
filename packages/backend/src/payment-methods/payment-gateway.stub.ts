@@ -34,7 +34,10 @@ export class PaymentGatewayStub {
     // would return the actual last4 and card brand from the payment method.
     // For the stub we derive a deterministic fake last4 from the token so
     // that different test tokens produce distinct cards.
-    const hash = Array.from(token).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const hash = Array.from(token).reduce(
+      (acc, ch) => acc + ch.charCodeAt(0),
+      0,
+    );
     const last4 = String(hash % 10000).padStart(4, '0');
     const cardType = hash % 2 === 0 ? 'Visa' : 'Mastercard';
 

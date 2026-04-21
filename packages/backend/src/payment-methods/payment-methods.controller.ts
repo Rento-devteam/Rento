@@ -50,7 +50,10 @@ export class PaymentMethodsController {
     @Req() request: RequestWithUser,
     @Param('cardId', ParseUUIDPipe) cardId: string,
   ) {
-    return this.paymentMethodsService.setDefault(this.getUserId(request), cardId);
+    return this.paymentMethodsService.setDefault(
+      this.getUserId(request),
+      cardId,
+    );
   }
 
   @Delete('payment/cards/:cardId')
@@ -59,7 +62,10 @@ export class PaymentMethodsController {
     @Req() request: RequestWithUser,
     @Param('cardId', ParseUUIDPipe) cardId: string,
   ) {
-    return this.paymentMethodsService.removeCard(this.getUserId(request), cardId);
+    return this.paymentMethodsService.removeCard(
+      this.getUserId(request),
+      cardId,
+    );
   }
 
   private getUserId(request: RequestWithUser): string {

@@ -79,8 +79,8 @@ describe('UsersService', () => {
   it('throws when trust score is requested for missing user', async () => {
     prismaService.user.findUnique.mockResolvedValue(null);
 
-    await expect(usersService.getCurrentUserTrustScore('missing')).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(
+      usersService.getCurrentUserTrustScore('missing'),
+    ).rejects.toThrow(NotFoundException);
   });
 });

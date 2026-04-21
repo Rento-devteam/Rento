@@ -64,7 +64,10 @@ describe('App (integration, Postgres)', () => {
 
     const linkResponse = await request(app.getHttpServer())
       .post('/telegram/link')
-      .set('Authorization', `Bearer ${confirmResponse.body.accessToken as string}`)
+      .set(
+        'Authorization',
+        `Bearer ${confirmResponse.body.accessToken as string}`,
+      )
       .expect(201);
 
     expect(linkResponse.body.code).toBeDefined();

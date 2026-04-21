@@ -14,7 +14,10 @@ export class PaymentHoldGatewayStub implements PaymentHoldGateway {
       'PaymentHoldGatewayStub: using stub gateway. Replace with a real provider before going to production.',
     );
 
-    if (!request.paymentMethodToken || request.paymentMethodToken.trim() === '') {
+    if (
+      !request.paymentMethodToken ||
+      request.paymentMethodToken.trim() === ''
+    ) {
       throw new BadRequestException('Invalid payment method token');
     }
     if (!Number.isFinite(request.amount) || request.amount <= 0) {
@@ -50,4 +53,3 @@ export class PaymentHoldGatewayStub implements PaymentHoldGateway {
     };
   }
 }
-

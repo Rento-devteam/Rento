@@ -8,10 +8,7 @@ import { JwtTokenService } from '../tokens/jwt-token.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Module({
-  imports: [
-    EmailModule,
-    JwtModule.register({}),
-  ],
+  imports: [EmailModule, JwtModule.register({})],
   controllers: [AuthController],
   providers: [AuthService, JwtTokenService, JwtAuthGuard, BotSecretGuard],
   exports: [JwtModule, JwtAuthGuard],

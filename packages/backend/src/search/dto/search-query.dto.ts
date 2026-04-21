@@ -24,6 +24,10 @@ export class SearchQueryDto {
   q?: string;
 
   @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(1)

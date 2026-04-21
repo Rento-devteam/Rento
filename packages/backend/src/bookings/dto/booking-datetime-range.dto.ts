@@ -7,4 +7,3 @@ export class BookingDatetimeRangeDto {
   @IsISO8601({ strict: true })
   endAt!: string;
 }
-

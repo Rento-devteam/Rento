@@ -10,4 +10,3 @@ import { PaymentHoldGatewayStub } from './payment-hold-gateway.stub';
   exports: [PAYMENT_HOLD_GATEWAY],
 })
 export class PaymentsHoldModule {}
-
