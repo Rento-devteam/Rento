@@ -1259,3 +1259,129 @@ a {
   margin-bottom: var(--sp-5);
   line-height: 1.5;
 }
+
+/* ----------------------------------------------------------------
+ * Create Item Form
+ * ---------------------------------------------------------------- */
+
+.create-item-form {
+  background: var(--bg-surface);
+  padding: var(--sp-6);
+  border-radius: var(--r-xl);
+  border: 1px solid rgba(161, 186, 238, 0.45);
+  box-shadow: var(--shadow-md);
+}
+
+.create-item-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: var(--sp-6) var(--sp-8);
+  align-items: flex-start;
+}
+
+.create-item-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.create-item-col--wide {
+  height: 100%;
+}
+
+.create-item-row {
+  display: flex;
+  gap: var(--sp-5);
+}
+
+.create-item-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--sp-6);
+}
+
+.create-item-submit {
+  min-width: 240px;
+  height: 52px;
+  font-size: 1.1rem;
+  border-radius: var(--r-pill);
+  background: var(--brand-300);
+  color: var(--ink-900);
+}
+
+.create-item-submit:hover:not(:disabled) {
+  background: var(--brand-400);
+}
+
+.photo-upload {
+  height: 205px;
+  border: 2px dashed var(--ink-300);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.photo-upload:hover {
+  border-color: var(--brand-400);
+  background: var(--brand-100);
+}
+
+.photo-upload__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--ink-500);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.photo-upload__icon {
+  width: 48px;
+  height: 48px;
+  fill: currentColor;
+}
+
+.rental-methods {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+}
+
+.rental-method {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--ink-900);
+  cursor: pointer;
+}
+
+.rental-method input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--brand-500);
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .create-item-grid {
+    grid-template-columns: 1fr;
+  }
+  .create-item-footer {
+    justify-content: stretch;
+  }
+  .create-item-submit {
+    width: 100%;
+  }
+  .create-item-row {
+    flex-direction: column;
+  }
+}

@@ -51,84 +51,17 @@ export function AuthModal({ initialTab, onClose, onTabChange }: AuthModalProps) 
           <CloseIcon />
         </button>
 
-        <div className="modal__brand">
-          <span className="brand__mark brand__mark--sm" aria-hidden>
-            <img src={LOGO_SRC} alt="" className="brand__mark-img" width={26} height={26} />
-          </span>
-          <span className="modal__brand-name">Rento</span>
-        </div>
-
-        <h2 className="modal__title">
-          {tab === 'login' ? 'Вход в аккаунт' : tab === 'register' ? 'Создание аккаунта' : 'Быстрый вход'}
-        </h2>
-        <p className="modal__subtitle">
-          {tab === 'login'
-            ? 'Введите почту и пароль или войдите через Telegram.'
-            : tab === 'register'
-              ? 'Зарегистрируйтесь по email и подтвердите его по ссылке из письма.'
-              : 'Откройте нашего Telegram-бота — он авторизует вас автоматически.'}
-        </p>
-
-        <div className="tabs" role="tablist">
-          <button
-            role="tab"
-            aria-selected={tab === 'login'}
-            className={tab === 'login' ? 'is-active' : ''}
-            onClick={() => switchTab('login')}
-          >
-            Вход
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === 'register'}
-            className={tab === 'register' ? 'is-active' : ''}
-            onClick={() => switchTab('register')}
-          >
-            Регистрация
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === 'telegram'}
-            className={tab === 'telegram' ? 'is-active' : ''}
-            onClick={() => switchTab('telegram')}
-          >
-            Telegram
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 'var(--sp-5)' }}>
+          <img src={LOGO_SRC} alt="Rento" style={{ width: 80, height: 80, marginBottom: 'var(--sp-4)', borderRadius: '16px', boxShadow: 'var(--shadow-sm)' }} />
+          <h2 className="modal__title" style={{ margin: 0, textAlign: 'center', fontSize: '1.8rem' }}>
+            {tab === 'login' ? 'Вход' : tab === 'register' ? 'Регистрация' : 'Вход через Telegram'}
+          </h2>
         </div>
 
         {tab === 'login' ? <LoginForm onSuccess={onClose} onSwitch={switchTab} /> : null}
         {tab === 'register' ? <RegisterForm onSwitch={switchTab} /> : null}
         {tab === 'telegram' ? <TelegramPanel onSwitch={switchTab} /> : null}
 
-        {tab !== 'telegram' ? (
-          <>
-            <div className="divider-or">или</div>
-            <button
-              type="button"
-              className="oauth-btn"
-              onClick={() => switchTab('telegram')}
-            >
-              <IconTelegram />
-              Продолжить через Telegram
-            </button>
-          </>
-        ) : null}
-
-        <div className="modal__footnote">
-          {tab === 'login' ? (
-            <>
-              Нет аккаунта? <button onClick={() => switchTab('register')}>Зарегистрироваться</button>
-            </>
-          ) : tab === 'register' ? (
-            <>
-              Уже есть аккаунт? <button onClick={() => switchTab('login')}>Войти</button>
-            </>
-          ) : (
-            <>
-              Нужен email вместо Telegram? <button onClick={() => switchTab('login')}>Вход по email</button>
-            </>
-          )}
-        </div>
       </div>
     </div>
   )
@@ -192,17 +125,25 @@ function LoginForm({
           onChange={(event) => setPassword(event.target.value)}
         />
       </div>
-      <div className="stack">
-        <button type="submit" className="btn btn--primary btn--block" disabled={pending}>
+      <div className="stack" style={{ marginTop: 'var(--sp-5)' }}>
+        <button type="submit" className="btn btn--brand btn--block" disabled={pending}>
           {pending ? 'Входим…' : 'Войти'}
         </button>
-        <button
-          type="button"
-          className="btn btn--ghost btn--block"
-          onClick={() => onSwitch('register')}
-        >
-          Создать аккаунт
-        </button>
+      </div>
+
+      <div className="divider-or">или войти через</div>
+      <button
+        type="button"
+        className="oauth-btn"
+        style={{ width: '100%' }}
+        onClick={() => onSwitch('telegram')}
+      >
+        <IconTelegram />
+        Telegram
+      </button>
+
+      <div className="modal__footnote" style={{ marginTop: 'var(--sp-5)' }}>
+        Нет аккаунта? <button type="button" onClick={() => onSwitch('register')}>Зарегистрироваться</button>
       </div>
     </form>
   )
@@ -306,7 +247,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
       {error ? <div className="alert alert--error">{error}</div> : null}
       <div className="field">
         <label className="field__label" htmlFor="reg-name">
-          Имя (необязательно)
+          Имя пользователя
         </label>
         <input
           id="reg-name"
@@ -315,7 +256,6 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           autoComplete="nickname"
           value={fullName}
           onChange={(event) => setFullName(event.target.value)}
-          placeholder="Как к вам обращаться"
         />
       </div>
       <div className="field">
@@ -345,11 +285,10 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
-        <p className="field__hint">{PASSWORD_HINT}</p>
       </div>
       <div className="field">
         <label className="field__label" htmlFor="reg-confirm">
-          Подтверждение пароля
+          Подтвердите пароль
         </label>
         <input
           id="reg-confirm"
@@ -361,10 +300,25 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           onChange={(event) => setConfirmPassword(event.target.value)}
         />
       </div>
-      <div className="stack">
-        <button type="submit" className="btn btn--primary btn--block" disabled={pending}>
-          {pending ? 'Создаём…' : 'Создать аккаунт'}
+      <div className="stack" style={{ marginTop: 'var(--sp-5)' }}>
+        <button type="submit" className="btn btn--brand btn--block" disabled={pending}>
+          {pending ? 'Создаём…' : 'Зарегистрироваться'}
         </button>
+      </div>
+
+      <div className="divider-or">или войти через</div>
+      <button
+        type="button"
+        className="oauth-btn"
+        style={{ width: '100%' }}
+        onClick={() => onSwitch('telegram')}
+      >
+        <IconTelegram />
+        Telegram
+      </button>
+
+      <div className="modal__footnote" style={{ marginTop: 'var(--sp-5)' }}>
+        Уже есть аккаунт? <button type="button" onClick={() => onSwitch('login')}>Войти</button>
       </div>
     </form>
   )

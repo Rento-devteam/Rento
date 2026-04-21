@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { BrandLogo } from './BrandLogo'
 import type { AuthTab } from './AuthModal'
@@ -8,6 +9,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ onAuthRequest }: AppHeaderProps) {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   return (
     <header className="app-header">
@@ -22,7 +24,7 @@ export function AppHeader({ onAuthRequest }: AppHeaderProps) {
         </div>
 
         <div className="app-header__right">
-          <button type="button" className="icon-btn" aria-label="Добавить объявление">
+          <button type="button" className="icon-btn" aria-label="Добавить объявление" onClick={() => navigate('/create-item')}>
             <PlusIcon />
           </button>
           <button type="button" className="icon-btn" aria-label="Сообщения">

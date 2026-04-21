@@ -43,7 +43,7 @@ describe('AuthModal', () => {
     render(
       <AuthModal initialTab="login" onClose={onClose} onTabChange={onTabChange} />,
     )
-    expect(screen.getByRole('heading', { name: /вход в аккаунт/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^вход$/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/^пароль$/i)).toBeInTheDocument()
   })
@@ -53,10 +53,10 @@ describe('AuthModal', () => {
     render(
       <AuthModal initialTab="login" onClose={onClose} onTabChange={onTabChange} />,
     )
-    await user.click(screen.getByRole('tab', { name: /регистрация/i }))
+    await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }))
     expect(onTabChange).toHaveBeenCalledWith('register')
-    expect(screen.getByRole('heading', { name: /создание аккаунта/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/подтверждение пароля/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^регистрация$/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/подтвердите пароль/i)).toBeInTheDocument()
   })
 
   it('closes on Escape', async () => {
