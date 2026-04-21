@@ -4,6 +4,7 @@ import { AuthProvider } from './auth/AuthContext'
 import { AppHeader } from './components/AppHeader'
 import { AuthModal, type AuthTab } from './components/AuthModal'
 import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
+import { CreateItemPage } from './pages/CreateItemPage'
 import { HomePage } from './pages/HomePage'
 
 const AUTH_ROUTE_TO_TAB: Record<string, AuthTab> = {
@@ -44,6 +45,7 @@ function AppLayout() {
         <Route path="/register" element={<HomePage />} />
         <Route path="/login/telegram" element={<HomePage />} />
         <Route path="/confirm-email" element={<ConfirmEmailPage />} />
+        <Route path="/create-item" element={<CreateItemPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {isModalOpen && activeTab ? (

@@ -29,7 +29,7 @@ describe('App', () => {
     expect(
       await screen.findByRole('dialog', { name: /вход или регистрация/i }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /вход в аккаунт/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^вход$/i })).toBeInTheDocument()
   })
 
   it('does not render main header on confirm-email route', () => {
