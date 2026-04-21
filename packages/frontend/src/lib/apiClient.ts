@@ -34,7 +34,9 @@ export async function apiRequest<T>(
   init?: RequestInit & { accessToken?: string | null },
 ): Promise<T> {
   const headers = new Headers(init?.headers)
-  if (!headers.has('Content-Type') && init?.body) {
+  const isFormDataBody =
+    typeof FormData !== 'undefined' && init?.body instanceof FormData
+  if (!headers.has('Content-Type') && init?.body && !isFormDataBody) {
     headers.set('Content-Type', 'application/json')
   }
   if (init?.accessToken) {

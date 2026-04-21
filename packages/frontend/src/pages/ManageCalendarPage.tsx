@@ -142,20 +142,21 @@ export function ManageCalendarPage() {
   }
 
   const handleBlock = async () => {
-    if (!listingId || !selectStart || !selectEnd) return
+    if (!listingId || !selectStart) return
+    const rangeEnd = selectEnd ?? selectStart
     setActionPending(true)
     setError(null)
     setConflictWarning(null)
     try {
       // Check availability first
-      const { available, conflicts } = await checkAvailability(listingId, selectStart, selectEnd)
+      const { available, conflicts } = await checkAvailability(listingId, selectStart, rangeEnd)
       if (!available && conflicts.some(c => c.status === 'BOOKED')) {
         setConflictWarning('Диапазон содержит даты с активными бронированиями. Блокировка/разблокировка может повлиять на сделки.')
         setActionPending(false)
         return
       }
 
-      const res = await blockDates(listingId, selectStart, selectEnd, 'Ручная блокировка', accessToken)
+      const res = await blockDates(listingId, selectStart, rangeEnd, 'Ручная блокировка', accessToken)
       updateSlots(res.items)
       clearSelection()
     } catch (err: unknown) {
@@ -170,11 +171,12 @@ export function ManageCalendarPage() {
   }
 
   const handleUnblock = async (force = false, cancelBookings = false) => {
-    if (!listingId || !selectStart || !selectEnd) return
+    if (!listingId || !selectStart) return
+    const rangeEnd = selectEnd ?? selectStart
     setActionPending(true)
     setError(null)
     try {
-      const res = await unblockDates(listingId, selectStart, selectEnd, force, cancelBookings, accessToken)
+      const res = await unblockDates(listingId, selectStart, rangeEnd, force, cancelBookings, accessToken)
       updateSlots(res.items)
       clearSelection()
       setConflictWarning(null)
@@ -268,10 +270,10 @@ export function ManageCalendarPage() {
           </div>
         </div>
 
-        {selectStart && selectEnd && (
+        {selectStart && (
           <div className="calendar-actions">
             <h3 style={{ marginBottom: 'var(--sp-3)' }}>
-              Выбран диапазон: {parseISODate(selectStart).toLocaleDateString('ru-RU')} — {parseISODate(selectEnd).toLocaleDateString('ru-RU')}
+              Выбран диапазон: {parseISODate(selectStart).toLocaleDateString('ru-RU')} — {parseISODate(selectEnd ?? selectStart).toLocaleDateString('ru-RU')}
             </h3>
             
             {error && <div className="alert alert--error">{error}</div>}

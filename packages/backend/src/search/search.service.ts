@@ -6,7 +6,12 @@ import {
 } from '@nestjs/common';
 import { Client } from '@elastic/elasticsearch';
 import type { estypes } from '@elastic/elasticsearch';
-import { ListingStatus, Prisma, RentalPeriod, UserStatus } from '@prisma/client';
+import {
+  ListingStatus,
+  Prisma,
+  RentalPeriod,
+  UserStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { mapCategory, mapListingDetail } from '../listings/listing.mapper';
 import { SearchQueryDto, SearchSort } from './dto/search-query.dto';
@@ -51,6 +56,13 @@ export class SearchService {
     }
     const tokens = lower.split(/\s+/).filter((t) => !RU_STOP_WORDS.has(t));
     return tokens.length > 0 ? tokens.join(' ') : lower;
+  }
+
+  private splitQueryTokens(q: string): string[] {
+    return q
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
   }
 
   async search(dto: SearchQueryDto): Promise<SearchResponse> {
@@ -173,6 +185,22 @@ export class SearchService {
         }
       }
 
+      if (normalizedQ && total === 0) {
+        const dbFallback = await this.searchFromDatabase(
+          dto,
+          normalizedQ,
+          page,
+          limit,
+        );
+        if (dbFallback.totalCount > 0) {
+          return {
+            ...dbFallback,
+            relaxedMatch: true,
+            suggestion,
+          };
+        }
+      }
+
       const orderedIds = hits
         .map((h) => (h._source as { listingId?: string })?.listingId)
         .filter((id): id is string => typeof id === 'string');
@@ -210,7 +238,9 @@ export class SearchService {
     const skip = (page - 1) * limit;
     const normalizedCity = this.normalizeQuery(dto.city);
 
-    const andWhere: Array<Record<string, unknown>> = [{ status: ListingStatus.ACTIVE }];
+    const andWhere: Array<Record<string, unknown>> = [
+      { status: ListingStatus.ACTIVE },
+    ];
 
     if (dto.categoryId) {
       andWhere.push({ categoryId: dto.categoryId });
@@ -226,17 +256,20 @@ export class SearchService {
     }
 
     if (normalizedQ) {
-      andWhere.push({
-        OR: [
-          { title: { contains: normalizedQ, mode: 'insensitive' } },
-          { description: { contains: normalizedQ, mode: 'insensitive' } },
-          {
-            category: {
-              name: { contains: normalizedQ, mode: 'insensitive' },
+      const tokens = this.splitQueryTokens(normalizedQ);
+      andWhere.push(
+        ...tokens.map((token) => ({
+          OR: [
+            { title: { contains: token, mode: 'insensitive' } },
+            { description: { contains: token, mode: 'insensitive' } },
+            {
+              category: {
+                name: { contains: token, mode: 'insensitive' },
+              },
             },
-          },
-        ],
-      });
+          ],
+        })),
+      );
     }
 
     if (normalizedCity) {
@@ -282,7 +315,9 @@ export class SearchService {
     };
   }
 
-  private getDbOrderBy(sort: SearchSort): Prisma.ListingOrderByWithRelationInput[] {
+  private getDbOrderBy(
+    sort: SearchSort,
+  ): Prisma.ListingOrderByWithRelationInput[] {
     switch (sort) {
       case SearchSort.price_asc:
         return [{ rentalPrice: 'asc' }, { createdAt: 'desc' }];
@@ -494,13 +529,15 @@ export class SearchService {
       },
       {
         title: 'Шуруповерт Makita',
-        description: 'Аккумуляторный шуруповерт для ремонта. г. Санкт-Петербург, Невский пр., 18',
+        description:
+          'Аккумуляторный шуруповерт для ремонта. г. Санкт-Петербург, Невский пр., 18',
         rentalPrice: 250,
         depositAmount: 2000,
       },
       {
         title: 'GoPro Hero',
-        description: 'Экшн-камера 4K для путешествий. г. Казань, ул. Баумана, 12',
+        description:
+          'Экшн-камера 4K для путешествий. г. Казань, ул. Баумана, 12',
         rentalPrice: 500,
         depositAmount: 5000,
       },
@@ -520,7 +557,11 @@ export class SearchService {
     });
 
     const created = await this.prisma.listing.findMany({
-      where: { ownerId: owner.id, categoryId: category.id, status: ListingStatus.ACTIVE },
+      where: {
+        ownerId: owner.id,
+        categoryId: category.id,
+        status: ListingStatus.ACTIVE,
+      },
       select: { id: true },
       orderBy: { createdAt: 'desc' },
       take: defaults.length,
@@ -530,7 +571,9 @@ export class SearchService {
       try {
         await this.listingSearchIndex.indexListing(row.id);
       } catch (err) {
-        this.logger.warn(`Failed to index default listing ${row.id}: ${String(err)}`);
+        this.logger.warn(
+          `Failed to index default listing ${row.id}: ${String(err)}`,
+        );
       }
     }
   }

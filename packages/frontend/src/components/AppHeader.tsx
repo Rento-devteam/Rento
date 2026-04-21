@@ -8,7 +8,7 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ onAuthRequest }: AppHeaderProps) {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   return (
@@ -41,8 +41,8 @@ export function AppHeader({ onAuthRequest }: AppHeaderProps) {
             <button
               type="button"
               className="btn btn--ghost"
-              onClick={logout}
-              aria-label="Выйти"
+              onClick={() => navigate('/profile')}
+              aria-label="Профиль"
             >
               {user.fullName ?? user.email ?? 'Профиль'}
             </button>

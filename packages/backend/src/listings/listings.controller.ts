@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -39,10 +40,17 @@ import { ListingsService } from './listings.service';
 export class ListingsController {
   constructor(private readonly listingsService: ListingsService) {}
 
+  /** Static paths must be registered before `:listingId` or Nest matches "my"/"create" as UUID params. */
   @UseGuards(JwtAuthGuard)
   @Get('create')
   getCreateMetadata(@Req() request: RequestWithUser) {
     return this.listingsService.getCreateMetadata(this.getUserId(request));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my')
+  getMyListings(@Req() request: RequestWithUser) {
+    return this.listingsService.getMyListings(this.getUserId(request));
   }
 
   @UseGuards(JwtAuthGuard)
@@ -52,6 +60,24 @@ export class ListingsController {
     @Body() dto: CreateListingDto,
   ) {
     return this.listingsService.createListing(this.getUserId(request), dto);
+  }
+
+  @Get(':listingId')
+  getListingById(@Param('listingId', ParseUUIDPipe) listingId: string) {
+    return this.listingsService.getListingById(listingId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':listingId')
+  @HttpCode(HttpStatus.OK)
+  deleteListing(
+    @Req() request: RequestWithUser,
+    @Param('listingId', ParseUUIDPipe) listingId: string,
+  ) {
+    return this.listingsService.deleteListing(
+      this.getUserId(request),
+      listingId,
+    );
   }
 
   @Get(':listingId/photos')

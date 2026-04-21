@@ -393,22 +393,25 @@ function Card({ item }: { item: IListing }) {
   const period = periodLabel(item.rentalPeriod)
   return (
     <article className="card">
+      <Link to={`/listings/${item.id}`} className="card__link-overlay" aria-label={item.title} />
       <div className="card__image-wrap">
         {cover ? <img src={cover} alt={item.title} className="card__image" /> : null}
         <span className="card__badge">{period}</span>
-        <button type="button" className="card__favorite" aria-label="В избранное">
+        <button type="button" className="card__favorite" aria-label="В избранное" style={{ zIndex: 2 }}>
           <HeartIcon />
         </button>
       </div>
       <div className="card__body">
-        <h3 className="card__title">{item.title}</h3>
+        <h3 className="card__title">
+          {item.title}
+        </h3>
         <p className="card__desc">{item.description}</p>
         <div className="card__prices">
           <span className="card__price-main">{formatPrice(item)}</span>
           <span className="card__price-secondary">{secondaryPrice(item)}</span>
         </div>
       </div>
-      <div className="card__footer">
+      <div className="card__footer" style={{ zIndex: 2, position: 'relative' }}>
         <span>
           <PinIcon />
           {cityName}
