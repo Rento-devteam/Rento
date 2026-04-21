@@ -6,6 +6,7 @@ import { AuthModal, type AuthTab } from './components/AuthModal'
 import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
 import { CreateItemPage } from './pages/CreateItemPage'
 import { HomePage } from './pages/HomePage'
+import { ManageCalendarPage } from './pages/ManageCalendarPage'
 
 const AUTH_ROUTE_TO_TAB: Record<string, AuthTab> = {
   '/login': 'login',
@@ -46,6 +47,7 @@ function AppLayout() {
         <Route path="/login/telegram" element={<HomePage />} />
         <Route path="/confirm-email" element={<ConfirmEmailPage />} />
         <Route path="/create-item" element={<CreateItemPage />} />
+        <Route path="/listings/:id/calendar" element={<ManageCalendarPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {isModalOpen && activeTab ? (

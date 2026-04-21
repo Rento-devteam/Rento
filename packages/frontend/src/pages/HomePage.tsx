@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import type { ICategory, IListing, RentalPeriod } from '@rento/shared'
 import { searchCatalog } from '../catalog/catalogApi'
@@ -412,7 +413,13 @@ function Card({ item }: { item: IListing }) {
           <PinIcon />
           {cityName}
         </span>
-        <span>{item.depositAmount > 0 ? `Залог ${item.depositAmount.toLocaleString('ru-RU')}₽` : 'Без залога'}</span>
+        <Link 
+          to={`/listings/${item.id}/calendar`} 
+          className="btn btn--ghost" 
+          style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+        >
+          Календарь
+        </Link>
       </div>
     </article>
   )
