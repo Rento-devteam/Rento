@@ -34,13 +34,8 @@ function startOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1)
 }
 
-function endOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
-}
-
 function getDaysInMonthGrid(date: Date): Date[] {
   const start = startOfMonth(date)
-  const end = endOfMonth(date)
 
   // Adjust for Monday as first day of week (0 = Mon, 6 = Sun)
   let startDay = start.getDay() - 1
@@ -62,6 +57,16 @@ const MONTH_NAMES = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
 ]
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    return error.message
+  }
+  if (error instanceof Error) {
+    return error.message
+  }
+  return fallback
+}
 
 export function ManageCalendarPage() {
   const { id: listingId } = useParams<{ id: string }>()
@@ -93,8 +98,8 @@ export function ManageCalendarPage() {
         const map = new Map<string, CalendarSlot>()
         res.items.forEach(item => map.set(item.date, item))
         setSlots(map)
-      } catch (err: any) {
-        setError(err.message || 'Не удалось загрузить календарь')
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, 'Не удалось загрузить календарь'))
       } finally {
         setLoading(false)
       }
@@ -153,11 +158,11 @@ export function ManageCalendarPage() {
       const res = await blockDates(listingId, selectStart, selectEnd, 'Ручная блокировка', accessToken)
       updateSlots(res.items)
       clearSelection()
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 409) {
         setConflictWarning('Диапазон содержит активные сделки. Разблокировка невозможна до завершения сделок.')
       } else {
-        setError(err.message || 'Ошибка при блокировке дат')
+        setError(getErrorMessage(err, 'Ошибка при блокировке дат'))
       }
     } finally {
       setActionPending(false)
@@ -173,11 +178,11 @@ export function ManageCalendarPage() {
       updateSlots(res.items)
       clearSelection()
       setConflictWarning(null)
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 409) {
         setConflictWarning('Выбранные даты содержат активные бронирования. Разблокировка отменит существующие сделки. Продолжить?')
       } else {
-        setError(err.message || 'Ошибка при разблокировке дат')
+        setError(getErrorMessage(err, 'Ошибка при разблокировке дат'))
       }
     } finally {
       setActionPending(false)
