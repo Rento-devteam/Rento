@@ -65,7 +65,7 @@ export function ProfilePage() {
     if (!user) return
     setDraftFullName(user.fullName ?? '')
     setDraftPhone(user.phone ?? '')
-  }, [user?.id, user?.fullName, user?.phone])
+  }, [user])
 
   useEffect(() => {
     if (!user) return
@@ -111,7 +111,7 @@ export function ProfilePage() {
     }
 
     void loadCards()
-  }, [user?.id, accessToken])
+  }, [user, accessToken])
 
   const handleDelete = async (listingId: string) => {
     if (!window.confirm('Вы уверены, что хотите удалить это объявление?')) return
