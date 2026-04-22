@@ -22,12 +22,16 @@ export function BookingDetailPage() {
 
   const [cards, setCards] = useState<BankCard[]>([])
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
-  const [stubBalance, setStubBalance] = useState('')
+  const [stubBalance, setStubBalance] = useState(() => {
+    if (typeof sessionStorage === 'undefined') return ''
+    return sessionStorage.getItem(STUB_CARD_BALANCE_KEY) ?? ''
+  })
   const [retrySubmitting, setRetrySubmitting] = useState(false)
   const [retryError, setRetryError] = useState<string | null>(null)
 
   const loadBooking = useCallback(async () => {
     if (!bookingId || !accessToken) return
+    await Promise.resolve()
     setLoading(true)
     setError(null)
     try {
@@ -42,15 +46,16 @@ export function BookingDetailPage() {
   }, [bookingId, accessToken])
 
   useEffect(() => {
-    void loadBooking()
-  }, [loadBooking])
-
-  useEffect(() => {
-    if (typeof sessionStorage !== 'undefined') {
-      const s = sessionStorage.getItem(STUB_CARD_BALANCE_KEY)
-      if (s != null) setStubBalance(s)
+    if (!bookingId || !accessToken) return
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      void loadBooking()
+    })
+    return () => {
+      cancelled = true
     }
-  }, [])
+  }, [bookingId, accessToken, loadBooking])
 
   useEffect(() => {
     if (!accessToken || !booking || booking.role !== 'renter' || booking.status !== 'PAYMENT_FAILED') {
@@ -108,6 +113,19 @@ export function BookingDetailPage() {
           <p className="status">Войдите, чтобы открыть сделку.</p>
           <Link to="/" className="btn btn--brand">
             На главную
+          </Link>
+        </div>
+      </main>
+    )
+  }
+
+  if (!bookingId) {
+    return (
+      <main className="bookings-page">
+        <div className="container bookings-page__inner">
+          <div className="alert alert--error">Сделка не найдена</div>
+          <Link to="/bookings" className="btn btn--brand" style={{ marginTop: 'var(--sp-4)' }}>
+            Мои бронирования
           </Link>
         </div>
       </main>

@@ -19,18 +19,20 @@ function formatRange(b: BookingListItem): string {
 export function LandlordBookingsPage() {
   const { accessToken, user } = useAuth()
   const [items, setItems] = useState<BookingListItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => Boolean(accessToken))
   const [error, setError] = useState<string | null>(null)
 
+  const displayItems = accessToken ? items : []
+  const displayError = accessToken ? error : null
+  const displayLoading = accessToken ? loading : false
+
   useEffect(() => {
-    if (!accessToken) {
-      setLoading(false)
-      setItems([])
-      return
-    }
+    if (!accessToken) return
     const token = accessToken
     let cancelled = false
     async function load() {
+      await Promise.resolve()
+      if (cancelled) return
       setLoading(true)
       setError(null)
       try {
@@ -79,15 +81,15 @@ export function LandlordBookingsPage() {
           <span aria-current="page">Сдаю</span>
         </nav>
 
-        {error ? <div className="alert alert--error">{error}</div> : null}
+        {displayError ? <div className="alert alert--error">{displayError}</div> : null}
 
-        {loading ? (
+        {displayLoading ? (
           <div className="skeleton" style={{ height: 160, borderRadius: 'var(--r-md)' }} />
-        ) : items.length === 0 ? (
+        ) : displayItems.length === 0 ? (
           <p className="status">Пока никто не бронировал ваши опубликованные объявления.</p>
         ) : (
           <ul className="bookings-page__list">
-            {items.map((b) => (
+            {displayItems.map((b) => (
               <li key={b.id} className="bookings-page__card">
                 <div className="bookings-page__card-main">
                   <Link to={`/bookings/${b.id}`} className="bookings-page__card-title">
