@@ -65,7 +65,10 @@ export class SearchService {
       .filter(Boolean);
   }
 
-  async search(dto: SearchQueryDto): Promise<SearchResponse> {
+  async search(
+    dto: SearchQueryDto,
+    excludeOwnerId?: string,
+  ): Promise<SearchResponse> {
     await this.ensureDefaultCatalogSeeded();
 
     const page = dto.page ?? 1;
@@ -97,6 +100,14 @@ export class SearchService {
     const filter: estypes.QueryDslQueryContainer[] = [
       { term: { status: 'ACTIVE' } },
     ];
+
+    if (excludeOwnerId) {
+      filter.push({
+        bool: {
+          must_not: [{ term: { ownerId: excludeOwnerId } }],
+        },
+      });
+    }
 
     if (dto.categoryId) {
       filter.push({ term: { categoryId: dto.categoryId } });
@@ -191,6 +202,7 @@ export class SearchService {
           normalizedQ,
           page,
           limit,
+          excludeOwnerId,
         );
         if (dbFallback.totalCount > 0) {
           return {
@@ -225,7 +237,7 @@ export class SearchService {
       };
     } catch (err) {
       this.logger.error(`Elasticsearch search failed: ${String(err)}`);
-      return this.searchFromDatabase(dto, normalizedQ, page, limit);
+      return this.searchFromDatabase(dto, normalizedQ, page, limit, excludeOwnerId);
     }
   }
 
@@ -234,6 +246,7 @@ export class SearchService {
     normalizedQ: string,
     page: number,
     limit: number,
+    excludeOwnerId?: string,
   ): Promise<SearchResponse> {
     const skip = (page - 1) * limit;
     const normalizedCity = this.normalizeQuery(dto.city);
@@ -241,6 +254,10 @@ export class SearchService {
     const andWhere: Array<Record<string, unknown>> = [
       { status: ListingStatus.ACTIVE },
     ];
+
+    if (excludeOwnerId) {
+      andWhere.push({ ownerId: { not: excludeOwnerId } });
+    }
 
     if (dto.categoryId) {
       andWhere.push({ categoryId: dto.categoryId });

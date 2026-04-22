@@ -5,12 +5,12 @@ import { AuthService } from './auth.service';
 import { BotSecretGuard } from './bot-secret.guard';
 import { EmailModule } from '../email/email.module';
 import { JwtTokenService } from '../tokens/jwt-token.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtAuthGuard, OptionalJwtAuthGuard } from './jwt-auth.guard';
 
 @Module({
   imports: [EmailModule, JwtModule.register({})],
   controllers: [AuthController],
-  providers: [AuthService, JwtTokenService, JwtAuthGuard, BotSecretGuard],
-  exports: [JwtModule, JwtAuthGuard],
+  providers: [AuthService, JwtTokenService, JwtAuthGuard, OptionalJwtAuthGuard, BotSecretGuard],
+  exports: [JwtModule, JwtAuthGuard, OptionalJwtAuthGuard],
 })
 export class AuthModule {}

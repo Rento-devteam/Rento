@@ -36,13 +36,14 @@ describe('searchCatalog', () => {
 
   it('calls /search without query when params are empty', async () => {
     await searchCatalog({})
-    expect(apiRequest).toHaveBeenCalledWith('/search')
+    expect(apiRequest).toHaveBeenCalledWith('/search', undefined)
   })
 
   it('builds query with trimmed q and city', async () => {
     await searchCatalog({ q: '  drill  ', city: ' Москва ', sort: 'price_asc' })
     expect(apiRequest).toHaveBeenCalledWith(
       expect.stringMatching(/^\/search\?/),
+      undefined,
     )
     const url = String(apiRequest.mock.calls[0][0])
     const qs = url.replace('/search?', '')

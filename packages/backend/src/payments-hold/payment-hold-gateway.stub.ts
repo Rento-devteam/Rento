@@ -41,6 +41,18 @@ export class PaymentHoldGatewayStub implements PaymentHoldGateway {
       );
     }
 
+    const stubBal = request.metadata?.stubBalanceRub;
+    if (
+      typeof stubBal === 'number' &&
+      Number.isFinite(stubBal) &&
+      stubBal < request.amount
+    ) {
+      throw new PaymentHoldDeclinedError(
+        'Insufficient funds',
+        'insufficient_funds',
+      );
+    }
+
     // Deterministic pseudo IDs for tests/dev.
     const hash = Array.from(request.idempotencyKey).reduce(
       (acc, ch) => (acc + ch.charCodeAt(0)) % 1_000_000,

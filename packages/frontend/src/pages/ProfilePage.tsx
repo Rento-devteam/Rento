@@ -5,6 +5,13 @@ import { authApi } from '../auth/authApi'
 import { apiRequest, ApiError } from '../lib/apiClient'
 import type { IListing } from '@rento/shared'
 import { deleteListing } from '../catalog/catalogApi'
+import {
+  attachCard,
+  listPaymentMethods,
+  removeCard,
+  setDefaultCard,
+  type BankCard,
+} from '../payments/paymentMethodsApi'
 import '../styles/profile.css'
 
 function accountStatusLabel(status: string): string {
@@ -38,6 +45,13 @@ export function ProfilePage() {
   const [profileMessage, setProfileMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(
     null,
   )
+  const [cards, setCards] = useState<BankCard[]>([])
+  const [cardsLoading, setCardsLoading] = useState(true)
+  const [cardsError, setCardsError] = useState<string | null>(null)
+  const [cardToken, setCardToken] = useState('')
+  const [setAsDefault, setSetAsDefault] = useState(false)
+  const [cardActionLoading, setCardActionLoading] = useState(false)
+  const [cardMessage, setCardMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   useEffect(() => {
     if (!user) {
@@ -77,6 +91,27 @@ export function ProfilePage() {
 
     void loadMyListings()
   }, [user, accessToken])
+
+  useEffect(() => {
+    if (!user || !accessToken) return
+
+    async function loadCards() {
+      setCardsLoading(true)
+      setCardsError(null)
+      try {
+        const items = await listPaymentMethods(accessToken)
+        setCards(items)
+      } catch (err: unknown) {
+        setCardsError(
+          err instanceof ApiError ? err.message : 'Не удалось загрузить привязанные карты',
+        )
+      } finally {
+        setCardsLoading(false)
+      }
+    }
+
+    void loadCards()
+  }, [user?.id, accessToken])
 
   const handleDelete = async (listingId: string) => {
     if (!window.confirm('Вы уверены, что хотите удалить это объявление?')) return
@@ -137,6 +172,74 @@ export function ProfilePage() {
       })
     } finally {
       setProfileSaving(false)
+    }
+  }
+
+  const handleAttachCard = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!accessToken || !cardToken.trim()) return
+
+    setCardActionLoading(true)
+    setCardMessage(null)
+    try {
+      const created = await attachCard({
+        accessToken,
+        token: cardToken.trim(),
+        setAsDefault,
+      })
+      setCards((prev) => {
+        const withoutCreated = prev.filter((card) => card.id !== created.id)
+        if (created.isDefault) {
+          return [created, ...withoutCreated.map((card) => ({ ...card, isDefault: false }))]
+        }
+        return [...withoutCreated, created]
+      })
+      setCardToken('')
+      setSetAsDefault(false)
+      setCardMessage({ type: 'ok', text: 'Карта успешно привязана' })
+    } catch (err: unknown) {
+      setCardMessage({
+        type: 'err',
+        text: err instanceof ApiError ? err.message : 'Не удалось привязать карту',
+      })
+    } finally {
+      setCardActionLoading(false)
+    }
+  }
+
+  const handleSetDefaultCard = async (cardId: string) => {
+    if (!accessToken) return
+    setCardActionLoading(true)
+    setCardMessage(null)
+    try {
+      await setDefaultCard(accessToken, cardId)
+      setCards((prev) => prev.map((card) => ({ ...card, isDefault: card.id === cardId })))
+      setCardMessage({ type: 'ok', text: 'Карта выбрана для Escrow по умолчанию' })
+    } catch (err: unknown) {
+      setCardMessage({
+        type: 'err',
+        text: err instanceof ApiError ? err.message : 'Не удалось обновить карту по умолчанию',
+      })
+    } finally {
+      setCardActionLoading(false)
+    }
+  }
+
+  const handleRemoveCard = async (cardId: string) => {
+    if (!accessToken) return
+    setCardActionLoading(true)
+    setCardMessage(null)
+    try {
+      await removeCard(accessToken, cardId)
+      setCards((prev) => prev.filter((card) => card.id !== cardId))
+      setCardMessage({ type: 'ok', text: 'Карта отвязана' })
+    } catch (err: unknown) {
+      setCardMessage({
+        type: 'err',
+        text: err instanceof ApiError ? err.message : 'Не удалось отвязать карту',
+      })
+    } finally {
+      setCardActionLoading(false)
     }
   }
 
@@ -219,17 +322,95 @@ export function ProfilePage() {
               <section className="profile-panel profile-panel--muted" aria-labelledby="profile-wallet-title">
                 <div className="profile-panel__head">
                   <h3 id="profile-wallet-title" className="profile-panel__title">
-                    Кошелёк
+                    Карты для Escrow
                   </h3>
                   <WalletGlyph />
                 </div>
                 <p className="profile-panel__hint">
-                  Баланс, пополнение и история платежей появятся здесь в следующей версии.
+                  Привяжите карту через защищенный платежный шлюз. На backend сейчас используется заглушка:
+                  для теста используйте любой непустой токен.
                 </p>
-                <div className="profile-wallet__amount">— ₽</div>
-                <button type="button" className="btn btn--ghost" disabled style={{ marginTop: 'var(--sp-3)' }}>
-                  Скоро
-                </button>
+                <form className="profile-cards-form" onSubmit={(e) => void handleAttachCard(e)}>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label className="field__label" htmlFor="card-token">
+                      Токен карты из шлюза
+                    </label>
+                    <input
+                      id="card-token"
+                      className="field__input"
+                      value={cardToken}
+                      onChange={(e) => setCardToken(e.target.value)}
+                      placeholder="pm_token_..."
+                      maxLength={255}
+                    />
+                  </div>
+                  <label className="profile-cards-form__checkbox">
+                    <input
+                      type="checkbox"
+                      checked={setAsDefault}
+                      onChange={(e) => setSetAsDefault(e.target.checked)}
+                    />
+                    <span>Сделать основной картой для удержаний</span>
+                  </label>
+                  <button
+                    type="submit"
+                    className="btn btn--brand"
+                    disabled={cardActionLoading || !cardToken.trim()}
+                  >
+                    {cardActionLoading ? 'Привязка…' : 'Привязать карту'}
+                  </button>
+                </form>
+                {cardMessage ? (
+                  <p
+                    className={`profile-resend-msg${cardMessage.type === 'ok' ? ' profile-resend-msg--ok' : ' profile-resend-msg--err'}`}
+                    style={{ marginTop: 'var(--sp-3)' }}
+                  >
+                    {cardMessage.text}
+                  </p>
+                ) : null}
+                {cardsError ? <p className="profile-resend-msg profile-resend-msg--err">{cardsError}</p> : null}
+                {cardsLoading ? (
+                  <div className="skeleton" style={{ height: 70, borderRadius: 'var(--r-md)' }} />
+                ) : cards.length === 0 ? (
+                  <div className="status" style={{ marginTop: 'var(--sp-3)' }}>
+                    Пока нет привязанных карт
+                  </div>
+                ) : (
+                  <ul className="profile-bank-cards" aria-label="Привязанные банковские карты">
+                    {cards.map((card) => (
+                      <li key={card.id} className="profile-bank-cards__item">
+                        <div>
+                          <strong>
+                            {card.cardType} •••• {card.last4}
+                          </strong>
+                          <div className="profile-bank-cards__meta">
+                            {card.isDefault ? 'Карта по умолчанию' : 'Дополнительная карта'}
+                          </div>
+                        </div>
+                        <div className="profile-bank-cards__actions">
+                          {!card.isDefault ? (
+                            <button
+                              type="button"
+                              className="btn btn--ghost"
+                              disabled={cardActionLoading}
+                              onClick={() => void handleSetDefaultCard(card.id)}
+                            >
+                              Сделать основной
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="btn btn--ghost"
+                            disabled={cardActionLoading}
+                            onClick={() => void handleRemoveCard(card.id)}
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
 
               <section className="profile-panel profile-panel--identity" aria-labelledby="profile-identity-title">

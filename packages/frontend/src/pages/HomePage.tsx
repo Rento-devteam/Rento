@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import type { ICategory, IListing, RentalPeriod } from '@rento/shared'
+import { useAuth } from '../auth/AuthContext'
 import { searchCatalog } from '../catalog/catalogApi'
 import { ApiError } from '../lib/apiClient'
 type SortApi = 'relevance' | 'newest' | 'price_asc' | 'price_desc'
@@ -53,6 +54,7 @@ const RENTAL_FILTERS: Array<{ value: RentalFilter; label: string }> = [
 const POPULAR_CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Минск', 'Гродно', 'Екатеринбург']
 
 export function HomePage() {
+  const { accessToken } = useAuth()
   const [q, setQ] = useState('')
   const [city, setCity] = useState('')
   const [cityDraft, setCityDraft] = useState('')
@@ -78,16 +80,19 @@ export function HomePage() {
     setLoading(true)
     setError(null)
     try {
-      const response = await searchCatalog({
-        q,
-        city,
-        categoryId: categoryId || undefined,
-        minPrice: minPrice ? Number(minPrice) : undefined,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
-        sort: SORT_TO_API[sortPreset],
-        page: 1,
-        limit: 24,
-      })
+      const response = await searchCatalog(
+        {
+          q,
+          city,
+          categoryId: categoryId || undefined,
+          minPrice: minPrice ? Number(minPrice) : undefined,
+          maxPrice: maxPrice ? Number(maxPrice) : undefined,
+          sort: SORT_TO_API[sortPreset],
+          page: 1,
+          limit: 24,
+        },
+        accessToken,
+      )
       setItems(response.results)
 
       const map = new Map<string, ICategory>()

@@ -39,33 +39,44 @@ export class ListingSearchIndexService implements OnModuleInit {
 
   async ensureIndex(): Promise<void> {
     const exists = await this.client.indices.exists({ index: this.indexName });
-    if (exists) {
+    if (!exists) {
+      await this.client.indices.create({
+        index: this.indexName,
+        mappings: {
+          properties: {
+            listingId: { type: 'keyword' },
+            ownerId: { type: 'keyword' },
+            title: { type: 'text', analyzer: 'russian' },
+            description: { type: 'text', analyzer: 'russian' },
+            categoryName: { type: 'text', analyzer: 'russian' },
+            categoryId: { type: 'keyword' },
+            status: { type: 'keyword' },
+            rentalPrice: { type: 'float' },
+            rentalPeriod: { type: 'keyword' },
+            createdAt: { type: 'date' },
+            location: { type: 'geo_point' },
+            titleSuggest: {
+              type: 'completion',
+              analyzer: 'simple',
+              preserve_separators: true,
+            },
+          },
+        },
+      });
+      this.logger.log(`Created Elasticsearch index: ${this.indexName}`);
       return;
     }
 
-    await this.client.indices.create({
-      index: this.indexName,
-      mappings: {
+    try {
+      await this.client.indices.putMapping({
+        index: this.indexName,
         properties: {
-          listingId: { type: 'keyword' },
-          title: { type: 'text', analyzer: 'russian' },
-          description: { type: 'text', analyzer: 'russian' },
-          categoryName: { type: 'text', analyzer: 'russian' },
-          categoryId: { type: 'keyword' },
-          status: { type: 'keyword' },
-          rentalPrice: { type: 'float' },
-          rentalPeriod: { type: 'keyword' },
-          createdAt: { type: 'date' },
-          location: { type: 'geo_point' },
-          titleSuggest: {
-            type: 'completion',
-            analyzer: 'simple',
-            preserve_separators: true,
-          },
+          ownerId: { type: 'keyword' },
         },
-      },
-    });
-    this.logger.log(`Created Elasticsearch index: ${this.indexName}`);
+      });
+    } catch {
+      // ignore if field already exists or cluster rejects duplicate mapping
+    }
   }
 
   async indexListing(listingId: string): Promise<void> {
@@ -81,6 +92,7 @@ export class ListingSearchIndexService implements OnModuleInit {
 
     const doc: Record<string, unknown> = {
       listingId: listing.id,
+      ownerId: listing.ownerId,
       title: listing.title,
       description: listing.description,
       categoryName: listing.category.name,

@@ -58,16 +58,33 @@ describe('ProfilePage', () => {
       refreshProfile: vi.fn().mockResolvedValue(undefined),
     })
 
-    apiRequestMock.mockResolvedValue([
-      {
-        id: 'l1',
-        title: 'Моя палатка',
-        rentalPrice: 500,
-        rentalPeriod: 'DAY',
-        status: 'ACTIVE',
-        photos: [],
-      },
-    ])
+    apiRequestMock.mockImplementation((path: string) => {
+      if (path === '/listings/my') {
+        return Promise.resolve([
+          {
+            id: 'l1',
+            title: 'Моя палатка',
+            rentalPrice: 500,
+            rentalPeriod: 'DAY',
+            status: 'ACTIVE',
+            photos: [],
+          },
+        ])
+      }
+      if (path === '/payment/methods') {
+        return Promise.resolve({ items: [] })
+      }
+      if (path === '/payment/cards/add') {
+        return Promise.resolve({
+          id: 'card-1',
+          last4: '1234',
+          cardType: 'Visa',
+          isDefault: true,
+          addedAt: new Date().toISOString(),
+        })
+      }
+      return Promise.resolve({})
+    })
     updateCurrentUserMock.mockReset()
     updateCurrentUserMock.mockResolvedValue({})
   })
@@ -162,6 +179,31 @@ describe('ProfilePage', () => {
       expect(screen.getByText(/500 ₽ \/ сутки/i)).toBeInTheDocument()
       expect(screen.getByText('Активно')).toBeInTheDocument()
     })
+  })
+
+  it('attaches card from gateway token', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <ProfilePage />
+      </MemoryRouter>,
+    )
+
+    await user.type(screen.getByLabelText(/Токен карты из шлюза/i), 'pm_token_escrow_1')
+    await user.click(screen.getByRole('button', { name: /Привязать карту/i }))
+
+    await waitFor(() => {
+      expect(apiRequestMock).toHaveBeenCalledWith(
+        '/payment/cards/add',
+        expect.objectContaining({
+          method: 'POST',
+          accessToken: 'token-123',
+        }),
+      )
+    })
+
+    expect(await screen.findByText(/Карта успешно привязана/i)).toBeInTheDocument()
+    expect(screen.getByText(/Visa •••• 1234/i)).toBeInTheDocument()
   })
 
   it('shows email confirmation panel when email is not verified', async () => {

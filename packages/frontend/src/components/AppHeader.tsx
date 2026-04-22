@@ -11,6 +11,16 @@ export function AppHeader({ onAuthRequest }: AppHeaderProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
 
+  const goBookings = () => {
+    if (user) navigate('/bookings')
+    else onAuthRequest('login')
+  }
+
+  const goHostingBookings = () => {
+    if (user) navigate('/bookings/hosting')
+    else onAuthRequest('login')
+  }
+
   return (
     <header className="app-header">
       <div className="container app-header__inner">
@@ -30,8 +40,23 @@ export function AppHeader({ onAuthRequest }: AppHeaderProps) {
           <button type="button" className="icon-btn" aria-label="Сообщения">
             <ChatIcon />
           </button>
-          <button type="button" className="icon-btn" aria-label="Корзина">
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Мои бронирования"
+            title="Мои бронирования"
+            onClick={goBookings}
+          >
             <CartIcon />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Брони по моим объявлениям"
+            title="Брони по моим объявлениям"
+            onClick={goHostingBookings}
+          >
+            <HostBookingsIcon />
           </button>
           <button type="button" className="icon-btn" aria-label="Избранное">
             <HeartIcon />
@@ -100,6 +125,14 @@ function HeartIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden>
       <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.7A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+    </svg>
+  )
+}
+
+function HostBookingsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" />
     </svg>
   )
 }

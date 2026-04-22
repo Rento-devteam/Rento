@@ -59,6 +59,7 @@ export interface PublishListingResponse {
 
 export async function searchCatalog(
   params: CatalogSearchParams,
+  accessToken?: string | null,
 ): Promise<CatalogSearchResponse> {
   const query = new URLSearchParams()
   if (params.q?.trim()) query.set('q', params.q.trim())
@@ -75,7 +76,10 @@ export async function searchCatalog(
   if (params.limit != null) query.set('limit', String(params.limit))
 
   const suffix = query.toString()
-  return apiRequest<CatalogSearchResponse>(`/search${suffix ? `?${suffix}` : ''}`)
+  return apiRequest<CatalogSearchResponse>(
+    `/search${suffix ? `?${suffix}` : ''}`,
+    accessToken ? { accessToken } : undefined,
+  )
 }
 
 export async function getCreateMetadata(accessToken: string): Promise<CreateMetadataResponse> {
