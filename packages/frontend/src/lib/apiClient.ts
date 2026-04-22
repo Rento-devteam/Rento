@@ -1,10 +1,13 @@
 export class ApiError extends Error {
   readonly status: number
+  /** Present on some errors (e.g. 402 payment hold) when backend returns `bookingId` in JSON body. */
+  readonly bookingId?: string
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, bookingId?: string) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.bookingId = bookingId
   }
 }
 
@@ -29,12 +32,22 @@ function getErrorMessage(body: unknown, fallback: string): string {
   return fallback
 }
 
+function getBookingIdFromBody(body: unknown): string | undefined {
+  if (body && typeof body === 'object' && 'bookingId' in body) {
+    const id = (body as { bookingId: unknown }).bookingId
+    if (typeof id === 'string' && id.length > 0) return id
+  }
+  return undefined
+}
+
 export async function apiRequest<T>(
   path: string,
   init?: RequestInit & { accessToken?: string | null },
 ): Promise<T> {
   const headers = new Headers(init?.headers)
-  if (!headers.has('Content-Type') && init?.body) {
+  const isFormDataBody =
+    typeof FormData !== 'undefined' && init?.body instanceof FormData
+  if (!headers.has('Content-Type') && init?.body && !isFormDataBody) {
     headers.set('Content-Type', 'application/json')
   }
   if (init?.accessToken) {
@@ -49,7 +62,7 @@ export async function apiRequest<T>(
   if (!res.ok) {
     const body = await parseJson<unknown>(res).catch(() => null)
     const message = getErrorMessage(body, res.statusText)
-    throw new ApiError(res.status, message)
+    throw new ApiError(res.status, message, getBookingIdFromBody(body))
   }
 
   return parseJson<T>(res)

@@ -62,6 +62,17 @@ export const authApi = {
     })
   },
 
+  updateCurrentUser(
+    body: { fullName?: string; phone?: string; avatarUrl?: string },
+    accessToken: string,
+  ): Promise<AuthUser> {
+    return apiRequest<AuthUser>('/users/me', {
+      method: 'PATCH',
+      accessToken,
+      body: JSON.stringify(body),
+    })
+  },
+
   /** После подтверждения email: привязка Telegram по коду из бота (`telegramId` передаёт бот; для тестов можно вызвать вручную). */
   verifyTelegramLink(body: {
     code: string

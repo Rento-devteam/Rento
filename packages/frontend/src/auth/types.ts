@@ -1,3 +1,5 @@
+import type { ITrustScore } from '@rento/shared'
+
 export interface AuthUser {
   id: string
   email: string | null
@@ -7,6 +9,7 @@ export interface AuthUser {
   role: string
   status: string
   isVerified: boolean
+  trustScore?: ITrustScore
 }
 
 export interface AuthSuccessResponse {

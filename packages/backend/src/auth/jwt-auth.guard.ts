@@ -42,3 +42,29 @@ export class JwtAuthGuard implements CanActivate {
     }
   }
 }
+
+/**
+ * If Authorization Bearer is present and valid, sets request.user; otherwise continues without user.
+ * Used for public endpoints that behave differently for authenticated clients (e.g. search excluding own listings).
+ */
+@Injectable()
+export class OptionalJwtAuthGuard implements CanActivate {
+  constructor(private readonly jwtService: JwtService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    const authHeader = request.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return true;
+    }
+    const token = authHeader.substring('Bearer '.length);
+    try {
+      request.user = (await this.jwtService.verifyAsync(token, {
+        secret: process.env.JWT_ACCESS_SECRET ?? 'dev_access_secret',
+      })) as RequestWithUser['user'];
+    } catch {
+      request.user = undefined;
+    }
+    return true;
+  }
+}

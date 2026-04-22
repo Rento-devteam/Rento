@@ -53,4 +53,26 @@ describe('apiClient', () => {
     expect(err.status).toBe(401)
     expect(err.message).toBe('Unauthorized')
   })
+
+  it('apiRequest maps bookingId from error JSON body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 402,
+        statusText: 'Payment Required',
+        text: async () =>
+          JSON.stringify({ message: 'Hold declined', bookingId: 'bkg_01test' }),
+      }),
+    )
+
+    try {
+      await apiRequest('/bookings')
+      expect.fail('expected ApiError')
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError)
+      expect((e as ApiError).status).toBe(402)
+      expect((e as ApiError).bookingId).toBe('bkg_01test')
+    }
+  })
 })

@@ -37,6 +37,19 @@ export interface UserProfileSource {
   phone?: string | null;
   avatarUrl?: string | null;
   role?: UserRole | null;
+  emailConfirmedAt?: Date | null;
+}
+
+/** Email-пользователь «подтверждён» после клика по ссылке; без email (напр. только Telegram) — после активации аккаунта. */
+export function computeUserIsVerified(user: {
+  email: string | null;
+  emailConfirmedAt: Date | null | undefined;
+  status: UserStatus;
+}): boolean {
+  if (user.email) {
+    return user.emailConfirmedAt != null;
+  }
+  return user.status === 'ACTIVE';
 }
 
 export function buildDefaultTrustScore(): TrustScoreSnapshot {
@@ -62,7 +75,11 @@ export function buildUserProfileResponse(
     avatarUrl: user.avatarUrl ?? null,
     role: user.role ?? 'USER',
     status: user.status,
-    isVerified: false,
+    isVerified: computeUserIsVerified({
+      email: user.email,
+      emailConfirmedAt: user.emailConfirmedAt ?? null,
+      status: user.status,
+    }),
     ...(trustScore ? { trustScore } : {}),
   };
 }

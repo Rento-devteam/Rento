@@ -1,5 +1,5 @@
 import { apiRequest } from '../lib/apiClient'
-import type { ICategory, IListing } from '@rento/shared'
+import type { ICategory, IListing, IListingPhoto } from '@rento/shared'
 
 export interface CatalogSearchResponse {
   results: IListing[]
@@ -23,8 +23,43 @@ export interface CatalogSearchParams {
   limit?: number
 }
 
+export interface CreateMetadataResponse {
+  categories: ICategory[]
+}
+
+export interface CreateListingDto {
+  title: string
+  description: string
+  categoryId: string
+  rentalPrice: number
+  rentalPeriod: 'HOUR' | 'DAY' | 'WEEK' | 'MONTH'
+  depositAmount: number
+}
+
+export interface CreateListingResponse {
+  id: string
+  status: IListing['status']
+  message: string
+  nextStep: 'upload_photos'
+}
+
+export interface UploadPhotoResponse {
+  photo: IListingPhoto
+  totalPhotos: number
+  message: string
+  nextStep: 'publish_listing'
+}
+
+export interface PublishListingResponse {
+  id: string
+  status: IListing['status']
+  message: string
+  nextStep: null
+}
+
 export async function searchCatalog(
   params: CatalogSearchParams,
+  accessToken?: string | null,
 ): Promise<CatalogSearchResponse> {
   const query = new URLSearchParams()
   if (params.q?.trim()) query.set('q', params.q.trim())
@@ -41,5 +76,70 @@ export async function searchCatalog(
   if (params.limit != null) query.set('limit', String(params.limit))
 
   const suffix = query.toString()
-  return apiRequest<CatalogSearchResponse>(`/search${suffix ? `?${suffix}` : ''}`)
+  return apiRequest<CatalogSearchResponse>(
+    `/search${suffix ? `?${suffix}` : ''}`,
+    accessToken ? { accessToken } : undefined,
+  )
+}
+
+export async function getCreateMetadata(accessToken: string): Promise<CreateMetadataResponse> {
+  return apiRequest<CreateMetadataResponse>('/listings/create', { accessToken })
+}
+
+export async function createListing(
+  dto: CreateListingDto,
+  accessToken: string,
+): Promise<CreateListingResponse> {
+  return apiRequest<CreateListingResponse>('/listings', {
+    method: 'POST',
+    accessToken,
+    body: JSON.stringify(dto),
+  })
+}
+
+export async function uploadListingPhoto(
+  listingId: string,
+  file: File,
+  accessToken: string,
+  order?: number,
+): Promise<UploadPhotoResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (order != null) {
+    formData.append('order', String(order))
+  }
+
+  return apiRequest<UploadPhotoResponse>(`/listings/${listingId}/photos`, {
+    method: 'POST',
+    accessToken,
+    headers: {},
+    body: formData,
+  })
+}
+
+export async function publishListing(
+  listingId: string,
+  accessToken: string,
+): Promise<PublishListingResponse> {
+  return apiRequest<PublishListingResponse>(`/listings/${listingId}/publish`, {
+    method: 'POST',
+    accessToken,
+  })
+}
+
+export async function getListingDetails(listingId: string): Promise<IListing> {
+  const response = await apiRequest<IListing & { nextStep?: string; message?: string }>(
+    `/listings/${listingId}`,
+  )
+  return response
+}
+
+export async function deleteListing(
+  listingId: string,
+  accessToken: string,
+): Promise<{ success: boolean }> {
+  return apiRequest<{ success: boolean }>(`/listings/${listingId}`, {
+    method: 'DELETE',
+    accessToken,
+  })
 }

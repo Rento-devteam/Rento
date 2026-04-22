@@ -42,6 +42,7 @@ export class BookingsWorkflowService {
     startAtIso: string;
     endAtIso: string;
     cardId?: string;
+    stubBalanceRub?: number;
   }) {
     const startAt = this.parseIso(params.startAtIso, 'startAt');
     const endAt = this.parseIso(params.endAtIso, 'endAt');
@@ -154,6 +155,9 @@ export class BookingsWorkflowService {
           renterId: params.renterId,
           rentAmount,
           depositAmount,
+          ...(params.stubBalanceRub != null && Number.isFinite(params.stubBalanceRub)
+            ? { stubBalanceRub: params.stubBalanceRub }
+            : {}),
         },
       });
 
@@ -193,7 +197,14 @@ export class BookingsWorkflowService {
       });
 
       if (err instanceof PaymentHoldDeclinedError) {
-        throw new HttpException(err.message, 402);
+        throw new HttpException(
+          {
+            statusCode: 402,
+            message: err.message,
+            bookingId: booking.id,
+          },
+          402,
+        );
       }
       throw err;
     }
@@ -203,6 +214,7 @@ export class BookingsWorkflowService {
     renterId: string;
     bookingId: string;
     cardId: string;
+    stubBalanceRub?: number;
   }) {
     const booking = await this.prisma.booking.findFirst({
       where: { id: params.bookingId, renterId: params.renterId },
@@ -241,6 +253,9 @@ export class BookingsWorkflowService {
           renterId: params.renterId,
           rentAmount: booking.rentAmount,
           depositAmount: booking.depositAmount,
+          ...(params.stubBalanceRub != null && Number.isFinite(params.stubBalanceRub)
+            ? { stubBalanceRub: params.stubBalanceRub }
+            : {}),
         },
       });
 
@@ -273,7 +288,14 @@ export class BookingsWorkflowService {
       });
 
       if (err instanceof PaymentHoldDeclinedError) {
-        throw new HttpException(err.message, 402);
+        throw new HttpException(
+          {
+            statusCode: 402,
+            message: err.message,
+            bookingId: booking.id,
+          },
+          402,
+        );
       }
       throw err;
     }

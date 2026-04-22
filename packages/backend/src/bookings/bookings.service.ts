@@ -1,7 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { BookingStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { eachUtcDateInclusive, utcDateOnly } from '../util/date-only';
+import {
+  mapBookingDetail,
+  mapBookingListItem,
+} from './booking-list.mapper';
 import { CALENDAR_BLOCKING_BOOKING_STATUSES } from './bookings.constants';
 
 @Injectable()
@@ -85,5 +89,47 @@ export class BookingsService {
       },
       data: { status: BookingStatus.CANCELLED },
     });
+  }
+
+  async listBookingsAsRenter(userId: string) {
+    const rows = await this.prisma.booking.findMany({
+      where: { renterId: userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        listing: { select: { id: true, title: true } },
+        renter: { select: { id: true, fullName: true, email: true } },
+      },
+    });
+    return { items: rows.map((r) => mapBookingListItem(r, 'renter')) };
+  }
+
+  async listBookingsAsLandlord(ownerId: string) {
+    const rows = await this.prisma.booking.findMany({
+      where: { listing: { ownerId } },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        listing: { select: { id: true, title: true } },
+        renter: { select: { id: true, fullName: true, email: true } },
+      },
+    });
+    return { items: rows.map((r) => mapBookingListItem(r, 'landlord')) };
+  }
+
+  async getBookingForParticipant(bookingId: string, userId: string) {
+    const row = await this.prisma.booking.findFirst({
+      where: {
+        id: bookingId,
+        OR: [{ renterId: userId }, { listing: { ownerId: userId } }],
+      },
+      include: {
+        listing: { select: { id: true, title: true, ownerId: true } },
+        renter: { select: { id: true, fullName: true, email: true } },
+      },
+    });
+    if (!row) {
+      throw new NotFoundException('Booking not found');
+    }
+    const role = row.renterId === userId ? 'renter' : 'landlord';
+    return mapBookingDetail(row, role);
   }
 }

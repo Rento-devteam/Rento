@@ -28,7 +28,14 @@ describe('SearchService', () => {
   let service: SearchService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockSearch.mockReset();
+    prismaService.listing.count.mockReset();
+    prismaService.listing.findMany.mockReset();
+    prismaService.listing.createMany.mockReset();
+    prismaService.user.upsert.mockReset();
+    prismaService.category.findMany.mockReset();
+    prismaService.category.upsert.mockReset();
+    listingSearchIndex.indexListing.mockReset();
     prismaService.listing.count.mockResolvedValue(1);
     service = new SearchService(
       client as never,
@@ -121,6 +128,10 @@ describe('SearchService', () => {
         isActive: true,
       },
     ]);
+    prismaService.listing.count
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(0);
+    prismaService.listing.findMany.mockResolvedValueOnce([]);
 
     const result = await service.search({ q: 'zzz', page: 1, limit: 10 });
 
@@ -161,5 +172,53 @@ describe('SearchService', () => {
     const result = await service.search({ q: 'x', page: 1, limit: 10 });
     expect(result.totalCount).toBe(1);
     expect(result.results[0]?.id).toBe('a');
+  });
+
+  it('falls back to database when Elasticsearch returns no hits', async () => {
+    mockSearch
+      .mockResolvedValueOnce({
+        hits: { total: { value: 0 }, hits: [] },
+      })
+      .mockResolvedValueOnce({
+        hits: { total: { value: 0 }, hits: [] },
+      });
+
+    const listing = {
+      id: 'scooter-id',
+      ownerId: 'u1',
+      categoryId: 'c1',
+      title: 'Электросамокат Ninebot',
+      description: 'Городской транспорт',
+      rentalPrice: 900,
+      rentalPeriod: RentalPeriod.DAY,
+      depositAmount: 2000,
+      status: ListingStatus.ACTIVE,
+      latitude: null,
+      longitude: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      category: {
+        id: 'c1',
+        name: 'Транспорт',
+        slug: 'transport',
+        icon: null,
+        order: 0,
+        isActive: true,
+      },
+      photos: [],
+    };
+    prismaService.listing.count.mockResolvedValueOnce(1);
+    prismaService.listing.findMany.mockResolvedValueOnce([listing]);
+
+    const result = await service.search({
+      q: 'электросамокат',
+      page: 1,
+      limit: 10,
+    });
+
+    expect(result.totalCount).toBe(1);
+    expect(result.emptyResults).toBe(false);
+    expect(result.relaxedMatch).toBe(true);
+    expect(result.results[0]?.id).toBe('scooter-id');
   });
 });

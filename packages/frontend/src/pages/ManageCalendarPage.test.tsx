@@ -135,4 +135,21 @@ describe('ManageCalendarPage', () => {
       )
     })
   })
+
+  it('allows blocking a single selected day', async () => {
+    const user = userEvent.setup()
+    render(<ManageCalendarPage />)
+
+    await waitFor(() => expect(getCalendarMock).toHaveBeenCalled())
+
+    await user.click(screen.getAllByRole('button', { name: '8' })[0])
+    await user.click(screen.getByRole('button', { name: /заблокировать/i }))
+
+    await waitFor(() => {
+      expect(blockDatesMock).toHaveBeenCalledTimes(1)
+    })
+
+    const [, startDate, endDate] = blockDatesMock.mock.calls[0]
+    expect(startDate).toBe(endDate)
+  })
 })

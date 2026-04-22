@@ -6,7 +6,12 @@ import { AuthModal, type AuthTab } from './components/AuthModal'
 import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
 import { CreateItemPage } from './pages/CreateItemPage'
 import { HomePage } from './pages/HomePage'
+import { ListingDetailsPage } from './pages/ListingDetailsPage'
 import { ManageCalendarPage } from './pages/ManageCalendarPage'
+import { ProfilePage } from './pages/ProfilePage'
+import { RenterBookingsPage } from './pages/RenterBookingsPage'
+import { LandlordBookingsPage } from './pages/LandlordBookingsPage'
+import { BookingDetailPage } from './pages/BookingDetailPage'
 
 const AUTH_ROUTE_TO_TAB: Record<string, AuthTab> = {
   '/login': 'login',
@@ -47,6 +52,11 @@ function AppLayout() {
         <Route path="/login/telegram" element={<HomePage />} />
         <Route path="/confirm-email" element={<ConfirmEmailPage />} />
         <Route path="/create-item" element={<CreateItemPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/bookings/hosting" element={<LandlordBookingsPage />} />
+        <Route path="/bookings/:bookingId" element={<BookingDetailPage />} />
+        <Route path="/bookings" element={<RenterBookingsPage />} />
+        <Route path="/listings/:id" element={<ListingDetailsPage />} />
         <Route path="/listings/:id/calendar" element={<ManageCalendarPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
