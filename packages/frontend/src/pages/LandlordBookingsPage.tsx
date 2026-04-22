@@ -28,6 +28,7 @@ export function LandlordBookingsPage() {
 
   useEffect(() => {
     if (!accessToken) return
+    const token = accessToken
     let cancelled = false
     async function load() {
       await Promise.resolve()
@@ -35,7 +36,7 @@ export function LandlordBookingsPage() {
       setLoading(true)
       setError(null)
       try {
-        const res = await listBookingsAsLandlord(accessToken)
+        const res = await listBookingsAsLandlord(token)
         if (!cancelled) setItems(res.items)
       } catch (err: unknown) {
         if (!cancelled) {

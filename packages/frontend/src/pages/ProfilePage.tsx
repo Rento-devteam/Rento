@@ -204,12 +204,13 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (!user || !accessToken) return
+    const token = accessToken
 
     async function loadCards() {
       setCardsLoading(true)
       setCardsError(null)
       try {
-        const items = await listPaymentMethods(accessToken)
+        const items = await listPaymentMethods(token)
         setCards(items)
       } catch (err: unknown) {
         setCardsError(

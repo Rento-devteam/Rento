@@ -192,6 +192,7 @@ export function ListingDetailsPage() {
 
   useEffect(() => {
     if (!bookModalOpen || !accessToken) return
+    const token = accessToken
     let cancelled = false
     async function loadCards() {
       await Promise.resolve()
@@ -199,7 +200,7 @@ export function ListingDetailsPage() {
       setPaymentMethodsLoading(true)
       setPaymentMethodsError(null)
       try {
-        const items = await listPaymentMethods(accessToken)
+        const items = await listPaymentMethods(token)
         if (cancelled) return
         setPaymentMethods(items)
         const def = items.find((c) => c.isDefault) ?? items[0]
@@ -285,13 +286,14 @@ export function ListingDetailsPage() {
 
   useEffect(() => {
     if (!id) return
+    const listingId = id
 
     async function loadListing() {
       await Promise.resolve()
       setLoading(true)
       setError(null)
       try {
-        const data = await getListingDetails(id)
+        const data = await getListingDetails(listingId)
         setListing(data)
         setActivePhoto(0)
       } catch (err: unknown) {
