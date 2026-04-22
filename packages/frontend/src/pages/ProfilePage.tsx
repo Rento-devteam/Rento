@@ -170,12 +170,14 @@ export function ProfilePage() {
   const [cardMessage, setCardMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   useEffect(() => {
-    if (!user) {
+    if (!user?.id) {
       navigate('/')
       return
     }
     void refreshProfile()
-  }, [user, navigate, refreshProfile])
+    // Зависимость только от id: после refreshProfile приходит новый объект user и
+    // не должно заново дергать API (иначе бесконечный цикл перерисовок).
+  }, [user?.id, navigate, refreshProfile])
 
   useEffect(() => {
     if (!user) return
@@ -200,7 +202,7 @@ export function ProfilePage() {
     }
 
     void loadMyListings()
-  }, [user, accessToken])
+  }, [user?.id, accessToken])
 
   useEffect(() => {
     if (!user || !accessToken) return
@@ -222,7 +224,7 @@ export function ProfilePage() {
     }
 
     void loadCards()
-  }, [user, accessToken])
+  }, [user?.id, accessToken])
 
   const handleDelete = async (listingId: string) => {
     if (!window.confirm('Вы уверены, что хотите удалить это объявление?')) return
