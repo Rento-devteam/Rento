@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import type { AuthUser } from '../auth/types'
 import { authApi } from '../auth/authApi'
 import { apiRequest, ApiError } from '../lib/apiClient'
 import type { IListing } from '@rento/shared'
@@ -13,6 +14,127 @@ import {
   type BankCard,
 } from '../payments/paymentMethodsApi'
 import '../styles/profile.css'
+
+type ProfileIdentitySectionProps = {
+  user: AuthUser
+  accessToken: string | null
+  refreshProfile: () => Promise<void>
+}
+
+function ProfileIdentitySection({ user, accessToken, refreshProfile }: ProfileIdentitySectionProps) {
+  const [draftFullName, setDraftFullName] = useState(() => user.fullName ?? '')
+  const [draftPhone, setDraftPhone] = useState(() => user.phone ?? '')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileMessage, setProfileMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(
+    null,
+  )
+
+  const isProfileDirty = useMemo(() => {
+    return (
+      draftFullName.trim() !== (user.fullName ?? '').trim() ||
+      draftPhone.trim() !== (user.phone ?? '').trim()
+    )
+  }, [user, draftFullName, draftPhone])
+
+  const handleSaveProfile = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!accessToken || !isProfileDirty) return
+    const body: { fullName?: string; phone?: string } = {}
+    if (draftFullName.trim() !== (user.fullName ?? '').trim()) {
+      body.fullName = draftFullName.trim()
+    }
+    if (draftPhone.trim() !== (user.phone ?? '').trim()) {
+      body.phone = draftPhone.trim()
+    }
+    if (Object.keys(body).length === 0) return
+
+    setProfileSaving(true)
+    setProfileMessage(null)
+    try {
+      await authApi.updateCurrentUser(body, accessToken)
+      await refreshProfile()
+      setProfileMessage({ type: 'ok', text: 'Изменения сохранены' })
+    } catch (err: unknown) {
+      setProfileMessage({
+        type: 'err',
+        text: err instanceof ApiError ? err.message : 'Не удалось сохранить данные',
+      })
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
+  return (
+    <section className="profile-panel profile-panel--form" aria-labelledby="profile-edit-title">
+      <h3 id="profile-edit-title" className="profile-panel__title">
+        Личные данные
+      </h3>
+      <form onSubmit={(e) => void handleSaveProfile(e)}>
+        <div className="profile-form__grid">
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="field__label" htmlFor="profile-fullName">
+              Имя и фамилия
+            </label>
+            <input
+              id="profile-fullName"
+              className="field__input"
+              type="text"
+              autoComplete="name"
+              maxLength={120}
+              value={draftFullName}
+              onChange={(e) => setDraftFullName(e.target.value)}
+            />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="field__label" htmlFor="profile-phone">
+              Телефон
+            </label>
+            <input
+              id="profile-phone"
+              className="field__input"
+              type="tel"
+              autoComplete="tel"
+              maxLength={30}
+              placeholder="+7 …"
+              value={draftPhone}
+              onChange={(e) => setDraftPhone(e.target.value)}
+            />
+            <span className="field__hint">Не более 30 символов.</span>
+          </div>
+        </div>
+        {profileMessage ? (
+          <p
+            className={`profile-resend-msg${profileMessage.type === 'ok' ? ' profile-resend-msg--ok' : ' profile-resend-msg--err'}`}
+            style={{ marginTop: 'var(--sp-3)' }}
+          >
+            {profileMessage.text}
+          </p>
+        ) : null}
+        <div className="profile-form__actions">
+          <button
+            type="submit"
+            className="btn btn--brand"
+            disabled={!isProfileDirty || profileSaving || !accessToken}
+          >
+            {profileSaving ? 'Сохранение…' : 'Сохранить'}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            disabled={!isProfileDirty || profileSaving || !accessToken}
+            onClick={() => {
+              setDraftFullName(user.fullName ?? '')
+              setDraftPhone(user.phone ?? '')
+              setProfileMessage(null)
+            }}
+          >
+            Сбросить
+          </button>
+        </div>
+      </form>
+    </section>
+  )
+}
 
 function accountStatusLabel(status: string): string {
   switch (status) {
@@ -39,12 +161,6 @@ export function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [resendState, setResendState] = useState<'idle' | 'loading' | 'ok' | 'err'>('idle')
   const [resendMessage, setResendMessage] = useState<string | null>(null)
-  const [draftFullName, setDraftFullName] = useState('')
-  const [draftPhone, setDraftPhone] = useState('')
-  const [profileSaving, setProfileSaving] = useState(false)
-  const [profileMessage, setProfileMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(
-    null,
-  )
   const [cards, setCards] = useState<BankCard[]>([])
   const [cardsLoading, setCardsLoading] = useState(true)
   const [cardsError, setCardsError] = useState<string | null>(null)
@@ -60,12 +176,6 @@ export function ProfilePage() {
     }
     void refreshProfile()
   }, [user, navigate, refreshProfile])
-
-  useEffect(() => {
-    if (!user) return
-    setDraftFullName(user.fullName ?? '')
-    setDraftPhone(user.phone ?? '')
-  }, [user])
 
   useEffect(() => {
     if (!user) return
@@ -94,12 +204,13 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (!user || !accessToken) return
+    const token = accessToken
 
     async function loadCards() {
       setCardsLoading(true)
       setCardsError(null)
       try {
-        const items = await listPaymentMethods(accessToken)
+        const items = await listPaymentMethods(token)
         setCards(items)
       } catch (err: unknown) {
         setCardsError(
@@ -136,42 +247,6 @@ export function ProfilePage() {
       setResendMessage(
         err instanceof ApiError ? err.message : 'Не удалось отправить письмо',
       )
-    }
-  }
-
-  const isProfileDirty = useMemo(() => {
-    if (!user) return false
-    return (
-      draftFullName.trim() !== (user.fullName ?? '').trim() ||
-      draftPhone.trim() !== (user.phone ?? '').trim()
-    )
-  }, [user, draftFullName, draftPhone])
-
-  const handleSaveProfile = async (event: FormEvent) => {
-    event.preventDefault()
-    if (!user || !accessToken || !isProfileDirty) return
-    const body: { fullName?: string; phone?: string } = {}
-    if (draftFullName.trim() !== (user.fullName ?? '').trim()) {
-      body.fullName = draftFullName.trim()
-    }
-    if (draftPhone.trim() !== (user.phone ?? '').trim()) {
-      body.phone = draftPhone.trim()
-    }
-    if (Object.keys(body).length === 0) return
-
-    setProfileSaving(true)
-    setProfileMessage(null)
-    try {
-      await authApi.updateCurrentUser(body, accessToken)
-      await refreshProfile()
-      setProfileMessage({ type: 'ok', text: 'Изменения сохранены' })
-    } catch (err: unknown) {
-      setProfileMessage({
-        type: 'err',
-        text: err instanceof ApiError ? err.message : 'Не удалось сохранить данные',
-      })
-    } finally {
-      setProfileSaving(false)
     }
   }
 
@@ -477,70 +552,12 @@ export function ProfilePage() {
               ) : null}
             </div>
 
-            <section className="profile-panel profile-panel--form" aria-labelledby="profile-edit-title">
-              <h3 id="profile-edit-title" className="profile-panel__title">
-                Личные данные
-              </h3>
-              <form onSubmit={(e) => void handleSaveProfile(e)}>
-                <div className="profile-form__grid">
-                  <div className="field" style={{ marginBottom: 0 }}>
-                    <label className="field__label" htmlFor="profile-fullName">
-                      Имя и фамилия
-                    </label>
-                    <input
-                      id="profile-fullName"
-                      className="field__input"
-                      type="text"
-                      autoComplete="name"
-                      maxLength={120}
-                      value={draftFullName}
-                      onChange={(e) => setDraftFullName(e.target.value)}
-                    />
-                  </div>
-                  <div className="field" style={{ marginBottom: 0 }}>
-                    <label className="field__label" htmlFor="profile-phone">
-                      Телефон
-                    </label>
-                    <input
-                      id="profile-phone"
-                      className="field__input"
-                      type="tel"
-                      autoComplete="tel"
-                      maxLength={30}
-                      placeholder="+7 …"
-                      value={draftPhone}
-                      onChange={(e) => setDraftPhone(e.target.value)}
-                    />
-                    <span className="field__hint">Не более 30 символов.</span>
-                  </div>
-                </div>
-                {profileMessage ? (
-                  <p
-                    className={`profile-resend-msg${profileMessage.type === 'ok' ? ' profile-resend-msg--ok' : ' profile-resend-msg--err'}`}
-                    style={{ marginTop: 'var(--sp-3)' }}
-                  >
-                    {profileMessage.text}
-                  </p>
-                ) : null}
-                <div className="profile-form__actions">
-                  <button type="submit" className="btn btn--brand" disabled={!isProfileDirty || profileSaving}>
-                    {profileSaving ? 'Сохранение…' : 'Сохранить'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    disabled={!isProfileDirty || profileSaving}
-                    onClick={() => {
-                      setDraftFullName(user.fullName ?? '')
-                      setDraftPhone(user.phone ?? '')
-                      setProfileMessage(null)
-                    }}
-                  >
-                    Сбросить
-                  </button>
-                </div>
-              </form>
-            </section>
+            <ProfileIdentitySection
+              key={user.id}
+              user={user}
+              accessToken={accessToken}
+              refreshProfile={refreshProfile}
+            />
 
             {trust ? (
               <section className="profile-panel" aria-label="Рейтинг доверия">
