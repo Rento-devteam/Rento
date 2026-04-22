@@ -56,10 +56,11 @@ export function BookingDetailPage() {
     if (!accessToken || !booking || booking.role !== 'renter' || booking.status !== 'PAYMENT_FAILED') {
       return
     }
+    const token = accessToken
     let cancelled = false
     async function loadCards() {
       try {
-        const items = await listPaymentMethods(accessToken)
+        const items = await listPaymentMethods(token)
         if (cancelled) return
         setCards(items)
         const def = items.find((c) => c.isDefault) ?? items[0]

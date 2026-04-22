@@ -192,12 +192,13 @@ export function ListingDetailsPage() {
       }
       return
     }
+    const token = accessToken
     let cancelled = false
     async function loadCards() {
       setPaymentMethodsLoading(true)
       setPaymentMethodsError(null)
       try {
-        const items = await listPaymentMethods(accessToken)
+        const items = await listPaymentMethods(token)
         if (cancelled) return
         setPaymentMethods(items)
         const def = items.find((c) => c.isDefault) ?? items[0]

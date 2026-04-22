@@ -28,12 +28,13 @@ export function RenterBookingsPage() {
       setItems([])
       return
     }
+    const token = accessToken
     let cancelled = false
     async function load() {
       setLoading(true)
       setError(null)
       try {
-        const res = await listBookingsAsRenter(accessToken)
+        const res = await listBookingsAsRenter(token)
         if (!cancelled) setItems(res.items)
       } catch (err: unknown) {
         if (!cancelled) {

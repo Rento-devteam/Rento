@@ -54,21 +54,23 @@ export function ProfilePage() {
   const [cardMessage, setCardMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   useEffect(() => {
-    if (!user) {
+    if (!user?.id) {
       navigate('/')
       return
     }
     void refreshProfile()
-  }, [user, navigate, refreshProfile])
+    // Зависимость только от id: после refreshProfile приходит новый объект user и
+    // не должно заново дергать API (иначе бесконечный цикл перерисовок).
+  }, [user?.id, navigate, refreshProfile])
 
   useEffect(() => {
-    if (!user) return
-    setDraftFullName(user.fullName ?? '')
-    setDraftPhone(user.phone ?? '')
-  }, [user])
+    setDraftFullName(user?.fullName ?? '')
+    setDraftPhone(user?.phone ?? '')
+    // Поля, а не весь user: иначе каждый ответ getCurrentUser меняет ссылку и сбрасывает черновик.
+  }, [user?.id, user?.fullName, user?.phone])
 
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
 
     async function loadMyListings() {
       try {
@@ -90,16 +92,17 @@ export function ProfilePage() {
     }
 
     void loadMyListings()
-  }, [user, accessToken])
+  }, [user?.id, accessToken])
 
   useEffect(() => {
-    if (!user || !accessToken) return
+    if (!user?.id || !accessToken) return
+    const token = accessToken
 
     async function loadCards() {
       setCardsLoading(true)
       setCardsError(null)
       try {
-        const items = await listPaymentMethods(accessToken)
+        const items = await listPaymentMethods(token)
         setCards(items)
       } catch (err: unknown) {
         setCardsError(
@@ -111,7 +114,7 @@ export function ProfilePage() {
     }
 
     void loadCards()
-  }, [user, accessToken])
+  }, [user?.id, accessToken])
 
   const handleDelete = async (listingId: string) => {
     if (!window.confirm('Вы уверены, что хотите удалить это объявление?')) return

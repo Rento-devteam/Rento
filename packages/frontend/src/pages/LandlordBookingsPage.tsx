@@ -28,12 +28,13 @@ export function LandlordBookingsPage() {
       setItems([])
       return
     }
+    const token = accessToken
     let cancelled = false
     async function load() {
       setLoading(true)
       setError(null)
       try {
-        const res = await listBookingsAsLandlord(accessToken)
+        const res = await listBookingsAsLandlord(token)
         if (!cancelled) setItems(res.items)
       } catch (err: unknown) {
         if (!cancelled) {
