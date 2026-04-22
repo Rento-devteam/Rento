@@ -120,7 +120,10 @@ export function ListingDetailsPage() {
   const [bookingSummary, setBookingSummary] = useState<BookingSummaryResponse | null>(null)
   const [bookingSummaryLoading, setBookingSummaryLoading] = useState(false)
   const [bookingSummaryError, setBookingSummaryError] = useState<string | null>(null)
-  const [stubCardBalance, setStubCardBalance] = useState('')
+  const [stubCardBalance, setStubCardBalance] = useState(() => {
+    if (typeof sessionStorage === 'undefined') return ''
+    return sessionStorage.getItem(STUB_CARD_BALANCE_KEY) ?? ''
+  })
   const [stubCardEditorOpen, setStubCardEditorOpen] = useState(false)
 
   const [paymentMethods, setPaymentMethods] = useState<BankCard[]>([])
@@ -130,12 +133,6 @@ export function ListingDetailsPage() {
   const [bookingSubmitting, setBookingSubmitting] = useState(false)
   const [bookingActionError, setBookingActionError] = useState<string | null>(null)
   const [payFailedBookingId, setPayFailedBookingId] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (typeof sessionStorage === 'undefined') return
-    const saved = sessionStorage.getItem(STUB_CARD_BALANCE_KEY)
-    if (saved != null) setStubCardBalance(saved)
-  }, [])
 
   const persistStubBalance = useCallback((value: string) => {
     setStubCardBalance(value)
@@ -183,17 +180,22 @@ export function ListingDetailsPage() {
     void fetchBookingSummary(listing.id, s, e)
   }, [listing, fetchBookingSummary])
 
+  const closeBookingModal = useCallback(() => {
+    setBookModalOpen(false)
+    setPayFailedBookingId(null)
+    setBookingActionError(null)
+    setPaymentMethods([])
+    setPaymentMethodsError(null)
+    setPaymentMethodsLoading(false)
+    setSelectedCardId(null)
+  }, [])
+
   useEffect(() => {
-    if (!bookModalOpen || !accessToken) {
-      if (!bookModalOpen) {
-        setPaymentMethods([])
-        setPaymentMethodsError(null)
-        setSelectedCardId(null)
-      }
-      return
-    }
+    if (!bookModalOpen || !accessToken) return
     let cancelled = false
     async function loadCards() {
+      await Promise.resolve()
+      if (cancelled) return
       setPaymentMethodsLoading(true)
       setPaymentMethodsError(null)
       try {
@@ -237,8 +239,7 @@ export function ListingDetailsPage() {
         },
         accessToken,
       )
-      setBookModalOpen(false)
-      setPayFailedBookingId(null)
+      closeBookingModal()
       navigate(`/bookings/${res.bookingId}`)
     } catch (err: unknown) {
       setBookingActionError(bookingActionErrorMessage(err))
@@ -256,6 +257,7 @@ export function ListingDetailsPage() {
     selectedCardId,
     stubCardBalance,
     navigate,
+    closeBookingModal,
   ])
 
   const handleRetryHoldInModal = useCallback(async () => {
@@ -272,26 +274,20 @@ export function ListingDetailsPage() {
         { cardId: selectedCardId, ...(stubBalanceRub != null ? { stubBalanceRub } : {}) },
         accessToken,
       )
-      setBookModalOpen(false)
-      setPayFailedBookingId(null)
+      closeBookingModal()
       navigate(`/bookings/${payFailedBookingId}`)
     } catch (err: unknown) {
       setBookingActionError(bookingActionErrorMessage(err))
     } finally {
       setBookingSubmitting(false)
     }
-  }, [accessToken, payFailedBookingId, selectedCardId, stubCardBalance, navigate])
-
-  const closeBookingModal = useCallback(() => {
-    setBookModalOpen(false)
-    setPayFailedBookingId(null)
-    setBookingActionError(null)
-  }, [])
+  }, [accessToken, payFailedBookingId, selectedCardId, stubCardBalance, navigate, closeBookingModal])
 
   useEffect(() => {
     if (!id) return
 
     async function loadListing() {
+      await Promise.resolve()
       setLoading(true)
       setError(null)
       try {
