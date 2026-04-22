@@ -46,8 +46,16 @@ export function BookingDetailPage() {
   }, [bookingId, accessToken])
 
   useEffect(() => {
-    void loadBooking()
-  }, [loadBooking])
+    if (!bookingId || !accessToken) return
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      void loadBooking()
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [bookingId, accessToken, loadBooking])
 
   useEffect(() => {
     if (!accessToken || !booking || booking.role !== 'renter' || booking.status !== 'PAYMENT_FAILED') {
