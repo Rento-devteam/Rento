@@ -3,6 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthModal } from './AuthModal'
 
+vi.mock('../auth/reloadAfterLogin', () => ({
+  reloadHomeAfterLogin: vi.fn(),
+}))
+
+import { reloadHomeAfterLogin } from '../auth/reloadAfterLogin'
+
 const login = vi.fn()
 const register = vi.fn()
 const applyAuthSuccess = vi.fn()
@@ -77,7 +83,7 @@ describe('AuthModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('submits login and calls onSuccess', async () => {
+  it('submits login and reloads home so catalog uses the new session', async () => {
     const user = userEvent.setup()
     render(
       <AuthModal initialTab="login" onClose={onClose} onTabChange={onTabChange} />,
@@ -86,6 +92,7 @@ describe('AuthModal', () => {
     await user.type(screen.getByLabelText(/^пароль$/i), 'Secret1!')
     await user.click(screen.getByRole('button', { name: /^войти$/i }))
     expect(login).toHaveBeenCalledWith('a@b.c', 'Secret1!')
-    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(reloadHomeAfterLogin)).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

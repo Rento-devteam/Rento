@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import { reloadHomeAfterLogin } from '../auth/reloadAfterLogin'
 import { authApi } from '../auth/authApi'
 import { authService } from '../auth/authService'
 import { isStrongPassword, PASSWORD_HINT } from '../auth/passwordPolicy'
@@ -58,7 +59,7 @@ export function AuthModal({ initialTab, onClose, onTabChange }: AuthModalProps) 
           </h2>
         </div>
 
-        {tab === 'login' ? <LoginForm onSuccess={onClose} onSwitch={switchTab} /> : null}
+        {tab === 'login' ? <LoginForm onSwitch={switchTab} /> : null}
         {tab === 'register' ? <RegisterForm onSwitch={switchTab} /> : null}
         {tab === 'telegram' ? <TelegramPanel onSwitch={switchTab} /> : null}
 
@@ -67,13 +68,7 @@ export function AuthModal({ initialTab, onClose, onTabChange }: AuthModalProps) 
   )
 }
 
-function LoginForm({
-  onSuccess,
-  onSwitch,
-}: {
-  onSuccess: () => void
-  onSwitch: (tab: AuthTab) => void
-}) {
+function LoginForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -86,7 +81,7 @@ function LoginForm({
     setPending(true)
     try {
       await login(email, password)
-      onSuccess()
+      reloadHomeAfterLogin()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось выполнить вход')
     } finally {
