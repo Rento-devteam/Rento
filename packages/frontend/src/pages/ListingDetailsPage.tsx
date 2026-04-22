@@ -110,7 +110,7 @@ export function ListingDetailsPage() {
   const { user, accessToken } = useAuth()
 
   const [listing, setListing] = useState<IListing | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => Boolean(id))
   const [error, setError] = useState<string | null>(null)
   const [activePhoto, setActivePhoto] = useState(0)
 
@@ -289,14 +289,9 @@ export function ListingDetailsPage() {
   }, [])
 
   useEffect(() => {
-    if (!id) {
-      setError('Объявление не найдено')
-      setLoading(false)
-      return
-    }
+    if (!id) return
 
     async function loadListing() {
-      if (!id) return
       setLoading(true)
       setError(null)
       try {
@@ -325,6 +320,19 @@ export function ListingDetailsPage() {
     () => (listing ? getListingDisplayParts(listing.description) : null),
     [listing],
   )
+
+  if (!id) {
+    return (
+      <main className="listing-page">
+        <div className="listing-page__inner container">
+          <div className="status status--error">Объявление не найдено</div>
+          <Link to="/" className="btn btn--brand" style={{ marginTop: 'var(--sp-4)' }}>
+            На главную
+          </Link>
+        </div>
+      </main>
+    )
+  }
 
   if (loading) {
     return (
