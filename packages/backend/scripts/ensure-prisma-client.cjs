@@ -18,29 +18,58 @@ function copyRecursive(src, dest) {
   fs.copyFileSync(src, dest);
 }
 
-// Prisma generates the actual client into node_modules/.prisma/client.
-// @prisma/client expects it to be available at node_modules/@prisma/client/.prisma/client
-// but on some Windows setups the linkage may be missing. We copy the generated client as a fallback.
-const projectRoot = path.resolve(__dirname, '..');
-const generated = path.join(projectRoot, 'node_modules', '.prisma', 'client');
-const expected = path.join(
-  projectRoot,
-  'node_modules',
-  '@prisma',
-  'client',
-  '.prisma',
-  'client',
-);
+/** npm workspaces often hoist `node_modules` to a parent directory */
+function candidateGeneratedDirs(projectRoot) {
+  const roots = [
+    projectRoot,
+    path.join(projectRoot, '..'),
+    path.join(projectRoot, '..', '..'),
+  ];
+  return roots.map((r) => path.resolve(r, 'node_modules', '.prisma', 'client'));
+}
 
-if (!fs.existsSync(generated)) {
-  console.error(`[ensure-prisma-client] Missing generated client at: ${generated}`);
+function findGeneratedClient(projectRoot) {
+  for (const p of candidateGeneratedDirs(projectRoot)) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+function resolveExpectedClientDir(projectRoot) {
+  try {
+    const pkgJson = require.resolve('@prisma/client/package.json', {
+      paths: [projectRoot],
+    });
+    return path.join(path.dirname(pkgJson), '.prisma', 'client');
+  } catch {
+    return null;
+  }
+}
+
+// Prisma generates into `node_modules/.prisma/client`. @prisma/client may expect
+// `node_modules/@prisma/client/.prisma/client`; on some setups the link is missing — copy as fallback.
+const projectRoot = path.resolve(__dirname, '..');
+const generated = findGeneratedClient(projectRoot);
+const expected = resolveExpectedClientDir(projectRoot);
+
+if (!generated) {
+  console.error(
+    '[ensure-prisma-client] Missing generated client. Checked:\n  ' +
+      candidateGeneratedDirs(projectRoot).join('\n  '),
+  );
+  process.exit(1);
+}
+
+if (!expected) {
+  console.error(
+    '[ensure-prisma-client] Could not resolve @prisma/client (run from packages/backend after install).',
+  );
   process.exit(1);
 }
 
 if (!fs.existsSync(expected)) {
   console.warn(
-    `[ensure-prisma-client] Linking missing; copying Prisma client to: ${expected}`,
+    `[ensure-prisma-client] Linking missing; copying Prisma client from\n  ${generated}\n  →\n  ${expected}`,
   );
   copyRecursive(generated, expected);
 }
-

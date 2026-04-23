@@ -2,10 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { BookingStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { eachUtcDateInclusive, utcDateOnly } from '../util/date-only';
-import {
-  mapBookingDetail,
-  mapBookingListItem,
-} from './booking-list.mapper';
+import { mapBookingDetail, mapBookingListItem } from './booking-list.mapper';
 import { CALENDAR_BLOCKING_BOOKING_STATUSES } from './bookings.constants';
 
 @Injectable()

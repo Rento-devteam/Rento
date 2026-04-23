@@ -125,3 +125,7 @@ out/
 
 # Cursor settings
 .cursor/
+
+# Microsoft Office lock files
+~$*
+**/~$*

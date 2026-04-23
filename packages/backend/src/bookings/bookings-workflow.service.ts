@@ -155,7 +155,8 @@ export class BookingsWorkflowService {
           renterId: params.renterId,
           rentAmount,
           depositAmount,
-          ...(params.stubBalanceRub != null && Number.isFinite(params.stubBalanceRub)
+          ...(params.stubBalanceRub != null &&
+          Number.isFinite(params.stubBalanceRub)
             ? { stubBalanceRub: params.stubBalanceRub }
             : {}),
         },
@@ -253,7 +254,8 @@ export class BookingsWorkflowService {
           renterId: params.renterId,
           rentAmount: booking.rentAmount,
           depositAmount: booking.depositAmount,
-          ...(params.stubBalanceRub != null && Number.isFinite(params.stubBalanceRub)
+          ...(params.stubBalanceRub != null &&
+          Number.isFinite(params.stubBalanceRub)
             ? { stubBalanceRub: params.stubBalanceRub }
             : {}),
         },
