@@ -88,6 +88,17 @@ export class BookingsApiController {
     });
   }
 
+  @Post('bookings/:bookingId/return/confirm')
+  @HttpCode(HttpStatus.OK)
+  async confirmReturn(
+    @Req() request: RequestWithUser,
+    @Param('bookingId', ParseUUIDPipe) bookingId: string,
+  ) {
+    const userId = this.getUserId(request);
+    await this.workflow.confirmReturn({ bookingId, actorUserId: userId });
+    return this.bookings.getBookingForParticipant(bookingId, userId);
+  }
+
   private getUserId(request: RequestWithUser): string {
     const userId = request.user?.sub;
     if (!userId) {

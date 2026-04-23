@@ -53,6 +53,13 @@ enum BookingStatus {
   DISPUTED
 }
 
+enum BookingSettlementStatus {
+  NONE
+  PENDING
+  SETTLED
+  FAILED
+}
+
 model User {
   id                 String                   @id @default(uuid())
   email              String?                  @unique
@@ -204,6 +211,18 @@ model Booking {
   paymentGateway String?
   paymentAuthorizationCode String?
   status         BookingStatus @default(PENDING)
+
+  returnRenterConfirmedAt DateTime?
+  returnLandlordConfirmedAt DateTime?
+  returnMutualConfirmedAt DateTime?
+  returnAutoConfirmedAt DateTime?
+  returnConfirmationDeadlineAt DateTime?
+
+  completedAt DateTime?
+
+  settlementStatus BookingSettlementStatus @default(NONE)
+  settlementError  String?
+  settledAt        DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -211,4 +230,6 @@ model Booking {
   @@index([renterId])
   @@index([status])
   @@index([startAt, endAt])
+  @@index([returnConfirmationDeadlineAt])
+  @@index([settlementStatus])
 }

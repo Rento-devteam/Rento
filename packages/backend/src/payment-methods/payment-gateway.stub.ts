@@ -20,7 +20,7 @@ export interface CardMetadata {
 export class PaymentGatewayStub {
   private readonly logger = new Logger(PaymentGatewayStub.name);
 
-  async verifyAndGetMetadata(token: string): Promise<CardMetadata> {
+  verifyAndGetMetadata(token: string): Promise<CardMetadata> {
     this.logger.warn(
       'PaymentGatewayStub: using stub gateway. Replace with a real provider before going to production.',
     );
@@ -41,6 +41,6 @@ export class PaymentGatewayStub {
     const last4 = String(hash % 10000).padStart(4, '0');
     const cardType = hash % 2 === 0 ? 'Visa' : 'Mastercard';
 
-    return { last4, cardType };
+    return Promise.resolve({ last4, cardType });
   }
 }

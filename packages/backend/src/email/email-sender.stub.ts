@@ -4,6 +4,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import type { TransportOptions } from 'nodemailer';
 
 export interface SendConfirmationInput {
   email: string;
@@ -55,14 +56,13 @@ export class EmailSenderStub {
 
     const transporter = nodemailer.createTransport({
       ...baseTransportOptions,
-      requireTLS: this.smtpRequireTls,
       logger: this.smtpDebug,
       debug: this.smtpDebug,
       // Avoid indefinite hangs on firewalls / blocked ports.
       connectionTimeout: 15_000,
       greetingTimeout: 15_000,
       socketTimeout: 20_000,
-    } as any);
+    } as unknown as TransportOptions);
 
     // Fail fast with a clear error if SMTP auth/handshake is wrong.
     await transporter.verify();

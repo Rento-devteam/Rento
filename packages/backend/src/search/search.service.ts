@@ -237,7 +237,13 @@ export class SearchService {
       };
     } catch (err) {
       this.logger.error(`Elasticsearch search failed: ${String(err)}`);
-      return this.searchFromDatabase(dto, normalizedQ, page, limit, excludeOwnerId);
+      return this.searchFromDatabase(
+        dto,
+        normalizedQ,
+        page,
+        limit,
+        excludeOwnerId,
+      );
     }
   }
 

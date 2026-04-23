@@ -37,7 +37,7 @@ export class PrismaService
     await this.$disconnect();
   }
 
-  async enableShutdownHooks(app: INestApplication): Promise<void> {
+  enableShutdownHooks(app: INestApplication): void {
     process.on('beforeExit', () => {
       void app.close();
     });
