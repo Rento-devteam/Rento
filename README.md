@@ -48,7 +48,7 @@ Rento/
 
 ### Требования
 
-- [Node.js](https://nodejs.org/) **20.x** (как в CI) или новее
+- [Node.js](https://nodejs.org/) **22.x** (как в CI; требование цепочки Prisma 7) или новее
 - [npm](https://docs.npmjs.com/cli/v10/commands/npm) **9+**
 - для локального API: [Docker Engine](https://docs.docker.com/engine/) + Docker Compose (см. `packages/backend/docker-compose.yml`)
 
