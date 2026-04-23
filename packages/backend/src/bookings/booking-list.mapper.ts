@@ -11,9 +11,7 @@ export function mapBookingListItem(
 ) {
   const renterLabel =
     perspective === 'landlord'
-      ? row.renter?.fullName?.trim() ||
-        row.renter?.email?.trim() ||
-        'Арендатор'
+      ? row.renter?.fullName?.trim() || row.renter?.email?.trim() || 'Арендатор'
       : undefined;
 
   return {
@@ -35,7 +33,10 @@ export function mapBookingListItem(
   };
 }
 
-export function mapBookingDetail(row: BookingListRow, role: 'renter' | 'landlord') {
+export function mapBookingDetail(
+  row: BookingListRow,
+  role: 'renter' | 'landlord',
+) {
   return {
     ...mapBookingListItem(row, role === 'renter' ? 'renter' : 'landlord'),
     role,
