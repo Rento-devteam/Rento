@@ -1,173 +1,162 @@
-# 🏠 Rento — Платформа для аренды вещей
+# Rento — платформа для аренды вещей
 
-**Современная платформа для аренды любых вещей**  
-*Монорепозиторий на NestJS + React*
+Монорепозиторий: **NestJS** (API) + **React** (веб-клиент), общие типы в пакете **shared**.
 
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+## Материалы и артефакты
+
+| Ресурс | Ссылка |
+|--------|--------|
+| Документация (Google Docs) | [О-23-ИСП-2-СПО — документ](https://docs.google.com/document/d/1RW9IpYSdksEtEWKxD4l4UHHZKeqMb_QzlF8XSnzcMGQ/edit) |
+| Дизайн (Figma) | [Rento — макеты](https://www.figma.com/design/oBB3tKDgPnpHQt9vAnei7I/Rento) |
+| Задачи (Trello) | [Rento — доска](https://trello.com/b/FZHRKeAm/rento) |
+| OpenAPI (в репозитории) | [docs/openAPI.yaml](docs/openAPI.yaml) |
+| Диаграммы и состояния | [docs/sequence/](docs/sequence/), [docs/state/](docs/state/) |
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
----
+## О проекте
 
-## 📋 О проекте
+**Rento** — платформа для безопасной аренды вещей между пользователями. Репозиторий организован как **npm workspaces** в каталоге `packages/`.
 
-**Rento** — это удобная и безопасная платформа для аренды вещей между людьми.  
-Проект построен по архитектуре **монорепозитория** с использованием:
+### Особенности репозитория
 
-- **NestJS** — на бэкенде
-- **React + Vite** — на фронтенде
+- изолированные пакеты `backend`, `frontend`, `shared`;
+- TypeScript во всех пакетах;
+- CI на GitHub Actions: [.github/workflows/ci.yml](.github/workflows/ci.yml);
+- соглашение о коммитах: [Conventional Commits](https://www.conventionalcommits.org/ru/v1.0.0/).
 
-### Ключевые особенности
+## Структура репозитория
 
-- 🏗 **Монорепозиторий** на `npm workspaces`
-- 🔐 **Строгая типизация** TypeScript
-- 🚀 **Горячая перезагрузка** (hot-reload) для быстрой разработки
-- 📦 **Полностью изолированные пакеты** backend и frontend
-- 🔄 **CI/CD** через GitHub Actions
-- 📋 **Conventional Commits** для чистой истории
-
----
-
-## 🏗 Структура проекта
-
-```bash
+```text
 Rento/
-├── 📁 packages/
-│   ├── 🖥️ backend/          # NestJS бэкенд
-│   │   ├── src/             # Исходный код
-│   │   ├── test/            # Тесты
-│   │   └── package.json
-│   └── 🎨 frontend/         # React + Vite фронтенд
-│       ├── src/             # Исходный код
-│       ├── public/          # Статические файлы
-│       └── package.json
-├── 📁 .github/
-│   ├── workflows/           # CI/CD пайплайны
-│   ├── CODEOWNERS
-│   └── pull_request_template.md
-├── 📄 package.json          # Корневая конфигурация
-├── 📄 .gitignore
-├── 📄 .env.example
-└── 📄 README.md
+├── packages/
+│   ├── backend/          # NestJS API, Prisma, Docker Compose (Postgres + Elasticsearch)
+│   ├── frontend/         # React + Vite
+│   ├── shared/           # общие типы и сборка tsc → dist
+│   └── package.json      # workspaces и общие npm-скрипты
+├── docs/                 # OpenAPI, сценарии (sequence), модели состояний
+├── .github/              # CI, шаблоны PR и issues, CODEOWNERS
+├── package.json          # Husky / commitlint (корень монорепозитория)
+├── tsconfig.json         # базовые опции TypeScript
+└── README.md
 ```
-## 🚀 Быстрый старт
+
+## Быстрый старт
 
 ### Требования
-- **Node.js** 18.x или выше
-- **npm** 9.x или выше
 
-### Установка
+- [Node.js](https://nodejs.org/) **20.x** (как в CI) или новее
+- [npm](https://docs.npmjs.com/cli/v10/commands/npm) **9+**
+- для локального API: [Docker Engine](https://docs.docker.com/engine/) + Docker Compose (см. `packages/backend/docker-compose.yml`)
+
+### Установка зависимостей
+
+Рабочая область npm — каталог **`packages/`** (там объявлены `workspaces`).
 
 ```bash
-# 1. Клонируйте репозиторий
 git clone https://github.com/Rento-team/Rento.git
-cd Rento
-
-# 2. Установите все зависимости
+cd Rento/packages
 npm install
 ```
+
+Опционально, из **корня** репозитория (`Rento/`), чтобы подтянуть Husky и commitlint для git-хуков:
+
+```bash
+cd Rento
+npm install
+```
+
+### База данных и поиск (Docker)
+
+Из каталога `packages/backend`:
+
+```bash
+docker compose up -d
+npx prisma migrate deploy
+```
+
+Postgres будет доступен на хосте на порту **5434**, Elasticsearch — **http://localhost:9200** (как в `packages/backend/.env.example`).
+
 ### Разработка
 
-```bash
-# Запуск всех проектов одновременно (рекомендуется)
-npm run dev
+Из каталога `packages/`:
 
-# Или по отдельности:
-npm run dev:backend    # Бэкенд → http://localhost:3000
-npm run dev:frontend   # Фронтенд → http://localhost:5173
+```bash
+npm run dev
 ```
 
-### Сборка
-```bash
-# Собрать все проекты
-npm run build
+Запускаются воркспейсы со скриптом `dev` (сейчас это **backend** и **frontend**). Адреса по умолчанию:
 
-# Собрать только нужный проект
+- API: [http://localhost:3000](http://localhost:3000)
+- фронтенд: [http://localhost:5173](http://localhost:5173)
+
+Отдельно:
+
+```bash
+npm run dev:backend
+npm run dev:frontend
+```
+
+### Сборка и проверки
+
+```bash
+npm run build
 npm run build:backend
 npm run build:frontend
+npm run lint
+npm run lint:all
+npm run test
+npm run clean
 ```
 
-## 📦 Команды
+## Команды в `packages/`
 
-| Команда                    | Описание                                              |
-|----------------------------|-------------------------------------------------------|
-| `npm run dev`              | Запуск всех проектов в режиме разработки             |
-| `npm run dev:backend`      | Запуск только бэкенда                                |
-| `npm run dev:frontend`     | Запуск только фронтенда                              |
-| `npm run build`            | Полная сборка всех проектов                          |
-| `npm run build:backend`    | Сборка только бэкенда                                |
-| `npm run build:frontend`   | Сборка только фронтенда                              |
-| `npm run lint`             | Проверка кода ESLint во всех пакетах                 |
-| `npm run test`             | Запуск всех тестов                                   |
-| `npm run clean`            | Очистка папок `dist` и `node_modules`               |
+| Команда | Описание |
+|---------|----------|
+| `npm run dev` | dev-серверы пакетов со скриптом `dev` |
+| `npm run dev:backend` | только NestJS (`nest start --watch`) |
+| `npm run dev:frontend` | только Vite |
+| `npm run build` | сборка всех воркспейсов |
+| `npm run build:backend` / `build:frontend` | выборочная сборка |
+| `npm run lint` | как в CI: shared + frontend |
+| `npm run lint:all` | ESLint / проверки во всех пакетах |
+| `npm run test` | тесты во всех воркспейсах |
+| `npm run clean` | очистка артефактов (см. скрипты пакетов) |
 
----
+## Переменные окружения
 
-## 🛠 Технологии
+- **Backend:** скопируйте [`packages/backend/.env.example`](packages/backend/.env.example) в `packages/backend/.env` и при необходимости поправьте значения (БД, JWT, SMTP, S3, Elasticsearch и т.д.).
+- **Frontend:** пример — [`packages/frontend/.env.example`](packages/frontend/.env.example); для Vite удобнее имя **`.env.local`**. Обязательный для API префикс: **`VITE_API_BASE_URL`** (по умолчанию в коде подставляется `http://localhost:3000`).
 
-### Бэкенд
-- **NestJS** — прогрессивный Node.js-фреймворк
-- **TypeScript** — строгая типизация
-- **Jest** — тестирование
-- **Prisma / TypeORM** — работа с базой данных
+## Технологии и документация к инструментам
 
-### Фронтенд
-- **React 18** — современный пользовательский интерфейс
-- **Vite** — сверхбыстрый сборщик
-- **TypeScript** — типизация
-- **ESLint + Prettier** — качество кода
-- **Tailwind CSS / Styled Components** — стилизация (по выбору команды)
+| Область | Стек | Документация |
+|---------|------|----------------|
+| API | [NestJS](https://docs.nestjs.com/) 11, [Prisma](https://www.prisma.io/docs), PostgreSQL | [Prisma Postgres](https://www.prisma.io/docs/orm/overview/databases/postgresql) |
+| Поиск | [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html) (клиент: [@elastic/elasticsearch](https://www.elastic.co/guide/en/elasticsearch/client/javascript-api/current/index.html)) | см. переменные `ELASTICSEARCH_*` в `.env.example` |
+| Хранилище файлов | [AWS SDK for JavaScript v3 — S3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/s3/) | совместимо с S3-совместимыми сервисами (MinIO, Yandex Object Storage и т.п.) |
+| Тесты (backend) | [Jest](https://jestjs.io/docs/getting-started) | `packages/backend` |
+| Клиент | [React](https://react.dev/) 19, [React Router](https://reactrouter.com/) 7 | — |
+| Сборка клиента | [Vite](https://vite.dev/guide/) | [Env and modes](https://vite.dev/guide/env-and-mode.html) |
+| Тесты (frontend) | [Vitest](https://vitest.dev/guide/), [Testing Library](https://testing-library.com/docs/react-testing-library/intro/) | `packages/frontend` |
+| Линтинг | [ESLint](https://eslint.org/docs/latest/) | конфиги в пакетах |
 
----
+## Соглашение о коммитах
 
-## 🔧 Настройка окружения
+Используется стиль [Conventional Commits](https://www.conventionalcommits.org/ru/v1.0.0/): `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:` и т.д.
 
-Создайте файлы `.env` в соответствующих пакетах:
+## Команда
 
-**Бэкенд** (`packages/backend/.env`)
-```env
-PORT=3000
-NODE_ENV=development
-DATABASE_URL=postgresql://user:password@localhost:5432/rento
-JWT_SECRET=your-super-secret-jwt-key
-```
-
-**Фронтенд** (`packages/frontend/.env`)
-```env
-VITE_API_URL=http://localhost:3000
-```
-
-> Примеры файлов окружения находятся в `.env.example`  
-> (в корне проекта и в каждом пакете: `packages/backend/` и `packages/frontend/`).
-
----
-
-## 📝 Правила коммитов
-
-Мы используем **Conventional Commits** для чистой и понятной истории проекта:
-
-- `feat:` — новая функциональность
-- `fix:` — исправление ошибки
-- `docs:` — обновление документации
-- `style:` — форматирование кода
-- `refactor:` — рефакторинг
-- `test:` — добавление или исправление тестов
-- `chore:` — обслуживание проекта (без изменений в коде)
-
----
-
-## 👥 Команда
-
-| Роль                  | Имя                |
-|-----------------------|--------------------|
-| 👨‍💻 Delivery Manager    | Карпеко А.С.      |
-| 👨‍💻 Tester              | Антонов А.Д.      |
-| 👨‍💻 Backender           | Ким А.А.          |
-| 👨‍💻 Frontender          | Луговая Д.А.      |
-| 👨‍💻 Analytic            | Мельникова К.А.   |
-| 👨‍💻 Designer            | Рыбаков Д.С.      |
-| 👨‍💻 Backender           | Терещенков К.А.   |
-| 👨‍💻 Tester              | Фомичева А.С.     |
-
----
+| Роль | Имя |
+|------|-----|
+| Delivery Manager | Карпеко А.С. |
+| Tester | Антонов А.Д. |
+| Backender | Ким А.А. |
+| Frontender | Луговая Д.А. |
+| Analytic | Мельникова К.А. |
+| Designer | Рыбаков Д.С. |
+| Backender | Терещенков К.А. |
+| Tester | Фомичева А.С. |
