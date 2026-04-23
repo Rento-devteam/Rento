@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import type { ICategory, IListing, RentalPeriod } from '@rento/shared'
+import { useAuth } from '../auth/AuthContext'
 import { searchCatalog } from '../catalog/catalogApi'
 import { ApiError } from '../lib/apiClient'
 type SortApi = 'relevance' | 'newest' | 'price_asc' | 'price_desc'
@@ -52,6 +54,7 @@ const RENTAL_FILTERS: Array<{ value: RentalFilter; label: string }> = [
 const POPULAR_CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Минск', 'Гродно', 'Екатеринбург']
 
 export function HomePage() {
+  const { accessToken } = useAuth()
   const [q, setQ] = useState('')
   const [city, setCity] = useState('')
   const [cityDraft, setCityDraft] = useState('')
@@ -77,16 +80,19 @@ export function HomePage() {
     setLoading(true)
     setError(null)
     try {
-      const response = await searchCatalog({
-        q,
-        city,
-        categoryId: categoryId || undefined,
-        minPrice: minPrice ? Number(minPrice) : undefined,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
-        sort: SORT_TO_API[sortPreset],
-        page: 1,
-        limit: 24,
-      })
+      const response = await searchCatalog(
+        {
+          q,
+          city,
+          categoryId: categoryId || undefined,
+          minPrice: minPrice ? Number(minPrice) : undefined,
+          maxPrice: maxPrice ? Number(maxPrice) : undefined,
+          sort: SORT_TO_API[sortPreset],
+          page: 1,
+          limit: 24,
+        },
+        accessToken,
+      )
       setItems(response.results)
 
       const map = new Map<string, ICategory>()
@@ -392,27 +398,36 @@ function Card({ item }: { item: IListing }) {
   const period = periodLabel(item.rentalPeriod)
   return (
     <article className="card">
+      <Link to={`/listings/${item.id}`} className="card__link-overlay" aria-label={item.title} />
       <div className="card__image-wrap">
         {cover ? <img src={cover} alt={item.title} className="card__image" /> : null}
         <span className="card__badge">{period}</span>
-        <button type="button" className="card__favorite" aria-label="В избранное">
+        <button type="button" className="card__favorite" aria-label="В избранное" style={{ zIndex: 2 }}>
           <HeartIcon />
         </button>
       </div>
       <div className="card__body">
-        <h3 className="card__title">{item.title}</h3>
+        <h3 className="card__title">
+          {item.title}
+        </h3>
         <p className="card__desc">{item.description}</p>
         <div className="card__prices">
           <span className="card__price-main">{formatPrice(item)}</span>
           <span className="card__price-secondary">{secondaryPrice(item)}</span>
         </div>
       </div>
-      <div className="card__footer">
+      <div className="card__footer" style={{ zIndex: 2, position: 'relative' }}>
         <span>
           <PinIcon />
           {cityName}
         </span>
-        <span>{item.depositAmount > 0 ? `Залог ${item.depositAmount.toLocaleString('ru-RU')}₽` : 'Без залога'}</span>
+        <Link 
+          to={`/listings/${item.id}/calendar`} 
+          className="btn btn--ghost" 
+          style={{ padding: '4px 8px', fontSize: '0.8rem', minHeight: 'auto' }}
+        >
+          Календарь
+        </Link>
       </div>
     </article>
   )

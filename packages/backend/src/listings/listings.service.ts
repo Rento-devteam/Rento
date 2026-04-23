@@ -39,6 +39,67 @@ export class ListingsService {
     private readonly listingSearchIndex: ListingSearchIndexService,
   ) {}
 
+  async getMyListings(userId: string) {
+    const listings = await this.prismaService.listing.findMany({
+      where: { ownerId: userId },
+      include: {
+        category: true,
+        photos: {
+          orderBy: { order: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return listings.map(mapListingCreatedResponse);
+  }
+
+  async getListingById(listingId: string) {
+    const listing = await this.prismaService.listing.findUnique({
+      where: { id: listingId },
+      include: {
+        category: true,
+        photos: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (!listing) {
+      throw new NotFoundException('Listing not found');
+    }
+
+    return mapListingCreatedResponse(listing);
+  }
+
+  async deleteListing(userId: string, listingId: string) {
+    const listing = await this.prismaService.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, ownerId: true },
+    });
+
+    if (!listing) {
+      throw new NotFoundException('Listing not found');
+    }
+
+    if (listing.ownerId !== userId) {
+      throw new ForbiddenException('You can only delete your own listings');
+    }
+
+    await this.prismaService.listingPhoto.deleteMany({ where: { listingId } });
+    await this.prismaService.listingManualCalendarBlock.deleteMany({
+      where: { listingId },
+    });
+    await this.prismaService.listing.delete({ where: { id: listingId } });
+
+    try {
+      await this.listingSearchIndex.removeListing(listingId);
+    } catch {
+      // Search index is best-effort; ignore failures on delete.
+    }
+
+    return { success: true };
+  }
+
   async getCreateMetadata(userId: string) {
     await this.usersService.assertUserCanCreateListing(userId);
 

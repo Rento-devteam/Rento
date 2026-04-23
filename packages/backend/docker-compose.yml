@@ -8,7 +8,7 @@ services:
       POSTGRES_DB: rento
     # Host 5434 avoids clashes with local PostgreSQL on 5432/5433.
     ports:
-      - '5433:5432'
+      - '5434:5432'
     volumes:
       - rento_pg_data:/var/lib/postgresql/data
     healthcheck:

@@ -3,6 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthModal } from './AuthModal'
 
+vi.mock('../auth/reloadAfterLogin', () => ({
+  reloadHomeAfterLogin: vi.fn(),
+}))
+
+import { reloadHomeAfterLogin } from '../auth/reloadAfterLogin'
+
 const login = vi.fn()
 const register = vi.fn()
 const applyAuthSuccess = vi.fn()
@@ -43,7 +49,7 @@ describe('AuthModal', () => {
     render(
       <AuthModal initialTab="login" onClose={onClose} onTabChange={onTabChange} />,
     )
-    expect(screen.getByRole('heading', { name: /вход в аккаунт/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^вход$/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/^пароль$/i)).toBeInTheDocument()
   })
@@ -53,10 +59,10 @@ describe('AuthModal', () => {
     render(
       <AuthModal initialTab="login" onClose={onClose} onTabChange={onTabChange} />,
     )
-    await user.click(screen.getByRole('tab', { name: /регистрация/i }))
+    await user.click(screen.getByRole('button', { name: /зарегистрироваться/i }))
     expect(onTabChange).toHaveBeenCalledWith('register')
-    expect(screen.getByRole('heading', { name: /создание аккаунта/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/подтверждение пароля/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^регистрация$/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/подтвердите пароль/i)).toBeInTheDocument()
   })
 
   it('closes on Escape', async () => {
@@ -77,7 +83,7 @@ describe('AuthModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('submits login and calls onSuccess', async () => {
+  it('submits login and reloads home so catalog uses the new session', async () => {
     const user = userEvent.setup()
     render(
       <AuthModal initialTab="login" onClose={onClose} onTabChange={onTabChange} />,
@@ -86,6 +92,7 @@ describe('AuthModal', () => {
     await user.type(screen.getByLabelText(/^пароль$/i), 'Secret1!')
     await user.click(screen.getByRole('button', { name: /^войти$/i }))
     expect(login).toHaveBeenCalledWith('a@b.c', 'Secret1!')
-    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(reloadHomeAfterLogin)).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

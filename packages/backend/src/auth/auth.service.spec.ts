@@ -151,7 +151,7 @@ describe('AuthService', () => {
     expect(prismaService.user.update).toHaveBeenCalledWith({
       where: { id: 'u2' },
       data: {
-        emailConfirmedAt: expect.any(Date),
+        emailConfirmedAt: expect.any(Date) as unknown as Date,
         status: AuthUserStatus.ACTIVE,
       },
     });

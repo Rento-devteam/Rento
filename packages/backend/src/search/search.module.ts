@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { Client } from '@elastic/elasticsearch';
+import { AuthModule } from '../auth/auth.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ELASTICSEARCH_CLIENT } from './search.constants';
 import { ListingSearchIndexService } from './listing-search-index.service';
@@ -7,7 +8,7 @@ import { SearchController } from './search.controller';
 import { SearchService } from './search.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [SearchController],
   providers: [
     {

@@ -18,7 +18,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ResendConfirmationDto } from './dto/resend-confirmation.dto';
 import { TelegramAuthDto } from './dto/telegram-auth.dto';
 import { TelegramVerifyDto } from './dto/telegram-verify.dto';
-import { AuthUserStatus, AuthUserStatusValue } from './auth-status';
+import { AuthUserStatus } from './auth-status';
 import { isStrongPassword } from './password-policy';
 import { EmailSenderStub } from '../email/email-sender.stub';
 import { PrismaService } from '../prisma/prisma.service';

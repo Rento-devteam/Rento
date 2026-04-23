@@ -3,7 +3,7 @@ import { IsBoolean, IsInt, IsOptional, Min } from 'class-validator';
 
 export class UploadListingPhotoDto {
   @IsOptional()
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (value === undefined || value === null || value === '') {
       return undefined;
     }

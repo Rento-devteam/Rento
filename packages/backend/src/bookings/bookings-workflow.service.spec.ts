@@ -1,13 +1,22 @@
+import { ConflictException } from '@nestjs/common';
 import {
-  ConflictException,
-  HttpException,
-  NotFoundException,
-} from '@nestjs/common';
-import { BookingStatus, UserStatus } from '@prisma/client';
+  BookingSettlementStatus,
+  BookingStatus,
+  UserStatus,
+} from '@prisma/client';
 import { PaymentHoldDeclinedError } from '../payments-hold/payment-hold.gateway';
 import { BookingsWorkflowService } from './bookings-workflow.service';
 
 describe('BookingsWorkflowService', () => {
+  type Tx = {
+    $executeRaw?: jest.Mock;
+    booking: {
+      findFirst: jest.Mock;
+      create?: jest.Mock;
+      update?: jest.Mock;
+    };
+  };
+
   const prisma = {
     user: { findUnique: jest.fn() },
     listing: { findUnique: jest.fn() },
@@ -16,7 +25,11 @@ describe('BookingsWorkflowService', () => {
     $transaction: jest.fn(),
   };
 
-  const holdGateway = { authorizeHold: jest.fn() };
+  const holdGateway = {
+    authorizeHold: jest.fn(),
+    captureRent: jest.fn(),
+    releaseDeposit: jest.fn(),
+  };
   const notifications = {
     notifyRenterBookingConfirmed: jest.fn(),
     notifyLandlordNewBooking: jest.fn(),
@@ -46,15 +59,15 @@ describe('BookingsWorkflowService', () => {
       depositAmount: 50,
     });
     prisma.userPaymentMethod.findFirst.mockResolvedValue({ token: 'tok_ok' });
-    prisma.$transaction.mockImplementation(async (fn: any) => {
-      const tx = {
+    prisma.$transaction.mockImplementation((fn: (tx: Tx) => unknown) => {
+      const tx: Tx = {
         $executeRaw: jest.fn(),
         booking: {
           findFirst: jest.fn().mockResolvedValue({ id: 'b_existing' }),
           create: jest.fn(),
         },
       };
-      return fn(tx);
+      return Promise.resolve(fn(tx));
     });
 
     await expect(
@@ -83,15 +96,15 @@ describe('BookingsWorkflowService', () => {
       token: 'tok_decline',
     });
 
-    prisma.$transaction.mockImplementation(async (fn: any) => {
-      const tx = {
+    prisma.$transaction.mockImplementation((fn: (tx: Tx) => unknown) => {
+      const tx: Tx = {
         $executeRaw: jest.fn(),
         booking: {
           findFirst: jest.fn().mockResolvedValue(null),
           create: jest.fn().mockResolvedValue({ id: 'b1', listingId: 'l1' }),
         },
       };
-      return fn(tx);
+      return Promise.resolve(fn(tx));
     });
 
     holdGateway.authorizeHold.mockRejectedValue(
@@ -125,15 +138,15 @@ describe('BookingsWorkflowService', () => {
       depositAmount: 50,
     });
     prisma.userPaymentMethod.findFirst.mockResolvedValue({ token: 'tok_ok' });
-    prisma.$transaction.mockImplementation(async (fn: any) => {
-      const tx = {
+    prisma.$transaction.mockImplementation((fn: (tx: Tx) => unknown) => {
+      const tx: Tx = {
         $executeRaw: jest.fn(),
         booking: {
           findFirst: jest.fn().mockResolvedValue(null),
           create: jest.fn().mockResolvedValue({ id: 'b1', listingId: 'l1' }),
         },
       };
-      return fn(tx);
+      return Promise.resolve(fn(tx));
     });
     holdGateway.authorizeHold.mockResolvedValue({
       holdId: 'hold_1',
@@ -162,5 +175,76 @@ describe('BookingsWorkflowService', () => {
       bookingId: 'b1',
       landlordId: 'o1',
     });
+  });
+
+  it('completes booking and runs settlement when renter and landlord confirm return', async () => {
+    const bookingRow = {
+      id: 'b1',
+      status: BookingStatus.ACTIVE,
+      renterId: 'r1',
+      listingId: 'l1',
+      listing: { ownerId: 'o1' },
+      rentAmount: 200,
+      depositAmount: 100,
+      paymentHoldId: 'hold_1',
+      returnRenterConfirmedAt: null,
+      returnLandlordConfirmedAt: null,
+      returnMutualConfirmedAt: null,
+      returnConfirmationDeadlineAt: null,
+      settlementStatus: BookingSettlementStatus.NONE,
+    };
+
+    prisma.$transaction.mockImplementation((fn: (tx: Tx) => unknown) => {
+      const tx: Tx = {
+        booking: {
+          findFirst: jest.fn().mockResolvedValue(bookingRow),
+          update: jest.fn().mockResolvedValue({
+            id: 'b1',
+            paymentHoldId: 'hold_1',
+            rentAmount: 200,
+            depositAmount: 100,
+            settlementStatus: BookingSettlementStatus.PENDING,
+          }),
+        },
+      };
+      return Promise.resolve(fn(tx));
+    });
+
+    holdGateway.captureRent.mockResolvedValue({ operationId: 'cap_1' });
+    holdGateway.releaseDeposit.mockResolvedValue({ operationId: 'rel_1' });
+    prisma.booking.update.mockResolvedValue({ id: 'b1' });
+
+    await service.confirmReturn({ bookingId: 'b1', actorUserId: 'r1' });
+
+    // second call as landlord triggers mutual confirm + settlement
+    bookingRow.returnRenterConfirmedAt = new Date('2026-04-23T10:00:00.000Z');
+    prisma.$transaction.mockImplementationOnce((fn: (tx: Tx) => unknown) => {
+      const tx: Tx = {
+        booking: {
+          findFirst: jest.fn().mockResolvedValue(bookingRow),
+          update: jest.fn().mockResolvedValue({
+            id: 'b1',
+            paymentHoldId: 'hold_1',
+            rentAmount: 200,
+            depositAmount: 100,
+            settlementStatus: BookingSettlementStatus.PENDING,
+          }),
+        },
+      };
+      return Promise.resolve(fn(tx));
+    });
+
+    await service.confirmReturn({ bookingId: 'b1', actorUserId: 'o1' });
+
+    expect(holdGateway.captureRent).toHaveBeenCalled();
+    expect(holdGateway.releaseDeposit).toHaveBeenCalled();
+    expect(prisma.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'b1' },
+        data: expect.objectContaining({
+          settlementStatus: BookingSettlementStatus.SETTLED,
+        }) as unknown,
+      }),
+    );
   });
 });

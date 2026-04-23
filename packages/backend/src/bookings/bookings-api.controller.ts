@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -16,6 +17,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { RequestWithUser } from '../auth/jwt-auth.guard';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { RetryBookingPaymentDto } from './dto/retry-booking-payment.dto';
+import { BookingsService } from './bookings.service';
 import { BookingsWorkflowService } from './bookings-workflow.service';
 
 @UseGuards(JwtAuthGuard)
@@ -29,7 +31,31 @@ import { BookingsWorkflowService } from './bookings-workflow.service';
 )
 @Controller()
 export class BookingsApiController {
-  constructor(private readonly workflow: BookingsWorkflowService) {}
+  constructor(
+    private readonly workflow: BookingsWorkflowService,
+    private readonly bookings: BookingsService,
+  ) {}
+
+  @Get('bookings/as-renter')
+  listAsRenter(@Req() request: RequestWithUser) {
+    return this.bookings.listBookingsAsRenter(this.getUserId(request));
+  }
+
+  @Get('bookings/as-landlord')
+  listAsLandlord(@Req() request: RequestWithUser) {
+    return this.bookings.listBookingsAsLandlord(this.getUserId(request));
+  }
+
+  @Get('bookings/:bookingId')
+  getBooking(
+    @Req() request: RequestWithUser,
+    @Param('bookingId', ParseUUIDPipe) bookingId: string,
+  ) {
+    return this.bookings.getBookingForParticipant(
+      bookingId,
+      this.getUserId(request),
+    );
+  }
 
   @Post('bookings')
   @HttpCode(HttpStatus.CREATED)
@@ -43,6 +69,7 @@ export class BookingsApiController {
       startAtIso: dto.startAt,
       endAtIso: dto.endAt,
       cardId: dto.cardId,
+      stubBalanceRub: dto.stubBalanceRub,
     });
   }
 
@@ -57,7 +84,19 @@ export class BookingsApiController {
       renterId: this.getUserId(request),
       bookingId,
       cardId: dto.cardId,
+      stubBalanceRub: dto.stubBalanceRub,
     });
+  }
+
+  @Post('bookings/:bookingId/return/confirm')
+  @HttpCode(HttpStatus.OK)
+  async confirmReturn(
+    @Req() request: RequestWithUser,
+    @Param('bookingId', ParseUUIDPipe) bookingId: string,
+  ) {
+    const userId = this.getUserId(request);
+    await this.workflow.confirmReturn({ bookingId, actorUserId: userId });
+    return this.bookings.getBookingForParticipant(bookingId, userId);
   }
 
   private getUserId(request: RequestWithUser): string {
