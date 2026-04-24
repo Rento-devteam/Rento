@@ -22,7 +22,7 @@ describe('BookingsWorkflowService', () => {
     user: { findUnique: jest.fn() },
     listing: { findUnique: jest.fn() },
     userPaymentMethod: { findFirst: jest.fn() },
-    booking: { update: jest.fn() },
+    booking: { update: jest.fn(), findUnique: jest.fn() },
     $transaction: jest.fn(),
   };
 
@@ -36,6 +36,10 @@ describe('BookingsWorkflowService', () => {
     notifyLandlordNewBooking: jest.fn(),
     notifyRenterDepositReleased: jest.fn(),
     notifyLandlordBookingCompleted: jest.fn(),
+  };
+
+  const trustScoreService = {
+    recalculateForUser: jest.fn(),
   };
 
   let service: BookingsWorkflowService;
@@ -53,6 +57,7 @@ describe('BookingsWorkflowService', () => {
       holdGateway as never,
       notifications as never,
       settlement as never,
+      trustScoreService as never,
     );
   });
 
@@ -188,7 +193,7 @@ describe('BookingsWorkflowService', () => {
   });
 
   it('completes booking and runs settlement when renter and landlord confirm return', async () => {
-    const bookingRow = {
+    const bookingRow: any = {
       id: 'b1',
       status: BookingStatus.ACTIVE,
       renterId: 'r1',
