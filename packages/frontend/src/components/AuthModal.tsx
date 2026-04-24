@@ -3,7 +3,6 @@ import type { FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { reloadHomeAfterLogin } from '../auth/reloadAfterLogin'
 import { authApi } from '../auth/authApi'
-import { authService } from '../auth/authService'
 import { isStrongPassword, PASSWORD_HINT } from '../auth/passwordPolicy'
 import { ApiError } from '../lib/apiClient'
 import { LOGO_SRC } from './BrandLogo'
@@ -320,20 +319,32 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
 }
 
 function TelegramPanel({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function onTelegramStart() {
+    setError(null)
+    setPending(true)
+    try {
+      const res = await authApi.telegramLoginStart({ redirectUrl: '/telegram/callback' })
+      window.open(res.deepLink, '_blank', 'noopener,noreferrer')
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Не удалось открыть Telegram')
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
     <div>
       <p className="field__hint" style={{ marginBottom: 16, textAlign: 'center' }}>
         Откройте Telegram-бота — он подтвердит вашу личность и вернёт вас в приложение.
       </p>
-      <a
-        className="oauth-btn"
-        href={authService.getTelegramBotUrl()}
-        target="_blank"
-        rel="noreferrer"
-      >
+      {error ? <div className="alert alert--error">{error}</div> : null}
+      <button type="button" className="oauth-btn" style={{ width: '100%' }} onClick={onTelegramStart} disabled={pending}>
         <IconTelegram />
-        Открыть Telegram-бота
-      </a>
+        {pending ? 'Открываем…' : 'Открыть Telegram-бота'}
+      </button>
       <div className="stack">
         <button
           type="button"
