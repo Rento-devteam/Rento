@@ -17,6 +17,10 @@ function formatMoneyRub(n: number): string {
   return `${n.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₽`
 }
 
+function formatDateTimeRu(value: string): string {
+  return new Date(value).toLocaleString('ru-RU')
+}
+
 export function BookingDetailPage() {
   const { bookingId } = useParams<{ bookingId: string }>()
   const { accessToken, user } = useAuth()
@@ -190,6 +194,9 @@ export function BookingDetailPage() {
     booking.role === 'landlord'
       ? 'Завершить сделку. Средства будут возвращены, только когда арендатор подтвердит это.'
       : 'Сделка будет завершена, когда арендодатель подтвердит это.'
+  const depositReleaseDeadline = booking.completedAt
+    ? new Date(new Date(booking.completedAt).getTime() + 24 * 60 * 60 * 1000).toISOString()
+    : null
 
   return (
     <main className="bookings-page">
@@ -272,6 +279,23 @@ export function BookingDetailPage() {
             >
               {returnSubmitting ? 'Подтверждение…' : 'Подтвердить завершение аренды'}
             </button>
+          </section>
+        ) : null}
+
+        {booking.status === 'COMPLETED' ? (
+          <section className="bookings-page__panel" aria-labelledby="deposit-release-title">
+            <h2 id="deposit-release-title" className="bookings-page__panel-title">
+              Возврат залога
+            </h2>
+            <div className="alert alert--success">
+              {booking.role === 'renter'
+                ? `Сделка завершена. Вам вернется залог ${formatMoneyRub(booking.depositAmount)}.`
+                : `Сделка завершена. Вам будет перечислено ${formatMoneyRub(booking.rentAmount)}.`}
+            </div>
+            <p className="bookings-page__fineprint" style={{ marginTop: 'var(--sp-3)' }}>
+              Перевод и разблокировка средств обычно выполняются в течение 24 часов после закрытия сделки.
+              {depositReleaseDeadline ? ` Ожидаемый срок: до ${formatDateTimeRu(depositReleaseDeadline)}.` : ''}
+            </p>
           </section>
         ) : null}
 
