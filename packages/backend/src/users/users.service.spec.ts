@@ -7,13 +7,32 @@ describe('UsersService', () => {
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    identityVerification: {
+      findUnique: jest.fn(),
+    },
+  };
+
+  const trustScoreService = {
+    getTrustScoreForUser: jest.fn(),
   };
 
   let usersService: UsersService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    usersService = new UsersService(prismaService as never);
+    trustScoreService.getTrustScoreForUser.mockResolvedValue({
+      currentScore: 0,
+      totalDeals: 0,
+      successfulDeals: 0,
+      lateReturns: 0,
+      disputes: 0,
+      calculatedAt: new Date().toISOString(),
+    });
+
+    usersService = new UsersService(
+      prismaService as never,
+      trustScoreService as never,
+    );
   });
 
   it('marks email user as not verified until email is confirmed', async () => {
@@ -96,7 +115,9 @@ describe('UsersService', () => {
   });
 
   it('throws when trust score is requested for missing user', async () => {
-    prismaService.user.findUnique.mockResolvedValue(null);
+    trustScoreService.getTrustScoreForUser.mockRejectedValue(
+      new NotFoundException('User not found'),
+    );
 
     await expect(
       usersService.getCurrentUserTrustScore('missing'),

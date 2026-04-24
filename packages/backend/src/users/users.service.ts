@@ -7,14 +7,17 @@ import { UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateCurrentUserDto } from './dto/update-current-user.dto';
 import {
-  buildDefaultTrustScore,
   buildUserProfileResponse,
   UserProfileResponse,
 } from './user-profile.mapper';
+import { TrustScoreService } from '../trust-score/trust-score.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly trustScoreService: TrustScoreService,
+  ) {}
 
   async getCurrentUser(userId: string): Promise<UserProfileResponse> {
     const user = await this.prismaService.user.findUnique({
@@ -24,7 +27,8 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    return buildUserProfileResponse(user, buildDefaultTrustScore());
+    const trustScore = await this.trustScoreService.getTrustScoreForUser(userId);
+    return buildUserProfileResponse(user, trustScore);
   }
 
   async updateCurrentUser(
@@ -46,12 +50,12 @@ export class UsersService {
       },
     });
 
-    return buildUserProfileResponse(user, buildDefaultTrustScore());
+    const trustScore = await this.trustScoreService.getTrustScoreForUser(userId);
+    return buildUserProfileResponse(user, trustScore);
   }
 
   async getCurrentUserTrustScore(userId: string) {
-    await this.ensureUserExists(userId);
-    return buildDefaultTrustScore();
+    return this.trustScoreService.getTrustScoreForUser(userId);
   }
 
   async assertUserCanCreateListing(userId: string): Promise<void> {
