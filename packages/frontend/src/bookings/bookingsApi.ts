@@ -50,6 +50,16 @@ export async function getBooking(bookingId: string, accessToken: string): Promis
   })
 }
 
+export async function confirmBookingReturn(
+  bookingId: string,
+  accessToken: string,
+): Promise<BookingDetail> {
+  return apiRequest<BookingDetail>(`/bookings/${bookingId}/return/confirm`, {
+    method: 'POST',
+    accessToken,
+  })
+}
+
 export async function retryBookingPayment(
   bookingId: string,
   body: { cardId: string; stubBalanceRub?: number },

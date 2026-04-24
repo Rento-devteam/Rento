@@ -2169,6 +2169,15 @@ a {
   box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
 }
 
+.bookings-page__list > li.bookings-page__card.bookings-page__card--completed {
+  border-color: rgba(34, 197, 94, 0.45);
+  background: rgba(34, 197, 94, 0.06);
+}
+
+.bookings-page__list > li.bookings-page__card.bookings-page__card--completed:hover {
+  border-color: rgba(34, 197, 94, 0.6);
+}
+
 .bookings-page__card-main {
   flex: 1 1 200px;
   min-width: 0;
@@ -2213,6 +2222,18 @@ a {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--brand-600);
+}
+
+.bookings-page__done-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #166534;
+  background: rgba(34, 197, 94, 0.18);
 }
 
 .bookings-page__crumbs {
