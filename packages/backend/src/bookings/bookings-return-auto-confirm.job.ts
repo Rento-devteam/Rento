@@ -4,6 +4,7 @@ import { BookingSettlementStatus, BookingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingsSettlementService } from './bookings-settlement.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TrustScoreService } from '../trust-score/trust-score.service';
 
 const JOB_LOCK_KEY = 'job:booking_return_auto_confirm_v1';
 
@@ -15,6 +16,7 @@ export class BookingsReturnAutoConfirmJob {
     private readonly prisma: PrismaService,
     private readonly settlement: BookingsSettlementService,
     private readonly notifications: NotificationsService,
+    private readonly trustScoreService: TrustScoreService,
   ) {}
 
   @Cron('* * * * *') // every minute
@@ -107,6 +109,17 @@ export class BookingsReturnAutoConfirmJob {
         if (updated.settlementStatus === BookingSettlementStatus.PENDING) {
           await this.settlement.attemptSettlement({ bookingId: b.id, now });
         }
+
+        await Promise.allSettled([
+          this.trustScoreService.recalculateForUser({
+            userId: b.renterId,
+            eventType: 'booking_completed',
+          }),
+          this.trustScoreService.recalculateForUser({
+            userId: b.listing.ownerId,
+            eventType: 'booking_completed',
+          }),
+        ]);
       } catch (err) {
         this.logger.warn(
           {

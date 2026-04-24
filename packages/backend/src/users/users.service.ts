@@ -58,6 +58,10 @@ export class UsersService {
     return this.trustScoreService.getTrustScoreForUser(userId);
   }
 
+  async recalculateTrustScore(params: { userId: string; eventType: string }) {
+    return this.trustScoreService.recalculateForUser(params);
+  }
+
   async assertUserCanCreateListing(userId: string): Promise<void> {
     const user = await this.prismaService.user.findUnique({
       where: { id: userId },

@@ -26,6 +26,7 @@ import { BookingsSettlementService } from './bookings-settlement.service';
 import { computeDayProjection } from './booking-dates';
 import { computeUnits } from './booking-pricing';
 import { CALENDAR_BLOCKING_BOOKING_STATUSES } from './bookings.constants';
+import { TrustScoreService } from '../trust-score/trust-score.service';
 
 @Injectable()
 export class BookingsWorkflowService {
@@ -37,6 +38,7 @@ export class BookingsWorkflowService {
     private readonly holdGateway: PaymentHoldGateway,
     private readonly notifications: NotificationsService,
     private readonly settlement: BookingsSettlementService,
+    private readonly trustScoreService: TrustScoreService,
   ) {}
 
   async createBooking(params: {
@@ -317,6 +319,10 @@ export class BookingsWorkflowService {
   async confirmReturn(params: { bookingId: string; actorUserId: string }) {
     const now = new Date();
 
+    let didComplete = false;
+    let renterIdForScore: string | null = null;
+    let landlordIdForScore: string | null = null;
+
     const { booking, shouldRunSettlement } = await this.prisma.$transaction(
       async (tx) => {
         const booking = await tx.booking.findFirst({
@@ -398,6 +404,9 @@ export class BookingsWorkflowService {
           data.returnMutualConfirmedAt = now;
           data.status = BookingStatus.COMPLETED;
           data.completedAt = now;
+          didComplete = true;
+          renterIdForScore = booking.renterId;
+          landlordIdForScore = booking.listing.ownerId;
 
           if (booking.settlementStatus === BookingSettlementStatus.NONE) {
             data.settlementStatus = BookingSettlementStatus.PENDING;
@@ -443,9 +452,35 @@ export class BookingsWorkflowService {
     );
 
     if (!shouldRunSettlement) {
+      if (didComplete && renterIdForScore && landlordIdForScore) {
+        await Promise.allSettled([
+          this.trustScoreService.recalculateForUser({
+            userId: renterIdForScore,
+            eventType: 'booking_completed',
+          }),
+          this.trustScoreService.recalculateForUser({
+            userId: landlordIdForScore,
+            eventType: 'booking_completed',
+          }),
+        ]);
+      }
       return { bookingId: booking.id, status: 'ok' as const };
     }
     await this.settlement.attemptSettlement({ bookingId: booking.id, now });
+
+    if (didComplete && renterIdForScore && landlordIdForScore) {
+      await Promise.allSettled([
+        this.trustScoreService.recalculateForUser({
+          userId: renterIdForScore,
+          eventType: 'booking_completed',
+        }),
+        this.trustScoreService.recalculateForUser({
+          userId: landlordIdForScore,
+          eventType: 'booking_completed',
+        }),
+      ]);
+    }
+
     return { bookingId: booking.id, status: 'ok' as const };
   }
 

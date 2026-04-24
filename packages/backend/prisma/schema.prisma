@@ -87,6 +87,7 @@ model User {
   bookingsAsRenter  Booking[]
   paymentMethods    UserPaymentMethod[]
   identityVerification IdentityVerification?
+  trustScore        TrustScore?
 }
 
 model IdentityVerification {
@@ -106,6 +107,25 @@ model IdentityVerification {
 
   @@index([status])
   @@index([provider])
+}
+
+model TrustScore {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  currentScore   Int
+  totalDeals     Int
+  successfulDeals Int
+  lateReturns    Int
+  disputes       Int
+  calculatedAt   DateTime
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([currentScore])
+  @@index([calculatedAt])
 }
 
 model EmailConfirmationToken {

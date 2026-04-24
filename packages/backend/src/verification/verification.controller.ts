@@ -16,6 +16,7 @@ import type { RequestWithUser } from '../auth/jwt-auth.guard';
 import { EsiaCallbackQueryDto } from './dto/esia-callback-query.dto';
 import { VerificationService } from './verification.service';
 import { UsersService } from '../users/users.service';
+import { IdentityVerificationStatus } from '@prisma/client';
 
 @Controller('verify/esia')
 export class VerificationController {
@@ -39,6 +40,13 @@ export class VerificationController {
       code: query.code,
       error: query.error,
     });
+
+    if (result.status === IdentityVerificationStatus.VERIFIED) {
+      await this.usersService.recalculateTrustScore({
+        userId: result.userId,
+        eventType: 'identity_verified',
+      });
+    }
 
     const trustScore = await this.usersService.getCurrentUserTrustScore(
       result.userId,
