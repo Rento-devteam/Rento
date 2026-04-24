@@ -2,7 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { bookingStatusLabel } from '../bookings/bookingUi'
-import { getBooking, retryBookingPayment, type BookingDetail } from '../bookings/bookingsApi'
+import {
+  confirmBookingReturn,
+  getBooking,
+  retryBookingPayment,
+  type BookingDetail,
+} from '../bookings/bookingsApi'
 import { listPaymentMethods, type BankCard } from '../payments/paymentMethodsApi'
 import { ApiError } from '../lib/apiClient'
 
@@ -28,6 +33,9 @@ export function BookingDetailPage() {
   })
   const [retrySubmitting, setRetrySubmitting] = useState(false)
   const [retryError, setRetryError] = useState<string | null>(null)
+  const [returnSubmitting, setReturnSubmitting] = useState(false)
+  const [returnError, setReturnError] = useState<string | null>(null)
+  const [returnNotice, setReturnNotice] = useState<string | null>(null)
 
   const loadBooking = useCallback(async () => {
     if (!bookingId || !accessToken) return
@@ -106,6 +114,26 @@ export function BookingDetailPage() {
     }
   }
 
+  const handleConfirmReturn = async () => {
+    if (!bookingId || !accessToken) return
+    setReturnSubmitting(true)
+    setReturnError(null)
+    setReturnNotice(null)
+    try {
+      const updated = await confirmBookingReturn(bookingId, accessToken)
+      setBooking(updated)
+      if (updated.status === 'COMPLETED') {
+        setReturnNotice('Возврат подтвержден обеими сторонами. Сделка завершена, начинается расчет.')
+      } else {
+        setReturnNotice('Подтверждение отправлено. Ожидаем подтверждение второй стороны.')
+      }
+    } catch (err: unknown) {
+      setReturnError(err instanceof ApiError ? err.message : 'Не удалось подтвердить завершение аренды')
+    } finally {
+      setReturnSubmitting(false)
+    }
+  }
+
   if (!user) {
     return (
       <main className="bookings-page">
@@ -157,6 +185,11 @@ export function BookingDetailPage() {
 
   const showRetry =
     booking.role === 'renter' && booking.status === 'PAYMENT_FAILED' && cards.length > 0
+  const canConfirmReturn = booking.status === 'CONFIRMED' || booking.status === 'ACTIVE'
+  const returnHelpText =
+    booking.role === 'landlord'
+      ? 'Завершить сделку. Средства будут возвращены, только когда арендатор подтвердит это.'
+      : 'Сделка будет завершена, когда арендодатель подтвердит это.'
 
   return (
     <main className="bookings-page">
@@ -220,6 +253,26 @@ export function BookingDetailPage() {
           <div className="alert alert--success" style={{ marginTop: 'var(--sp-4)' }}>
             Средства заблокированы на карте арендатора (Escrow). Календарь объявления обновлён на стороне сервера.
           </div>
+        ) : null}
+
+        {canConfirmReturn ? (
+          <section className="bookings-page__panel" aria-labelledby="return-confirm-title">
+            <h2 id="return-confirm-title" className="bookings-page__panel-title">
+              Завершение аренды
+            </h2>
+            <p className="bookings-page__fineprint">{returnHelpText}</p>
+            {returnError ? <div className="alert alert--error">{returnError}</div> : null}
+            {returnNotice ? <div className="alert alert--success">{returnNotice}</div> : null}
+            <button
+              type="button"
+              className="btn btn--brand"
+              style={{ marginTop: 'var(--sp-3)' }}
+              disabled={returnSubmitting}
+              onClick={() => void handleConfirmReturn()}
+            >
+              {returnSubmitting ? 'Подтверждение…' : 'Подтвердить завершение аренды'}
+            </button>
+          </section>
         ) : null}
 
         {showRetry ? (

@@ -90,7 +90,10 @@ export function RenterBookingsPage() {
         ) : (
           <ul className="bookings-page__list">
             {displayItems.map((b) => (
-              <li key={b.id} className="bookings-page__card">
+              <li
+                key={b.id}
+                className={`bookings-page__card ${b.status === 'COMPLETED' ? 'bookings-page__card--completed' : ''}`}
+              >
                 <div className="bookings-page__card-main">
                   <Link to={`/bookings/${b.id}`} className="bookings-page__card-title">
                     {b.listingTitle}
@@ -102,6 +105,9 @@ export function RenterBookingsPage() {
                   </p>
                 </div>
                 <div className="bookings-page__card-side">
+                  {b.status === 'COMPLETED' ? (
+                    <span className="bookings-page__done-pill">Сделка завершена</span>
+                  ) : null}
                   <span className="bookings-page__status">{bookingStatusLabel(b.status)}</span>
                   <Link
                     to={`/bookings/${b.id}`}
