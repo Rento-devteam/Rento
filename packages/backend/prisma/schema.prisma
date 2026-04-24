@@ -60,6 +60,13 @@ enum BookingSettlementStatus {
   FAILED
 }
 
+enum IdentityVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
 model User {
   id                String                   @id @default(uuid())
   email             String?                  @unique
@@ -79,6 +86,26 @@ model User {
   listings          Listing[]
   bookingsAsRenter  Booking[]
   paymentMethods    UserPaymentMethod[]
+  identityVerification IdentityVerification?
+}
+
+model IdentityVerification {
+  id        String                     @id @default(uuid())
+  userId    String                     @unique
+  user      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider  String                     @default("ESIA")
+  status    IdentityVerificationStatus  @default(PENDING)
+
+  verifiedAt DateTime?
+  expiresAt  DateTime?
+  lastError  String?
+
+  createdAt DateTime                   @default(now())
+  updatedAt DateTime                   @updatedAt
+
+  @@index([status])
+  @@index([provider])
 }
 
 model EmailConfirmationToken {
