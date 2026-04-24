@@ -1,0 +1,11 @@
+{
+  # Global options
+  # email you@example.com
+}
+
+{$DOMAIN} {
+  encode zstd gzip
+
+  reverse_proxy backend:3000
+}
+
