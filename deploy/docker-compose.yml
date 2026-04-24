@@ -16,6 +16,7 @@ services:
       - rento_caddy_config:/config
     depends_on:
       - backend
+      - telegram-bot
     networks:
       - web
       - internal
@@ -38,6 +39,29 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+    networks:
+      - internal
+
+  telegram-bot:
+    build:
+      context: ../packages
+      dockerfile: telegram-bot/Dockerfile
+    container_name: rento-telegram-bot
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
+      PORT: ${TELEGRAM_BOT_PORT:-3010}
+      WEBHOOK_PATH: ${TELEGRAM_BOT_WEBHOOK_PATH:-/telegram/webhook}
+      PUBLIC_BOT_BASE_URL: ${TELEGRAM_BOT_PUBLIC_BASE_URL}
+      SET_WEBHOOK_ON_STARTUP: ${TELEGRAM_BOT_SET_WEBHOOK_ON_STARTUP:-true}
+      USE_POLLING: ${TELEGRAM_BOT_USE_POLLING:-false}
+      BOT_TOKEN: ${BOT_TOKEN}
+      BOT_SECRET: ${BOT_SECRET}
+      BACKEND_BASE_URL: http://backend:3000
+    depends_on:
+      - backend
     networks:
       - internal
 
