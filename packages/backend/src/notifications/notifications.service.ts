@@ -22,4 +22,35 @@ export class NotificationsService {
     );
     return Promise.resolve();
   }
+
+  notifyLandlordAutoReturnDeadlineExpired(params: {
+    bookingId: string;
+    landlordId: string;
+  }) {
+    this.logger.log(
+      { ...params, type: 'landlord_auto_return_deadline_expired' },
+      'Notification stub',
+    );
+    return Promise.resolve();
+  }
+
+  notifyRenterDepositReleased(params: {
+    bookingId: string;
+    renterId: string;
+    amount: number;
+  }) {
+    this.logger.log(
+      { ...params, type: 'renter_deposit_released' },
+      'Notification stub',
+    );
+    return Promise.resolve();
+  }
+
+  notifyLandlordBookingCompleted(params: { bookingId: string; landlordId: string }) {
+    this.logger.log(
+      { ...params, type: 'landlord_booking_completed' },
+      'Notification stub',
+    );
+    return Promise.resolve();
+  }
 }

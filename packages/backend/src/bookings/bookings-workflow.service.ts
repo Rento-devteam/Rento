@@ -22,6 +22,7 @@ import {
   type PaymentHoldGateway,
 } from '../payments-hold/payment-hold.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
+import { BookingsSettlementService } from './bookings-settlement.service';
 import { computeDayProjection } from './booking-dates';
 import { computeUnits } from './booking-pricing';
 import { CALENDAR_BLOCKING_BOOKING_STATUSES } from './bookings.constants';
@@ -35,6 +36,7 @@ export class BookingsWorkflowService {
     @Inject(PAYMENT_HOLD_GATEWAY)
     private readonly holdGateway: PaymentHoldGateway,
     private readonly notifications: NotificationsService,
+    private readonly settlement: BookingsSettlementService,
   ) {}
 
   async createBooking(params: {
@@ -370,8 +372,9 @@ export class BookingsWorkflowService {
         if (isRenter && !booking.returnRenterConfirmedAt) {
           data.returnRenterConfirmedAt = now;
           if (!booking.returnConfirmationDeadlineAt) {
+            const timeoutHours = this.getReturnConfirmationTimeoutHours();
             data.returnConfirmationDeadlineAt = new Date(
-              now.getTime() + 24 * 60 * 60 * 1000,
+              now.getTime() + timeoutHours * 60 * 60 * 1000,
             );
           }
         }
@@ -442,58 +445,17 @@ export class BookingsWorkflowService {
     if (!shouldRunSettlement) {
       return { bookingId: booking.id, status: 'ok' as const };
     }
-
-    if (!booking.paymentHoldId) {
-      await this.prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          settlementStatus: BookingSettlementStatus.FAILED,
-          settlementError: 'Missing paymentHoldId',
-        },
-      });
-      throw new ConflictException('Missing payment hold for settlement');
-    }
-
-    const captureKey = `booking_settlement:capture_rent:${booking.id}`;
-    const releaseKey = `booking_settlement:release_deposit:${booking.id}`;
-
-    try {
-      await this.holdGateway.captureRent({
-        holdId: booking.paymentHoldId,
-        amount: booking.rentAmount,
-        currency: 'RUB',
-        idempotencyKey: captureKey,
-        metadata: { bookingId: booking.id },
-      });
-
-      await this.holdGateway.releaseDeposit({
-        holdId: booking.paymentHoldId,
-        amount: booking.depositAmount,
-        currency: 'RUB',
-        idempotencyKey: releaseKey,
-        metadata: { bookingId: booking.id },
-      });
-
-      await this.prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          settlementStatus: BookingSettlementStatus.SETTLED,
-          settlementError: null,
-          settledAt: new Date(),
-        },
-      });
-    } catch (err) {
-      await this.prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          settlementStatus: BookingSettlementStatus.FAILED,
-          settlementError: err instanceof Error ? err.message : String(err),
-        },
-      });
-      throw err;
-    }
-
+    await this.settlement.attemptSettlement({ bookingId: booking.id, now });
     return { bookingId: booking.id, status: 'ok' as const };
+  }
+
+  private getReturnConfirmationTimeoutHours() {
+    const raw = process.env.RETURN_CONFIRMATION_TIMEOUT_HOURS;
+    const parsed = raw ? Number(raw) : NaN;
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+    return 24;
   }
 
   private async resolvePaymentMethod(userId: string, cardId?: string) {

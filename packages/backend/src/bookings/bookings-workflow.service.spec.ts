@@ -5,6 +5,7 @@ import {
   UserStatus,
 } from '@prisma/client';
 import { PaymentHoldDeclinedError } from '../payments-hold/payment-hold.gateway';
+import { BookingsSettlementService } from './bookings-settlement.service';
 import { BookingsWorkflowService } from './bookings-workflow.service';
 
 describe('BookingsWorkflowService', () => {
@@ -33,16 +34,25 @@ describe('BookingsWorkflowService', () => {
   const notifications = {
     notifyRenterBookingConfirmed: jest.fn(),
     notifyLandlordNewBooking: jest.fn(),
+    notifyRenterDepositReleased: jest.fn(),
+    notifyLandlordBookingCompleted: jest.fn(),
   };
 
   let service: BookingsWorkflowService;
+  let settlement: BookingsSettlementService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    settlement = new BookingsSettlementService(
+      prisma as never,
+      holdGateway as never,
+      notifications as never,
+    );
     service = new BookingsWorkflowService(
       prisma as never,
       holdGateway as never,
       notifications as never,
+      settlement as never,
     );
   });
 
@@ -213,6 +223,16 @@ describe('BookingsWorkflowService', () => {
     holdGateway.captureRent.mockResolvedValue({ operationId: 'cap_1' });
     holdGateway.releaseDeposit.mockResolvedValue({ operationId: 'rel_1' });
     prisma.booking.update.mockResolvedValue({ id: 'b1' });
+    prisma.booking.findUnique = jest.fn().mockResolvedValue({
+      id: 'b1',
+      renterId: 'r1',
+      listing: { ownerId: 'o1' },
+      paymentHoldId: 'hold_1',
+      rentAmount: 200,
+      depositAmount: 100,
+      settlementStatus: BookingSettlementStatus.PENDING,
+      settlementRetryCount: 0,
+    });
 
     await service.confirmReturn({ bookingId: 'b1', actorUserId: 'r1' });
 
@@ -245,6 +265,9 @@ describe('BookingsWorkflowService', () => {
           settlementStatus: BookingSettlementStatus.SETTLED,
         }) as unknown,
       }),
+    );
+    expect(notifications.notifyRenterDepositReleased).toHaveBeenCalledWith(
+      expect.objectContaining({ bookingId: 'b1', renterId: 'r1', amount: 100 }),
     );
   });
 });
