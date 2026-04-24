@@ -101,6 +101,10 @@ describe('ProfilePage', () => {
     expect(screen.getByText('+7 999 123 45 67')).toBeInTheDocument()
     expect(screen.getByText('95')).toBeInTheDocument()
     expect(screen.getByText('10')).toBeInTheDocument()
+    expect(screen.getByText(/Индекс доверия/i)).toBeInTheDocument()
+    expect(screen.getByText(/Документ:/i)).toBeInTheDocument()
+    expect(screen.getByText(/Отзывы людей:/i)).toBeInTheDocument()
+    expect(screen.getByText(/История возвратов:/i)).toBeInTheDocument()
 
     await waitFor(() => {
       expect(apiRequestMock).toHaveBeenCalledWith('/listings/my', {
@@ -127,7 +131,7 @@ describe('ProfilePage', () => {
     })
   })
 
-  it('shows identity verification card placeholder', async () => {
+  it('shows identity verification panel with ESIA action', async () => {
     render(
       <MemoryRouter>
         <ProfilePage />
@@ -135,10 +139,123 @@ describe('ProfilePage', () => {
     )
 
     expect(
-      await screen.findByRole('heading', { name: /Подтверждённый аккаунт/i }),
+      await screen.findByRole('heading', { name: /Подтверждение личности/i }),
     ).toBeInTheDocument()
     expect(screen.getAllByText(/ЕСИА/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByRole('button', { name: /^Подтвердить аккаунт$/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^Подтвердить через ЕСИА$/i })).toBeEnabled()
+  })
+
+  it('calls ESIA initiate endpoint on button click', async () => {
+    const user = userEvent.setup()
+    apiRequestMock.mockImplementation((path: string) => {
+      if (path === '/verify/esia/initiate') {
+        return Promise.resolve({})
+      }
+      if (path === '/listings/my') {
+        return Promise.resolve([])
+      }
+      if (path === '/payment/methods') {
+        return Promise.resolve({ items: [] })
+      }
+      return Promise.resolve({})
+    })
+
+    render(
+      <MemoryRouter>
+        <ProfilePage />
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /^Подтвердить через ЕСИА$/i }))
+
+    await waitFor(() => {
+      expect(apiRequestMock).toHaveBeenCalledWith('/verify/esia/initiate', {
+        method: 'POST',
+        accessToken: 'token-123',
+      })
+    })
+    expect(
+      await screen.findByText(/Не удалось начать верификацию через ЕСИА/i),
+    ).toBeInTheDocument()
+  })
+
+  it('shows API error when ESIA initiate fails', async () => {
+    const user = userEvent.setup()
+    apiRequestMock.mockImplementation((path: string) => {
+      if (path === '/verify/esia/initiate') {
+        return Promise.reject(new Error('already verified'))
+      }
+      if (path === '/listings/my') {
+        return Promise.resolve([])
+      }
+      if (path === '/payment/methods') {
+        return Promise.resolve({ items: [] })
+      }
+      return Promise.resolve({})
+    })
+
+    render(
+      <MemoryRouter>
+        <ProfilePage />
+      </MemoryRouter>,
+    )
+
+    await user.click(screen.getByRole('button', { name: /^Подтвердить через ЕСИА$/i }))
+
+    expect(
+      await screen.findByText(/Не удалось начать верификацию через ЕСИА/i),
+    ).toBeInTheDocument()
+  })
+
+  it('hides trust index block when trustScore is missing', async () => {
+    useAuthMock.mockReturnValue({
+      ...useAuthMock(),
+      user: {
+        id: 'u1',
+        email: 'pending@example.com',
+        fullName: 'Пётр',
+        phone: null,
+        avatarUrl: null,
+        role: 'USER',
+        status: 'PENDING_EMAIL_CONFIRMATION',
+        isVerified: false,
+        trustScore: undefined,
+      },
+    })
+
+    render(
+      <MemoryRouter>
+        <ProfilePage />
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByRole('heading', { name: /Индекс доверия/i })).not.toBeInTheDocument()
+  })
+
+  it('shows on-time return percentage in trust index', async () => {
+    useAuthMock.mockReturnValue({
+      ...useAuthMock(),
+      user: {
+        ...useAuthMock().user,
+        trustScore: {
+          currentScore: 72,
+          totalDeals: 10,
+          successfulDeals: 5,
+          lateReturns: 2,
+          disputes: 0,
+          calculatedAt: new Date().toISOString(),
+        },
+      },
+    })
+
+    render(
+      <MemoryRouter>
+        <ProfilePage />
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('60%')).toBeInTheDocument()
+    expect(screen.getByText(/3 в срок \/ 5 подтвержденных/i)).toBeInTheDocument()
   })
 
   it('saves profile when form is submitted', async () => {

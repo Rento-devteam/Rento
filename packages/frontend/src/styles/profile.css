@@ -421,6 +421,16 @@
   color: var(--brand-700);
 }
 
+.profile-trust-factors {
+  margin: var(--sp-3) 0 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.86rem;
+  color: var(--ink-600);
+}
+
 .profile-listings__head {
   display: flex;
   align-items: center;

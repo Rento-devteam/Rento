@@ -16,12 +16,138 @@ import {
 import '../styles/profile.css'
 
 type ProfileIdentitySectionProps = {
+  accessToken: string | null
+}
+
+function ProfileIdentitySection({ accessToken }: ProfileIdentitySectionProps) {
+  const [verificationLoading, setVerificationLoading] = useState(false)
+  const [verificationMessage, setVerificationMessage] = useState<{
+    type: 'ok' | 'err'
+    text: string
+  } | null>(null)
+
+  const startEsiaVerification = async () => {
+    if (!accessToken) return
+    setVerificationLoading(true)
+    setVerificationMessage(null)
+    try {
+      const response = await apiRequest<{ redirectUrl: string }>('/verify/esia/initiate', {
+        method: 'POST',
+        accessToken,
+      })
+      if (!response.redirectUrl) {
+        throw new Error('Не получен URL для перехода в ЕСИА')
+      }
+      setVerificationMessage({ type: 'ok', text: 'Перенаправляем в ЕСИА…' })
+      window.location.assign(response.redirectUrl)
+    } catch (err: unknown) {
+      setVerificationMessage({
+        type: 'err',
+        text:
+          err instanceof ApiError
+            ? err.message
+            : 'Не удалось начать верификацию через ЕСИА',
+      })
+    } finally {
+      setVerificationLoading(false)
+    }
+  }
+
+  return (
+    <section className="profile-panel profile-panel--identity" aria-labelledby="profile-identity-title">
+      <div className="profile-panel__head">
+        <div>
+          <span className="profile-identity-eyebrow">Повышенное доверие</span>
+          <h3 id="profile-identity-title" className="profile-panel__title">
+            Подтверждение личности
+          </h3>
+        </div>
+      </div>
+      <p className="profile-panel__hint">
+        Подтвердите личность через ЕСИА, чтобы повысить Индекс доверия по сценарию UC-03.
+      </p>
+      <ul className="profile-identity-methods" aria-label="Способы подтверждения личности">
+        <li>
+          <EsiaGlyph />
+          ЕСИА
+        </li>
+      </ul>
+      <button
+        type="button"
+        className="btn btn--brand"
+        onClick={() => void startEsiaVerification()}
+        disabled={!accessToken || verificationLoading}
+      >
+        {verificationLoading ? 'Переход в ЕСИА…' : 'Подтвердить через ЕСИА'}
+      </button>
+      {verificationMessage ? (
+        <p
+          className={`profile-resend-msg${verificationMessage.type === 'ok' ? ' profile-resend-msg--ok' : ' profile-resend-msg--err'}`}
+          style={{ marginTop: 'var(--sp-3)' }}
+        >
+          {verificationMessage.text}
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+type ProfileTrustScoreCardProps = {
+  user: AuthUser
+}
+
+function ProfileTrustScoreCard({ user }: ProfileTrustScoreCardProps) {
+  const trust = user.trustScore
+  if (!trust) return null
+
+  const identityFactor = user.status === 'ACTIVE' ? 'Есть документ' : 'Нет документа'
+  const onTimeReturns = Math.max(trust.successfulDeals - trust.lateReturns, 0)
+  const onTimePercent =
+    trust.successfulDeals > 0
+      ? Math.round((onTimeReturns / trust.successfulDeals) * 100)
+      : 0
+
+  return (
+    <section className="profile-panel" aria-label="Индекс доверия">
+      <div className="profile-panel__head">
+        <h3 className="profile-panel__title">Индекс доверия</h3>
+      </div>
+      <div className="profile-trust">
+        <div className="profile-trust__item">
+          <span className="profile-trust__label">Индекс</span>
+          <span className="profile-trust__value">{trust.currentScore}</span>
+        </div>
+        <div className="profile-trust__item">
+          <span className="profile-trust__label">Сделок всего</span>
+          <span className="profile-trust__value">{trust.totalDeals}</span>
+        </div>
+        <div className="profile-trust__item">
+          <span className="profile-trust__label">Возвратов в срок</span>
+          <span className="profile-trust__value">{onTimePercent}%</span>
+        </div>
+      </div>
+      <ul className="profile-trust-factors" aria-label="Факторы индекса доверия">
+        <li>
+          <strong>Документ:</strong> {identityFactor}
+        </li>
+        <li>
+          <strong>Отзывы людей:</strong> {trust.successfulDeals} успешных сделок
+        </li>
+        <li>
+          <strong>История возвратов:</strong> {onTimeReturns} в срок / {trust.successfulDeals} подтвержденных
+        </li>
+      </ul>
+    </section>
+  )
+}
+
+type ProfileDetailsSectionProps = {
   user: AuthUser
   accessToken: string | null
   refreshProfile: () => Promise<void>
 }
 
-function ProfileIdentitySection({ user, accessToken, refreshProfile }: ProfileIdentitySectionProps) {
+function ProfileDetailsSection({ user, accessToken, refreshProfile }: ProfileDetailsSectionProps) {
   const [draftFullName, setDraftFullName] = useState(() => user.fullName ?? '')
   const [draftPhone, setDraftPhone] = useState(() => user.phone ?? '')
   const [profileSaving, setProfileSaving] = useState(false)
@@ -328,7 +454,6 @@ export function ProfilePage() {
     '?'
 
   const emailNeedsConfirmation = Boolean(user.email && !user.isVerified)
-  const trust = user.trustScore
 
   return (
     <main className="profile-page">
@@ -554,35 +679,14 @@ export function ProfilePage() {
               ) : null}
             </div>
 
-            <ProfileIdentitySection
+            <ProfileIdentitySection accessToken={accessToken} />
+            <ProfileTrustScoreCard user={user} />
+            <ProfileDetailsSection
               key={user.id}
               user={user}
               accessToken={accessToken}
               refreshProfile={refreshProfile}
             />
-
-            {trust ? (
-              <section className="profile-panel" aria-label="Рейтинг доверия">
-                <div className="profile-panel__head">
-                  <h3 className="profile-panel__title">Рейтинг доверия</h3>
-                </div>
-                <div className="profile-trust">
-                  <div className="profile-trust__item">
-                    <span className="profile-trust__label">Баллы</span>
-                    <span className="profile-trust__value">{trust.currentScore}</span>
-                  </div>
-                  <div className="profile-trust__item">
-                    <span className="profile-trust__label">Сделок</span>
-                    <span className="profile-trust__value">{trust.totalDeals}</span>
-                  </div>
-                  <div className="profile-trust__item">
-                    <span className="profile-trust__label">Успешных</span>
-                    <span className="profile-trust__value">{trust.successfulDeals}</span>
-                  </div>
-                </div>
-              </section>
-            ) : null}
-
             <section className="profile-listings" aria-labelledby="profile-listings-title">
               <div className="profile-listings__head">
                 <h2 id="profile-listings-title" className="profile-listings__title">
@@ -669,18 +773,6 @@ export function ProfilePage() {
         </div>
       </div>
     </main>
-  )
-}
-
-function TelegramMiniGlyph() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden width="18" height="18">
-      <circle cx="12" cy="12" r="10" fill="#229ED9" />
-      <path
-        fill="#fff"
-        d="M17.5 7.5l-2.2 10.4c-.2.9-.7 1.1-1.4.7l-3.9-2.9-1.9 1.8c-.2.2-.4.4-.8.4l.3-4.1 7.2-6.5c.3-.3-.1-.5-.5-.3l-8.9 5.6-3.8-1.2c-.8-.25-.8-.8.2-1.2L16.4 6.4c.7-.3 1.3.2 1.1 1.1z"
-      />
-    </svg>
   )
 }
 
