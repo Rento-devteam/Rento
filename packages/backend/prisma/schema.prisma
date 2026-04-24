@@ -61,54 +61,54 @@ enum BookingSettlementStatus {
 }
 
 model User {
-  id                 String                   @id @default(uuid())
-  email              String?                  @unique
-  passwordHash       String?
-  fullName           String?
-  phone              String?
-  avatarUrl          String?
-  role               UserRole                 @default(USER)
-  status             UserStatus               @default(PENDING_EMAIL_CONFIRMATION)
-  emailConfirmedAt   DateTime?
-  telegramId         String?                  @unique
-  createdAt          DateTime                 @default(now())
-  updatedAt          DateTime                 @updatedAt
-  emailTokens        EmailConfirmationToken[]
-  telegramLinkCodes  TelegramLinkCode[]
-  refreshTokens      RefreshToken[]
-  listings           Listing[]
-  bookingsAsRenter   Booking[]
-  paymentMethods     UserPaymentMethod[]
+  id                String                   @id @default(uuid())
+  email             String?                  @unique
+  passwordHash      String?
+  fullName          String?
+  phone             String?
+  avatarUrl         String?
+  role              UserRole                 @default(USER)
+  status            UserStatus               @default(PENDING_EMAIL_CONFIRMATION)
+  emailConfirmedAt  DateTime?
+  telegramId        String?                  @unique
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  emailTokens       EmailConfirmationToken[]
+  telegramLinkCodes TelegramLinkCode[]
+  refreshTokens     RefreshToken[]
+  listings          Listing[]
+  bookingsAsRenter  Booking[]
+  paymentMethods    UserPaymentMethod[]
 }
 
 model EmailConfirmationToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
+  id        String    @id @default(uuid())
+  token     String    @unique
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 }
 
 model TelegramLinkCode {
-  id        String   @id @default(uuid())
-  code      String   @unique
+  id        String    @id @default(uuid())
+  code      String    @unique
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash String
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 }
 
 model Category {
@@ -124,24 +124,24 @@ model Category {
 }
 
 model Listing {
-  id           String         @id @default(uuid())
-  ownerId      String
-  owner        User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  categoryId   String
-  category     Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  title        String
-  description  String
-  rentalPrice  Float
-  rentalPeriod RentalPeriod
-  depositAmount Float
-  status       ListingStatus  @default(DRAFT)
-  latitude     Float?
-  longitude    Float?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  photos       ListingPhoto[]
+  id                   String                       @id @default(uuid())
+  ownerId              String
+  owner                User                         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  categoryId           String
+  category             Category                     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  title                String
+  description          String
+  rentalPrice          Float
+  rentalPeriod         RentalPeriod
+  depositAmount        Float
+  status               ListingStatus                @default(DRAFT)
+  latitude             Float?
+  longitude            Float?
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  photos               ListingPhoto[]
   manualCalendarBlocks ListingManualCalendarBlock[]
-  bookings     Booking[]
+  bookings             Booking[]
 
   @@index([ownerId])
   @@index([categoryId])
@@ -158,8 +158,8 @@ model ListingPhoto {
   isPrimary    Boolean  @default(false)
   uploadedAt   DateTime @default(now())
 
-  @@index([listingId])
   @@unique([listingId, order])
+  @@index([listingId])
 }
 
 model ListingManualCalendarBlock {
@@ -190,41 +190,44 @@ model UserPaymentMethod {
 }
 
 model Booking {
-  id             String        @id @default(uuid())
-  listingId      String
-  listing        Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  renterId       String
-  renter         User          @relation(fields: [renterId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  renterId  String
+  renter    User     @relation(fields: [renterId], references: [id], onDelete: Cascade)
   // Day-level projection (kept for compatibility with day calendar views).
-  startDate      DateTime      @db.Date
-  endDate        DateTime      @db.Date
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
 
   // Datetime interval for hour-based rentals and precise overlaps.
   // Nullable temporarily to allow backfilling via migration; API will require it.
-  startAt        DateTime?
-  endAt          DateTime?
-  rentAmount     Float
-  depositAmount  Float
-  totalAmount    Float
-  amountHeld     Float?
-  paymentHoldId  String?
-  paymentGateway String?
+  startAt                  DateTime?
+  endAt                    DateTime?
+  rentAmount               Float
+  depositAmount            Float
+  totalAmount              Float
+  amountHeld               Float?
+  paymentHoldId            String?
+  paymentGateway           String?
   paymentAuthorizationCode String?
-  status         BookingStatus @default(PENDING)
+  status                   BookingStatus @default(PENDING)
 
-  returnRenterConfirmedAt DateTime?
-  returnLandlordConfirmedAt DateTime?
-  returnMutualConfirmedAt DateTime?
-  returnAutoConfirmedAt DateTime?
+  returnRenterConfirmedAt      DateTime?
+  returnLandlordConfirmedAt    DateTime?
+  returnMutualConfirmedAt      DateTime?
+  returnAutoConfirmedAt        DateTime?
   returnConfirmationDeadlineAt DateTime?
 
   completedAt DateTime?
 
-  settlementStatus BookingSettlementStatus @default(NONE)
-  settlementError  String?
-  settledAt        DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  settlementStatus        BookingSettlementStatus @default(NONE)
+  settlementError         String?
+  settlementRetryCount    Int                     @default(0)
+  settlementNextRetryAt   DateTime?
+  settlementLastAttemptAt DateTime?
+  settledAt               DateTime?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
 
   @@index([listingId])
   @@index([renterId])
@@ -232,4 +235,5 @@ model Booking {
   @@index([startAt, endAt])
   @@index([returnConfirmationDeadlineAt])
   @@index([settlementStatus])
+  @@index([settlementNextRetryAt])
 }
