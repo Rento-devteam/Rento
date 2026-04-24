@@ -10,6 +10,7 @@ export type BookingListItem = {
   listingId: string
   listingTitle: string
   status: string
+  completedAt?: string | null
   startAt: string | null
   endAt: string | null
   startDate: string
