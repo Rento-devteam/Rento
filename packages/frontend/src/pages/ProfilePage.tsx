@@ -153,6 +153,12 @@ function accountStatusLabel(status: string): string {
   }
 }
 
+function calculateOnTimeReturnsRate(totalDeals: number, lateReturns: number): number {
+  if (totalDeals <= 0) return 100
+  const onTime = Math.max(0, totalDeals - lateReturns)
+  return Math.round((onTime / totalDeals) * 100)
+}
+
 export function ProfilePage() {
   const { user, accessToken, logout, refreshProfile } = useAuth()
   const navigate = useNavigate()
@@ -561,27 +567,59 @@ export function ProfilePage() {
               refreshProfile={refreshProfile}
             />
 
-            {trust ? (
-              <section className="profile-panel" aria-label="Рейтинг доверия">
-                <div className="profile-panel__head">
-                  <h3 className="profile-panel__title">Рейтинг доверия</h3>
-                </div>
-                <div className="profile-trust">
-                  <div className="profile-trust__item">
-                    <span className="profile-trust__label">Баллы</span>
-                    <span className="profile-trust__value">{trust.currentScore}</span>
+            <section className="profile-panel" aria-label="Индекс доверия">
+              <div className="profile-panel__head">
+                <h3 className="profile-panel__title">Индекс доверия</h3>
+              </div>
+              <p className="profile-panel__hint">
+                Сейчас в расчёт входят подтверждение личности и история возвратов в срок по сделкам. Отзывы
+                пользователей появятся здесь после запуска модуля отзывов.
+              </p>
+              {trust ? (
+                <>
+                  <div className="profile-trust" style={{ marginTop: 'var(--sp-3)' }}>
+                    <div className="profile-trust__item">
+                      <span className="profile-trust__label">Индекс</span>
+                      <span className="profile-trust__value">{trust.currentScore} / 100</span>
+                    </div>
+                    <div className="profile-trust__item">
+                      <span className="profile-trust__label">Подтверждение личности</span>
+                      <span className="profile-trust__value">
+                        {trust.currentScore >= 60 ? 'Учтено' : 'Не учтено'}
+                      </span>
+                    </div>
+                    <div className="profile-trust__item">
+                      <span className="profile-trust__label">Отзывы пользователей</span>
+                      <span className="profile-trust__value">Нет данных</span>
+                    </div>
+                    <div className="profile-trust__item">
+                      <span className="profile-trust__label">Возвраты в срок</span>
+                      <span className="profile-trust__value">
+                        {calculateOnTimeReturnsRate(trust.totalDeals, trust.lateReturns)}%
+                      </span>
+                    </div>
                   </div>
-                  <div className="profile-trust__item">
-                    <span className="profile-trust__label">Сделок</span>
-                    <span className="profile-trust__value">{trust.totalDeals}</span>
+                  <div className="profile-trust" style={{ marginTop: 'var(--sp-3)' }}>
+                    <div className="profile-trust__item">
+                      <span className="profile-trust__label">Всего сделок</span>
+                      <span className="profile-trust__value">{trust.totalDeals}</span>
+                    </div>
+                    <div className="profile-trust__item">
+                      <span className="profile-trust__label">Успешных сделок</span>
+                      <span className="profile-trust__value">{trust.successfulDeals}</span>
+                    </div>
+                    <div className="profile-trust__item">
+                      <span className="profile-trust__label">Просроченных возвратов</span>
+                      <span className="profile-trust__value">{trust.lateReturns}</span>
+                    </div>
                   </div>
-                  <div className="profile-trust__item">
-                    <span className="profile-trust__label">Успешных</span>
-                    <span className="profile-trust__value">{trust.successfulDeals}</span>
-                  </div>
-                </div>
-              </section>
-            ) : null}
+                </>
+              ) : (
+                <p className="profile-panel__hint" style={{ marginTop: 'var(--sp-3)' }}>
+                  Индекс пока не рассчитан. Появится после первой синхронизации данных профиля.
+                </p>
+              )}
+            </section>
 
             <section className="profile-listings" aria-labelledby="profile-listings-title">
               <div className="profile-listings__head">
