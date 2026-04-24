@@ -11,12 +11,17 @@ import * as bcrypt from 'bcrypt';
 import {
   EMAIL_CONFIRMATION_TTL_HOURS,
   TELEGRAM_CODE_TTL_MINUTES,
+  TELEGRAM_LOGIN_EXCHANGE_TTL_MINUTES,
+  TELEGRAM_LOGIN_STATE_TTL_MINUTES,
 } from './auth.constants';
 import { CompleteRegistrationQueryDto } from './dto/complete-registration-query.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResendConfirmationDto } from './dto/resend-confirmation.dto';
 import { TelegramAuthDto } from './dto/telegram-auth.dto';
+import { TelegramLoginConfirmDto } from './dto/telegram-login-confirm.dto';
+import { TelegramLoginExchangeDto } from './dto/telegram-login-exchange.dto';
+import { TelegramLoginStartDto } from './dto/telegram-login-start.dto';
 import { TelegramVerifyDto } from './dto/telegram-verify.dto';
 import { AuthUserStatus } from './auth-status';
 import { isStrongPassword } from './password-policy';
@@ -309,6 +314,121 @@ export class AuthService {
     return this.issueAuthResponse(user.id);
   }
 
+  async startTelegramLogin(
+    dto: TelegramLoginStartDto,
+  ): Promise<{ state: string; deepLink: string; expiresAt: string }> {
+    const redirectUrl = this.resolveTelegramRedirectUrl(dto.redirectUrl);
+    const state = randomBytes(18).toString('hex');
+    const expiresAt = new Date(
+      Date.now() + TELEGRAM_LOGIN_STATE_TTL_MINUTES * 60 * 1000,
+    );
+
+    await this.prismaService.telegramLoginAttempt.create({
+      data: {
+        state,
+        redirectUrl,
+        expiresAt,
+      },
+    });
+
+    const botBase =
+      process.env.TELEGRAM_BOT_DEEPLINK_BASE ?? 'https://t.me/rento_bot?start=';
+    return {
+      state,
+      deepLink: `${botBase}${state}`,
+      expiresAt: expiresAt.toISOString(),
+    };
+  }
+
+  async confirmTelegramLogin(dto: TelegramLoginConfirmDto): Promise<{
+    redirectUrl: string;
+    exchangeCode: string;
+    expiresAt: string;
+  }> {
+    const state = dto.state.trim();
+    const telegramId = dto.telegramId.trim();
+
+    const attempt = await this.prismaService.telegramLoginAttempt.findFirst({
+      where: { state, usedAt: null },
+    });
+    if (!attempt) {
+      throw new BadRequestException('Invalid or used login state');
+    }
+    if (attempt.expiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('Login state expired');
+    }
+
+    let user = await this.prismaService.user.findFirst({
+      where: { telegramId },
+    });
+    if (!user) {
+      user = await this.prismaService.user.create({
+        data: {
+          telegramId,
+          status: AuthUserStatus.ACTIVE,
+          fullName: dto.firstName?.trim() ? dto.firstName.trim() : undefined,
+        },
+      });
+    }
+
+    if (
+      user.status === AuthUserStatus.BANNED ||
+      user.status === AuthUserStatus.SUSPENDED ||
+      user.status === AuthUserStatus.DELETED
+    ) {
+      throw new ForbiddenException('Account is not available');
+    }
+
+    const exchangeCode = randomBytes(18).toString('hex');
+    const expiresAt = new Date(
+      Date.now() + TELEGRAM_LOGIN_EXCHANGE_TTL_MINUTES * 60 * 1000,
+    );
+
+    await this.prismaService.$transaction([
+      this.prismaService.telegramLoginAttempt.update({
+        where: { id: attempt.id },
+        data: { usedAt: new Date() },
+      }),
+      this.prismaService.telegramLoginExchangeCode.create({
+        data: {
+          code: exchangeCode,
+          attemptId: attempt.id,
+          userId: user.id,
+          expiresAt,
+        },
+      }),
+    ]);
+
+    return {
+      redirectUrl: attempt.redirectUrl,
+      exchangeCode,
+      expiresAt: expiresAt.toISOString(),
+    };
+  }
+
+  async exchangeTelegramLogin(
+    dto: TelegramLoginExchangeDto,
+  ): Promise<AuthSuccessResponse> {
+    const code = dto.code.trim();
+    const row = await this.prismaService.telegramLoginExchangeCode.findFirst({
+      where: { code, usedAt: null },
+      include: { user: true },
+    });
+    if (!row) {
+      throw new BadRequestException('Invalid or used exchange code');
+    }
+    if (row.expiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('Exchange code expired');
+    }
+
+    await this.prismaService.telegramLoginExchangeCode.update({
+      where: { id: row.id },
+      data: { usedAt: new Date() },
+    });
+
+    return this.issueAuthResponse(row.userId);
+  }
+
   private async issueAuthResponse(
     userId: string,
   ): Promise<AuthSuccessResponse> {
@@ -339,5 +459,30 @@ export class AuthService {
       },
     });
     return token;
+  }
+
+  private resolveTelegramRedirectUrl(input?: string): string {
+    const appBase = process.env.APP_BASE_URL ?? 'http://localhost:3000';
+    const fallback = `${appBase.replace(/\/+$/, '')}/telegram/callback`;
+
+    const raw = input?.trim();
+    if (!raw) return fallback;
+
+    // Relative path: join with APP_BASE_URL
+    if (raw.startsWith('/')) {
+      return `${appBase.replace(/\/+$/, '')}${raw}`;
+    }
+
+    // Absolute URL: allow only same-origin as APP_BASE_URL by default.
+    try {
+      const candidate = new URL(raw);
+      const base = new URL(appBase);
+      if (candidate.origin !== base.origin) {
+        throw new BadRequestException('redirectUrl origin is not allowed');
+      }
+      return candidate.toString();
+    } catch {
+      throw new BadRequestException('Invalid redirectUrl');
+    }
   }
 }

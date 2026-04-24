@@ -82,6 +82,7 @@ model User {
   updatedAt         DateTime                 @updatedAt
   emailTokens       EmailConfirmationToken[]
   telegramLinkCodes TelegramLinkCode[]
+  telegramLoginExchanges TelegramLoginExchangeCode[]
   refreshTokens     RefreshToken[]
   listings          Listing[]
   bookingsAsRenter  Booking[]
@@ -146,6 +147,35 @@ model TelegramLinkCode {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+}
+
+model TelegramLoginAttempt {
+  id          String   @id @default(uuid())
+  state       String   @unique
+  redirectUrl String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  exchanges   TelegramLoginExchangeCode[]
+
+  @@index([expiresAt])
+}
+
+model TelegramLoginExchangeCode {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  attemptId String
+  attempt   TelegramLoginAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([attemptId])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model RefreshToken {
