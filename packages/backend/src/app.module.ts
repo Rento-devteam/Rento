@@ -12,6 +12,8 @@ import { PaymentsHoldModule } from './payments-hold/payments-hold.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { VerificationModule } from './verification/verification.module';
+import { TrustScoreModule } from './trust-score/trust-score.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     PrismaModule,
     AuthModule,
     UsersModule,
+    VerificationModule,
+    TrustScoreModule,
     ListingsModule,
     BookingsModule,
     CalendarModule,
