@@ -79,35 +79,43 @@ describe('TrustScoreService', () => {
       status: 'VERIFIED',
     });
 
-    // totalDeals, lateReturns(auto-confirm count)
+    // totalDeals
     prismaService.booking.count
-      .mockResolvedValueOnce(10)
-      .mockResolvedValueOnce(2);
+      .mockResolvedValueOnce(10);
 
-    // deadline comparison in JS: 2 late out of 3 candidates
+    // completedAt compared with due endAt/endDate: 2 late out of 4 completed
     prismaService.booking.findMany.mockResolvedValue([
       {
         id: 'b1',
-        returnConfirmationDeadlineAt: new Date('2026-01-01T10:00:00.000Z'),
-        returnMutualConfirmedAt: new Date('2026-01-01T11:00:00.000Z'),
+        endAt: new Date('2026-01-01T10:00:00.000Z'),
+        endDate: new Date('2026-01-01T00:00:00.000Z'),
+        completedAt: new Date('2026-01-01T11:00:00.000Z'),
       },
       {
         id: 'b2',
-        returnConfirmationDeadlineAt: new Date('2026-01-01T10:00:00.000Z'),
-        returnMutualConfirmedAt: new Date('2026-01-01T09:00:00.000Z'),
+        endAt: new Date('2026-01-01T10:00:00.000Z'),
+        endDate: new Date('2026-01-01T00:00:00.000Z'),
+        completedAt: new Date('2026-01-01T09:00:00.000Z'),
       },
       {
         id: 'b3',
-        returnConfirmationDeadlineAt: new Date('2026-01-01T10:00:00.000Z'),
-        returnMutualConfirmedAt: new Date('2026-01-01T12:00:00.000Z'),
+        endAt: null,
+        endDate: new Date('2026-01-01T00:00:00.000Z'),
+        completedAt: new Date('2026-01-01T23:00:00.000Z'),
+      },
+      {
+        id: 'b4',
+        endAt: null,
+        endDate: new Date('2026-01-01T00:00:00.000Z'),
+        completedAt: new Date('2026-01-02T00:30:00.000Z'),
       },
     ]);
 
     prismaService.trustScore.upsert.mockResolvedValue({
       currentScore: 65,
       totalDeals: 10,
-      successfulDeals: 6,
-      lateReturns: 4,
+      successfulDeals: 8,
+      lateReturns: 2,
       disputes: 0,
       calculatedAt: new Date('2026-01-02T00:00:00.000Z'),
     });
@@ -121,8 +129,8 @@ describe('TrustScoreService', () => {
     expect(result).toMatchObject({
       currentScore: 65,
       totalDeals: 10,
-      successfulDeals: 6,
-      lateReturns: 4,
+      successfulDeals: 8,
+      lateReturns: 2,
       disputes: 0,
       calculatedAt: '2026-01-02T00:00:00.000Z',
     });

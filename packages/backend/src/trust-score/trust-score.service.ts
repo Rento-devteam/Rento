@@ -84,54 +84,34 @@ export class TrustScoreService {
       ],
     };
 
-    const [totalDeals, lateReturns] = await Promise.all([
+    const [totalDeals, completedDeals] = await Promise.all([
       this.prismaService.booking.count({
         where: baseCompletedWhere as any,
       }),
-      this.prismaService.booking.count({
+      this.prismaService.booking.findMany({
         where: {
           ...(baseCompletedWhere as any),
-          OR: [
-            { returnAutoConfirmedAt: { not: null } },
-            {
-              AND: [
-                { returnConfirmationDeadlineAt: { not: null } },
-                { returnMutualConfirmedAt: { not: null } },
-                // Prisma supports field references, but keep it simple and robust across versions:
-                // treat late if mutual confirmation happens after the deadline by pulling candidates and comparing.
-              ],
-            },
-          ],
+          completedAt: { not: null },
         } as any,
+        select: {
+          id: true,
+          endAt: true,
+          endDate: true,
+          completedAt: true,
+        },
       }),
     ]);
 
-    // The second condition above can't compare two columns reliably in all prisma versions in this repo.
-    // Do a small follow-up query for records with both timestamps set and compare in JS.
-    const lateByDeadlineCandidates = await this.prismaService.booking.findMany({
-      where: {
-        ...(baseCompletedWhere as any),
-        returnAutoConfirmedAt: null,
-        returnConfirmationDeadlineAt: { not: null },
-        returnMutualConfirmedAt: { not: null },
-      } as any,
-      select: {
-        id: true,
-        returnConfirmationDeadlineAt: true,
-        returnMutualConfirmedAt: true,
-      },
-    });
-
-    let lateByDeadline = 0;
-    for (const b of lateByDeadlineCandidates) {
-      const deadline = b.returnConfirmationDeadlineAt;
-      const confirmed = b.returnMutualConfirmedAt;
-      if (deadline && confirmed && confirmed.getTime() > deadline.getTime()) {
-        lateByDeadline += 1;
+    let lateReturnsTotal = 0;
+    for (const b of completedDeals) {
+      const completedAt = b.completedAt;
+      if (!completedAt) continue;
+      const dueAt = b.endAt ?? this.endOfDay(b.endDate);
+      if (completedAt.getTime() > dueAt.getTime()) {
+        lateReturnsTotal += 1;
       }
     }
-
-    const lateReturnsTotal = Math.min(totalDeals, lateReturns + lateByDeadline);
+    lateReturnsTotal = Math.min(totalDeals, lateReturnsTotal);
     const successfulDeals = Math.max(0, totalDeals - lateReturnsTotal);
 
     const reliabilityFactor = totalDeals > 0 ? successfulDeals / totalDeals : 0.5;
@@ -186,6 +166,12 @@ export class TrustScoreService {
     if (value < min) return min;
     if (value > max) return max;
     return value;
+  }
+
+  private endOfDay(date: Date): Date {
+    const d = new Date(date);
+    d.setHours(23, 59, 59, 999);
+    return d;
   }
 }
 
