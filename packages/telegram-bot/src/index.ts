@@ -60,6 +60,15 @@ async function main() {
     );
   });
 
+  if (config.usePolling) {
+    await bot.launch({ dropPendingUpdates: true });
+    console.log('[telegram-bot] Started in polling mode');
+
+    process.once('SIGINT', () => bot.stop('SIGINT'));
+    process.once('SIGTERM', () => bot.stop('SIGTERM'));
+    return;
+  }
+
   const app = express();
   app.get('/healthz', (_req, res) => res.status(200).send('ok'));
   app.use(config.webhookPath, bot.webhookCallback(config.webhookPath));

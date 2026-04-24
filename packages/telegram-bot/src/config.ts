@@ -14,5 +14,6 @@ export const config = {
   backendBaseUrl: mustGet('BACKEND_BASE_URL').replace(/\/+$/, ''),
   botSecret: mustGet('BOT_SECRET'),
   setWebhookOnStartup: String(process.env.SET_WEBHOOK_ON_STARTUP ?? 'false') === 'true',
+  usePolling: String(process.env.USE_POLLING ?? 'false') === 'true',
 };
 
