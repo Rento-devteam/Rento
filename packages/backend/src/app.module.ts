@@ -11,9 +11,11 @@ import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
 import { PaymentsHoldModule } from './payments-hold/payments-hold.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     UsersModule,
