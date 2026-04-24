@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PaymentsHoldModule } from '../payments-hold/payments-hold.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { TrustScoreModule } from '../trust-score/trust-score.module';
 import { BookingsController } from './bookings.controller';
 import { BookingsApiController } from './bookings-api.controller';
 import { BookingsReturnAutoConfirmJob } from './bookings-return-auto-confirm.job';
@@ -12,7 +13,13 @@ import { BookingsService } from './bookings.service';
 import { BookingsWorkflowService } from './bookings-workflow.service';
 
 @Module({
-  imports: [AuthModule, PrismaModule, PaymentsHoldModule, NotificationsModule],
+  imports: [
+    AuthModule,
+    PrismaModule,
+    PaymentsHoldModule,
+    NotificationsModule,
+    TrustScoreModule,
+  ],
   controllers: [BookingsController, BookingsApiController],
   providers: [
     BookingsService,

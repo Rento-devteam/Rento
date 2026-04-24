@@ -12,6 +12,7 @@ describe('BookingsReturnAutoConfirmJob', () => {
   };
   const settlement = { attemptSettlement: jest.fn() };
   const notifications = { notifyLandlordAutoReturnDeadlineExpired: jest.fn() };
+  const trustScoreService = { recalculateForUser: jest.fn() };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -60,6 +61,7 @@ describe('BookingsReturnAutoConfirmJob', () => {
       prisma as never,
       settlement as never,
       notifications as never,
+      trustScoreService as never,
     );
 
     await job.tick();
@@ -107,6 +109,7 @@ describe('BookingsReturnAutoConfirmJob', () => {
       prisma as never,
       settlement as never,
       notifications as never,
+      trustScoreService as never,
     );
 
     await job.tick();
