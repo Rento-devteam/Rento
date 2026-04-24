@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import type { ICategory, IListing, RentalPeriod } from '@rento/shared'
@@ -51,23 +51,15 @@ const RENTAL_FILTERS: Array<{ value: RentalFilter; label: string }> = [
   { value: 'MONTH', label: 'Помесячная' },
 ]
 
-const POPULAR_CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Минск', 'Гродно', 'Екатеринбург']
-
 export function HomePage() {
   const { accessToken } = useAuth()
   const [q, setQ] = useState('')
-  const [city, setCity] = useState('')
-  const [cityDraft, setCityDraft] = useState('')
-  const [cityOpen, setCityOpen] = useState(false)
-  const cityRef = useRef<HTMLDivElement | null>(null)
 
   const [categoryId, setCategoryId] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
 
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
-  const [radiusFrom, setRadiusFrom] = useState('1')
-  const [radiusTo, setRadiusTo] = useState('30')
   const [sortPreset, setSortPreset] = useState<SortPreset>('popular')
   const [rentalFilter, setRentalFilter] = useState<RentalFilter>('ALL')
 
@@ -83,7 +75,6 @@ export function HomePage() {
       const response = await searchCatalog(
         {
           q,
-          city,
           categoryId: categoryId || undefined,
           minPrice: minPrice ? Number(minPrice) : undefined,
           maxPrice: maxPrice ? Number(maxPrice) : undefined,
@@ -117,17 +108,6 @@ export function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    if (!cityOpen) return
-    function onClick(event: MouseEvent) {
-      if (cityRef.current && !cityRef.current.contains(event.target as Node)) {
-        setCityOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [cityOpen])
-
   const sections: SectionTile[] = useMemo(() => {
     if (categories.length === 0) return DEFAULT_SECTIONS
     return categories.slice(0, 6).map<SectionTile>((cat) => ({
@@ -143,27 +123,8 @@ export function HomePage() {
     return items.filter((item) => item.rentalPeriod === rentalFilter)
   }, [items, rentalFilter])
 
-  const cityOptions = useMemo(() => {
-    const set = new Set<string>(POPULAR_CITIES)
-    for (const item of items) {
-      const cityName = extractCityName(item.description)
-      if (cityName) set.add(cityName)
-    }
-    const list = [...set]
-    const needle = cityDraft.trim().toLowerCase()
-    const filtered = needle ? list.filter((option) => option.toLowerCase().includes(needle)) : list
-    return filtered.sort((a, b) => a.localeCompare(b, 'ru')).slice(0, 8)
-  }, [items, cityDraft])
-
   function onSubmitSearch(event: FormEvent) {
     event.preventDefault()
-    void loadCatalog()
-  }
-
-  function selectCity(next: string) {
-    setCity(next)
-    setCityDraft(next)
-    setCityOpen(false)
     void loadCatalog()
   }
 
@@ -177,8 +138,7 @@ export function HomePage() {
       <section className="container hero" aria-label="Поиск по каталогу">
         <h1 className="hero__title">Аренда вещей без лишних сложностей</h1>
         <p className="hero__subtitle">
-          Найдите то, что нужно, на час, день или месяц. Поиск по городу, фильтрация по цене и
-          радиусу — всё в одном окне.
+          Найдите то, что нужно, на час, день или месяц. Поиск по названию и фильтрация по цене — в одном окне.
         </p>
 
         <form className="search-bar" onSubmit={onSubmitSearch}>
@@ -191,50 +151,6 @@ export function HomePage() {
               value={q}
               onChange={(event) => setQ(event.target.value)}
             />
-          </div>
-
-          <div className="city-popover" ref={cityRef}>
-            <button
-              type="button"
-              className={`search-bar__chip${city ? ' search-bar__chip--active' : ''}`}
-              onClick={() => {
-                setCityOpen((open) => !open)
-                setCityDraft(city)
-              }}
-              aria-haspopup="dialog"
-              aria-expanded={cityOpen}
-            >
-              <PinIcon />
-              {city || 'Город'}
-            </button>
-            {cityOpen ? (
-              <div className="city-popover__panel" role="dialog" aria-label="Выбор города">
-                <input
-                  className="city-popover__input"
-                  type="text"
-                  autoFocus
-                  placeholder="Введите город"
-                  value={cityDraft}
-                  onChange={(event) => setCityDraft(event.target.value)}
-                />
-                <div className="city-popover__list">
-                  {cityOptions.length === 0 ? (
-                    <p className="city-popover__empty">Ничего не найдено</p>
-                  ) : (
-                    cityOptions.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        className="city-popover__option"
-                        onClick={() => selectCity(option)}
-                      >
-                        {option}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            ) : null}
           </div>
 
           <button
@@ -299,27 +215,6 @@ export function HomePage() {
               </div>
             </div>
 
-            <div className="filters__row">
-              <span className="filters__label">Радиус поиска</span>
-              <div className="filters__range">
-                <span>от</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={radiusFrom}
-                  onChange={(event) => setRadiusFrom(event.target.value)}
-                />
-                <span>до</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={radiusTo}
-                  onChange={(event) => setRadiusTo(event.target.value)}
-                />
-                <span>км</span>
-              </div>
-            </div>
-
             <div className="filters__row filters__row--stack">
               <span className="filters__label">Показать сначала</span>
               <div className="chip-group">
@@ -367,25 +262,27 @@ export function HomePage() {
       ) : null}
 
       <section className="container catalog" aria-live="polite">
-        <div className="catalog__header">
-          <h2 className="catalog__title">Каталог</h2>
-          <span className="catalog__meta">
-            {loading ? 'Загрузка…' : `Найдено: ${visibleItems.length}`}
-          </span>
-        </div>
+        <div className="catalog__shell">
+          <div className="catalog__header">
+            <h2 className="catalog__title">Каталог</h2>
+            <span className="catalog__meta">
+              {loading ? 'Загрузка…' : `Найдено: ${visibleItems.length}`}
+            </span>
+          </div>
 
-        {error ? <div className="status status--error">{error}</div> : null}
+          {error ? <div className="status status--error">{error}</div> : null}
 
-        <div className="catalog__grid">
-          {loading
-            ? Array.from({ length: 8 }).map((_, index) => <div key={index} className="skeleton" />)
-            : visibleItems.map((item) => <Card key={item.id} item={item} />)}
+          <div className="catalog__grid">
+            {loading
+              ? Array.from({ length: 8 }).map((_, index) => <div key={index} className="skeleton" />)
+              : visibleItems.map((item) => <Card key={item.id} item={item} />)}
 
-          {!loading && !error && visibleItems.length === 0 ? (
-            <div className="status">
-              По запросу ничего не найдено. Попробуйте изменить параметры фильтрации.
-            </div>
-          ) : null}
+            {!loading && !error && visibleItems.length === 0 ? (
+              <div className="status catalog__grid-span">
+                По запросу ничего не найдено. Попробуйте изменить параметры фильтрации.
+              </div>
+            ) : null}
+          </div>
         </div>
       </section>
     </main>
@@ -474,11 +371,6 @@ function periodLabel(period: RentalPeriod): string {
 function extractCity(description: string): string {
   const match = description.match(/г\.\s*[^,]+,?[^,]*/i)
   return match?.[0]?.trim() ?? 'г. Москва'
-}
-
-function extractCityName(description: string): string | null {
-  const match = description.match(/г\.\s*([^,]+)/i)
-  return match?.[1]?.trim() ?? null
 }
 
 function matchIcon(name: string): SectionIconKey {
