@@ -26,46 +26,31 @@ export function AppHeader({ onAuthRequest }: AppHeaderProps) {
       <div className="container app-header__inner">
         <div className="app-header__left">
           <BrandLogo />
-          <nav className="app-header__nav" aria-label="Разделы">
-            <button type="button">Каталог</button>
-            <button type="button">Как это работает</button>
-            <button type="button">Поддержка</button>
-          </nav>
         </div>
 
         <div className="app-header__right">
           <button type="button" className="icon-btn" aria-label="Добавить объявление" onClick={() => navigate('/create-item')}>
             <PlusIcon />
           </button>
-          <button type="button" className="icon-btn" aria-label="Сообщения">
-            <ChatIcon />
-          </button>
           <button
             type="button"
-            className="icon-btn"
-            aria-label="Мои бронирования"
-            title="Мои бронирования"
+            className="btn btn--ghost app-header__compact"
             onClick={goBookings}
           >
-            <CartIcon />
+            Арендую
           </button>
           <button
             type="button"
-            className="icon-btn"
-            aria-label="Брони по моим объявлениям"
-            title="Брони по моим объявлениям"
+            className="btn btn--ghost app-header__compact"
             onClick={goHostingBookings}
           >
-            <HostBookingsIcon />
-          </button>
-          <button type="button" className="icon-btn" aria-label="Избранное">
-            <HeartIcon />
+            Сдаю
           </button>
 
           {user ? (
             <button
               type="button"
-              className="btn btn--ghost"
+              className="btn btn--brand app-header__compact"
               onClick={() => navigate('/profile')}
               aria-label="Профиль"
             >
@@ -103,36 +88,3 @@ function PlusIcon() {
   )
 }
 
-function ChatIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden>
-      <path d="M4 5h16v11H9l-5 4V5z" />
-    </svg>
-  )
-}
-
-function CartIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden>
-      <path d="M3 5h3l2 10h10l3-7H7" />
-      <circle cx="10" cy="19" r="1.5" />
-      <circle cx="17" cy="19" r="1.5" />
-    </svg>
-  )
-}
-
-function HeartIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden>
-      <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.7A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
-    </svg>
-  )
-}
-
-function HostBookingsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden>
-      <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" />
-    </svg>
-  )
-}

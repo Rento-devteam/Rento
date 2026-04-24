@@ -65,7 +65,11 @@ function ProfileIdentitySection({ user, accessToken, refreshProfile }: ProfileId
   }
 
   return (
-    <section className="profile-panel profile-panel--form" aria-labelledby="profile-edit-title">
+    <section
+      id="profile-personal-data"
+      className="profile-panel profile-panel--form"
+      aria-labelledby="profile-edit-title"
+    >
       <h3 id="profile-edit-title" className="profile-panel__title">
         Личные данные
       </h3>
@@ -157,6 +161,25 @@ function calculateOnTimeReturnsRate(totalDeals: number, lateReturns: number): nu
   if (totalDeals <= 0) return 100
   const onTime = Math.max(0, totalDeals - lateReturns)
   return Math.round((onTime / totalDeals) * 100)
+}
+
+function formatAccountId(id: string): string {
+  if (id.length <= 14) return id
+  return `${id.slice(0, 6)}…${id.slice(-4)}`
+}
+
+function trustLevelLabel(score: number): string {
+  if (score >= 80) return 'Высокий'
+  if (score >= 55) return 'Средний'
+  return 'Базовый'
+}
+
+function starRatingFromTrust(score: number): string {
+  const outOfFive = Math.min(5, Math.max(0, (score / 100) * 5))
+  return outOfFive.toLocaleString('ru-RU', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })
 }
 
 export function ProfilePage() {
@@ -326,6 +349,11 @@ export function ProfilePage() {
     }
   }
 
+  const activeListingsCount = useMemo(
+    () => listings.filter((l) => l.status === 'ACTIVE').length,
+    [listings],
+  )
+
   if (!user) return null
 
   const initials =
@@ -336,71 +364,143 @@ export function ProfilePage() {
   const emailNeedsConfirmation = Boolean(user.email && !user.isVerified)
   const trust = user.trustScore
 
+  const trustScoreValue = trust?.currentScore ?? 0
+
   return (
     <main className="profile-page">
-      <div className="profile-page__inner container">
-        <header className="profile-page__toolbar">
-          <div className="profile-page__title-block">
-            <p className="profile-page__eyebrow">Личный кабинет</p>
+      <div className="container profile-page__outer">
+        <div className="profile-page__surface">
+          <header className="profile-page__masthead">
             <h1 className="profile-page__title">Профиль</h1>
-            <p className="profile-page__subtitle">
-              Управляйте объявлениями, настройками аккаунта и доступом к сервису.
-            </p>
-          </div>
-        </header>
-
-        <div className="profile-layout">
-          <aside className="profile-sidebar">
-            <div className="profile-sidebar__avatar" aria-hidden={!!user.avatarUrl}>
-              {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt="" />
-              ) : (
-                initials
-              )}
-            </div>
-            <h2 className="profile-sidebar__name">{user.fullName || 'Без имени'}</h2>
-
-            <div className="profile-sidebar__chips">
-              <span className="profile-chip">{user.role === 'ADMIN' ? 'Админ' : 'Пользователь'}</span>
-              {user.isVerified ? (
-                <span className="profile-chip profile-chip--ok">Email подтверждён</span>
-              ) : user.email ? (
-                <span className="profile-chip profile-chip--warn">Email не подтверждён</span>
-              ) : null}
-            </div>
-
-            <div className="profile-sidebar__meta">
-              {user.email ? (
-                <div className="profile-sidebar__row">
-                  <MailGlyph />
-                  <span>{user.email}</span>
-                </div>
-              ) : null}
-              {user.phone ? (
-                <div className="profile-sidebar__row">
-                  <PhoneGlyph />
-                  <span>{user.phone}</span>
-                </div>
-              ) : (
-                <div className="profile-sidebar__row">
-                  <PhoneGlyph />
-                  <span style={{ color: 'var(--ink-400)' }}>Телефон не указан</span>
-                </div>
-              )}
-              <div className="profile-sidebar__row">
-                <ShieldGlyph />
-                <span>{accountStatusLabel(user.status)}</span>
-              </div>
-            </div>
-
-            <div className="profile-sidebar__footer">
-              <button type="button" className="btn btn--ghost" style={{ width: '100%' }} onClick={logout}>
+            <div className="profile-page__masthead-actions">
+              <a
+                href="#profile-personal-data"
+                className="profile-page__icon-btn"
+                aria-label="Редактировать данные профиля"
+              >
+                <PencilGlyph />
+              </a>
+              <button type="button" className="btn btn--ghost profile-page__logout" onClick={logout}>
                 Выйти
               </button>
             </div>
-          </aside>
+          </header>
+          <div className="profile-page__divider" role="presentation" />
 
-          <div className="profile-main">
+          <section className="profile-hero" aria-label="Сводка профиля">
+            <div className="profile-hero__identity">
+              <div className="profile-hero__avatar" aria-hidden={!!user.avatarUrl}>
+                {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : initials}
+              </div>
+              <div className="profile-hero__text">
+                <p className="profile-hero__name">{user.fullName || 'Без имени'}</p>
+                <p className="profile-hero__since">На Rento — ваш личный кабинет</p>
+                <p className="profile-hero__account">Аккаунт: {formatAccountId(user.id)}</p>
+              </div>
+            </div>
+
+            <div className="profile-hero__rating-card">
+              <div className="profile-hero__rating-top">
+                <span className="profile-hero__rating-value">{starRatingFromTrust(trustScoreValue)}</span>
+                <ProfileStarRow score={trustScoreValue} />
+              </div>
+              <p className="profile-hero__reviews">Отзывов пока нет</p>
+              <p className="profile-hero__trust-level">
+                Уровень доверия: <strong>{trustLevelLabel(trustScoreValue)}</strong>
+              </p>
+            </div>
+
+            <div className="profile-hero__wallet-card">
+              <div className="profile-hero__wallet-icon" aria-hidden>
+                <WalletGlyph muted={false} />
+              </div>
+              <p className="profile-hero__wallet-label">На удержании</p>
+              <p className="profile-hero__wallet-sub">Безопасная сделка (Escrow)</p>
+              <p className="profile-hero__wallet-amount">—</p>
+              <p className="profile-hero__wallet-hint">Сумма удержания отображается в карточке бронирования</p>
+            </div>
+          </section>
+
+          <div className="profile-layout profile-layout--dashboard">
+            <aside className="profile-aside" aria-label="Статус и данные">
+              <div className="profile-aside__verify">
+                <div className="profile-aside__verify-icon" aria-hidden>
+                  <ShieldGlyph />
+                </div>
+                <div>
+                  <p className="profile-aside__verify-title">
+                    {user.isVerified ? 'Email подтверждён' : 'Статус не подтверждён'}
+                  </p>
+                  <p className="profile-aside__verify-text">
+                    {user.isVerified
+                      ? 'Подтверждение личности через Госуслуги появится в следующей версии.'
+                      : 'Подтвердите email, чтобы разблокировать все функции сервиса.'}
+                  </p>
+                </div>
+                <button type="button" className="btn btn--brand profile-aside__verify-btn" disabled>
+                  Через Госуслуги
+                </button>
+              </div>
+
+              <div className="profile-aside__stats">
+                <div className="profile-stat-card">
+                  <span className="profile-stat-card__icon profile-stat-card__icon--ok" aria-hidden>
+                    ✓
+                  </span>
+                  <div>
+                    <p className="profile-stat-card__label">Сделки</p>
+                    <p className="profile-stat-card__hint">История сделок</p>
+                  </div>
+                  <span className="profile-stat-card__value">{trust?.totalDeals ?? 0}</span>
+                </div>
+                <div className="profile-stat-card">
+                  <span className="profile-stat-card__icon profile-stat-card__icon--plus" aria-hidden>
+                    +
+                  </span>
+                  <div>
+                    <p className="profile-stat-card__label">Объявления</p>
+                    <p className="profile-stat-card__hint">Активные</p>
+                  </div>
+                  <span className="profile-stat-card__value">{activeListingsCount}</span>
+                </div>
+              </div>
+
+              <section className="profile-aside__data" aria-labelledby="profile-user-data-title">
+                <h2 id="profile-user-data-title" className="profile-aside__data-title">
+                  Данные пользователя
+                </h2>
+                {user.phone ? (
+                  <div className="profile-aside__row">
+                    <PhoneGlyph />
+                    <span>{user.phone}</span>
+                  </div>
+                ) : (
+                  <div className="profile-aside__row">
+                    <PhoneGlyph />
+                    <span className="profile-aside__muted">Телефон не указан</span>
+                  </div>
+                )}
+                {user.email ? (
+                  <div className="profile-aside__row">
+                    <MailGlyph />
+                    <span>{user.email}</span>
+                  </div>
+                ) : null}
+                <div className="profile-aside__row">
+                  <HomeGlyph />
+                  <span className="profile-aside__muted">Адрес в профиле пока не хранится</span>
+                </div>
+                <div className="profile-aside__row">
+                  <ShieldGlyph />
+                  <span>{accountStatusLabel(user.status)}</span>
+                </div>
+                {user.role === 'ADMIN' ? (
+                  <p className="profile-aside__role">Роль: администратор</p>
+                ) : null}
+              </section>
+            </aside>
+
+            <div className="profile-main">
             <div className="profile-cards">
               <section className="profile-panel profile-panel--muted" aria-labelledby="profile-wallet-title">
                 <div className="profile-panel__head">
@@ -638,9 +738,9 @@ export function ProfilePage() {
               ) : listings.length === 0 ? (
                 <div className="status">У вас пока нет объявлений.</div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+                <div className="profile-listings-grid">
                   {listings.map((listing) => (
-                    <div key={listing.id} className="profile-listing-card">
+                    <div key={listing.id} className="profile-listing-card profile-listing-card--tile">
                       <Link
                         to={`/listings/${listing.id}`}
                         className="profile-listing-card__link"
@@ -706,7 +806,52 @@ export function ProfilePage() {
           </div>
         </div>
       </div>
+    </div>
     </main>
+  )
+}
+
+function PencilGlyph() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      aria-hidden
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  )
+}
+
+function ProfileStarRow({ score }: { score: number }) {
+  const filled = Math.min(5, Math.max(0, Math.round((score / 100) * 5)))
+  const label = `${starRatingFromTrust(score)} из 5`
+  return (
+    <div className="profile-hero__stars" role="img" aria-label={label}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <span
+          key={i}
+          className={i < filled ? 'profile-hero__star profile-hero__star--on' : 'profile-hero__star'}
+          aria-hidden
+        >
+          ★
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function HomeGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden stroke="currentColor" fill="none" strokeWidth="1.7" strokeLinejoin="round">
+      <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" />
+    </svg>
   )
 }
 
@@ -761,9 +906,18 @@ function ShieldGlyph() {
   )
 }
 
-function WalletGlyph() {
+function WalletGlyph({ muted = true }: { muted?: boolean }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden style={{ opacity: 0.45 }} stroke="currentColor" fill="none" strokeWidth="1.6">
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      aria-hidden
+      style={muted ? { opacity: 0.45 } : undefined}
+      stroke="currentColor"
+      fill="none"
+      strokeWidth="1.6"
+    >
       <rect x="3" y="6" width="18" height="12" rx="2" />
       <path d="M3 10h18" />
       <circle cx="16" cy="13" r="1.5" fill="currentColor" stroke="none" />
