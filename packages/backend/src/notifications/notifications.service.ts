@@ -4,7 +4,7 @@ import { Injectable, Logger } from '@nestjs/common';
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
-  async notifyRenterBookingConfirmed(params: {
+  notifyRenterBookingConfirmed(params: {
     bookingId: string;
     renterId: string;
   }) {
@@ -12,15 +12,14 @@ export class NotificationsService {
       { ...params, type: 'renter_booking_confirmed' },
       'Notification stub',
     );
+    return Promise.resolve();
   }
 
-  async notifyLandlordNewBooking(params: {
-    bookingId: string;
-    landlordId: string;
-  }) {
+  notifyLandlordNewBooking(params: { bookingId: string; landlordId: string }) {
     this.logger.log(
       { ...params, type: 'landlord_new_booking' },
       'Notification stub',
     );
+    return Promise.resolve();
   }
 }

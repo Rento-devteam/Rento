@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import {
   BookingStatus,
+  BookingSettlementStatus,
   PaymentMethodStatus,
   Prisma,
   UserStatus,
@@ -189,8 +190,16 @@ export class BookingsWorkflowService {
       });
 
       return { bookingId: updated.id, status: updated.status };
-    } catch (err) {
-      this.logger.warn({ err }, 'Payment hold failed');
+    } catch (err: unknown) {
+      this.logger.warn(
+        {
+          err:
+            err instanceof Error
+              ? { name: err.name, message: err.message }
+              : err,
+        },
+        'Payment hold failed',
+      );
 
       await this.prisma.booking.update({
         where: { id: booking.id },
@@ -301,6 +310,190 @@ export class BookingsWorkflowService {
       }
       throw err;
     }
+  }
+
+  async confirmReturn(params: { bookingId: string; actorUserId: string }) {
+    const now = new Date();
+
+    const { booking, shouldRunSettlement } = await this.prisma.$transaction(
+      async (tx) => {
+        const booking = await tx.booking.findFirst({
+          where: {
+            id: params.bookingId,
+            OR: [
+              { renterId: params.actorUserId },
+              { listing: { ownerId: params.actorUserId } },
+            ],
+          },
+          select: {
+            id: true,
+            status: true,
+            renterId: true,
+            listingId: true,
+            listing: { select: { ownerId: true } },
+            rentAmount: true,
+            depositAmount: true,
+            paymentHoldId: true,
+            returnRenterConfirmedAt: true,
+            returnLandlordConfirmedAt: true,
+            returnMutualConfirmedAt: true,
+            returnConfirmationDeadlineAt: true,
+            settlementStatus: true,
+          },
+        });
+
+        if (!booking) {
+          throw new NotFoundException('Booking not found');
+        }
+
+        if (booking.status === BookingStatus.CANCELLED) {
+          throw new ConflictException('Booking is cancelled');
+        }
+        if (booking.status === BookingStatus.DISPUTED) {
+          throw new ConflictException('Booking is disputed');
+        }
+        if (
+          booking.status !== BookingStatus.ACTIVE &&
+          booking.status !== BookingStatus.CONFIRMED
+        ) {
+          throw new ConflictException('Booking is not eligible for return');
+        }
+
+        const isRenter = booking.renterId === params.actorUserId;
+        const isLandlord = booking.listing.ownerId === params.actorUserId;
+        if (!isRenter && !isLandlord) {
+          throw new ForbiddenException('Not a participant');
+        }
+
+        const data: Prisma.BookingUpdateInput = {};
+
+        if (isRenter && !booking.returnRenterConfirmedAt) {
+          data.returnRenterConfirmedAt = now;
+          if (!booking.returnConfirmationDeadlineAt) {
+            data.returnConfirmationDeadlineAt = new Date(
+              now.getTime() + 24 * 60 * 60 * 1000,
+            );
+          }
+        }
+
+        if (isLandlord && !booking.returnLandlordConfirmedAt) {
+          // TODO: enforce return checklist completion once implemented.
+          data.returnLandlordConfirmedAt = now;
+        }
+
+        const renterConfirmed =
+          booking.returnRenterConfirmedAt || data.returnRenterConfirmedAt;
+        const landlordConfirmed =
+          booking.returnLandlordConfirmedAt || data.returnLandlordConfirmedAt;
+
+        let shouldRunSettlement = false;
+        if (
+          renterConfirmed &&
+          landlordConfirmed &&
+          !booking.returnMutualConfirmedAt
+        ) {
+          data.returnMutualConfirmedAt = now;
+          data.status = BookingStatus.COMPLETED;
+          data.completedAt = now;
+
+          if (booking.settlementStatus === BookingSettlementStatus.NONE) {
+            data.settlementStatus = BookingSettlementStatus.PENDING;
+            shouldRunSettlement = true;
+          } else if (
+            booking.settlementStatus === BookingSettlementStatus.FAILED
+          ) {
+            // Allow re-attempt settlement on repeated confirmation call.
+            data.settlementStatus = BookingSettlementStatus.PENDING;
+            shouldRunSettlement = true;
+          }
+        }
+
+        const updated = await tx.booking.update({
+          where: { id: booking.id },
+          data,
+          select: {
+            id: true,
+            paymentHoldId: true,
+            rentAmount: true,
+            depositAmount: true,
+            settlementStatus: true,
+          },
+        });
+
+        // If it was already mutually confirmed but settlement isn't done, allow retry.
+        if (
+          !shouldRunSettlement &&
+          booking.returnMutualConfirmedAt &&
+          booking.settlementStatus !== BookingSettlementStatus.SETTLED &&
+          booking.settlementStatus !== BookingSettlementStatus.PENDING
+        ) {
+          shouldRunSettlement = true;
+          await tx.booking.update({
+            where: { id: booking.id },
+            data: { settlementStatus: BookingSettlementStatus.PENDING },
+            select: { id: true },
+          });
+        }
+
+        return { booking: updated, shouldRunSettlement };
+      },
+    );
+
+    if (!shouldRunSettlement) {
+      return { bookingId: booking.id, status: 'ok' as const };
+    }
+
+    if (!booking.paymentHoldId) {
+      await this.prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          settlementStatus: BookingSettlementStatus.FAILED,
+          settlementError: 'Missing paymentHoldId',
+        },
+      });
+      throw new ConflictException('Missing payment hold for settlement');
+    }
+
+    const captureKey = `booking_settlement:capture_rent:${booking.id}`;
+    const releaseKey = `booking_settlement:release_deposit:${booking.id}`;
+
+    try {
+      await this.holdGateway.captureRent({
+        holdId: booking.paymentHoldId,
+        amount: booking.rentAmount,
+        currency: 'RUB',
+        idempotencyKey: captureKey,
+        metadata: { bookingId: booking.id },
+      });
+
+      await this.holdGateway.releaseDeposit({
+        holdId: booking.paymentHoldId,
+        amount: booking.depositAmount,
+        currency: 'RUB',
+        idempotencyKey: releaseKey,
+        metadata: { bookingId: booking.id },
+      });
+
+      await this.prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          settlementStatus: BookingSettlementStatus.SETTLED,
+          settlementError: null,
+          settledAt: new Date(),
+        },
+      });
+    } catch (err) {
+      await this.prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          settlementStatus: BookingSettlementStatus.FAILED,
+          settlementError: err instanceof Error ? err.message : String(err),
+        },
+      });
+      throw err;
+    }
+
+    return { bookingId: booking.id, status: 'ok' as const };
   }
 
   private async resolvePaymentMethod(userId: string, cardId?: string) {

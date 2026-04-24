@@ -1,6 +1,7 @@
 import { Booking, Listing, User } from '@prisma/client';
 
 type BookingListRow = Booking & {
+  completedAt?: Date | null;
   listing: Pick<Listing, 'id' | 'title'>;
   renter?: Pick<User, 'id' | 'fullName' | 'email'> | null;
 };
@@ -28,6 +29,7 @@ export function mapBookingListItem(
     totalAmount: row.totalAmount,
     amountHeld: row.amountHeld,
     paymentHoldId: row.paymentHoldId,
+    completedAt: row.completedAt ? row.completedAt.toISOString() : null,
     perspective,
     renterLabel,
   };

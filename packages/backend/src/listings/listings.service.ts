@@ -93,7 +93,9 @@ export class ListingsService {
 
     try {
       await this.listingSearchIndex.removeListing(listingId);
-    } catch (e) {}
+    } catch {
+      // Search index is best-effort; ignore failures on delete.
+    }
 
     return { success: true };
   }
