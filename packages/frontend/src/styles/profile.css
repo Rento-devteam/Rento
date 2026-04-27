@@ -596,9 +596,15 @@
 }
 
 @media (min-width: 600px) {
-  .profile-form__grid {
+  .profile-form__grid:not(.profile-form__grid--modal-stack) {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+/* Модалка «Личные данные»: поля всегда в один столбец */
+.profile-form__grid--modal-stack {
+  grid-template-columns: 1fr;
+  gap: var(--sp-4) 0;
 }
 
 .profile-form__actions {
@@ -746,7 +752,7 @@
 .profile-listing-card__thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .profile-listing-card__body {
@@ -820,4 +826,27 @@
 .profile-listing-card--tile .profile-listing-card__actions {
   margin-top: var(--sp-2);
   justify-content: flex-start;
+}
+
+.profile-expand-more-btn {
+  margin-top: var(--sp-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.profile-expand-more-btn__chevron {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.profile-full-list-modal__body {
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  margin-top: var(--sp-3);
+  padding-right: var(--sp-1);
+}
+
+.profile-listings-grid--modal {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 }

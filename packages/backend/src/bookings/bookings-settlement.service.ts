@@ -39,6 +39,9 @@ export class BookingsSettlementService {
     if (!booking) {
       throw new ConflictException('Booking not found');
     }
+    if (booking.settlementStatus === BookingSettlementStatus.SETTLED) {
+      return { bookingId: booking.id, status: 'ok' as const };
+    }
     if (!booking.paymentHoldId) {
       await this.prisma.booking.update({
         where: { id: booking.id },
@@ -59,22 +62,31 @@ export class BookingsSettlementService {
       data: { settlementLastAttemptAt: now } as any,
     });
 
-    try {
-      await this.holdGateway.captureRent({
-        holdId: booking.paymentHoldId,
-        amount: booking.rentAmount,
-        currency: 'RUB',
-        idempotencyKey: captureKey,
-        metadata: { bookingId: booking.id },
-      });
+    const rent = Number(booking.rentAmount);
+    const deposit = Number(booking.depositAmount);
+    const rentOk = Number.isFinite(rent) && rent > 0;
+    const depositOk = Number.isFinite(deposit) && deposit > 0;
 
-      await this.holdGateway.releaseDeposit({
-        holdId: booking.paymentHoldId,
-        amount: booking.depositAmount,
-        currency: 'RUB',
-        idempotencyKey: releaseKey,
-        metadata: { bookingId: booking.id },
-      });
+    try {
+      if (rentOk) {
+        await this.holdGateway.captureRent({
+          holdId: booking.paymentHoldId,
+          amount: rent,
+          currency: 'RUB',
+          idempotencyKey: captureKey,
+          metadata: { bookingId: booking.id },
+        });
+      }
+
+      if (depositOk) {
+        await this.holdGateway.releaseDeposit({
+          holdId: booking.paymentHoldId,
+          amount: deposit,
+          currency: 'RUB',
+          idempotencyKey: releaseKey,
+          metadata: { bookingId: booking.id },
+        });
+      }
 
       await this.prisma.booking.update({
         where: { id: booking.id },
@@ -86,11 +98,13 @@ export class BookingsSettlementService {
         } as any,
       });
 
-      await this.notifications.notifyRenterDepositReleased({
-        bookingId: booking.id,
-        renterId: booking.renterId,
-        amount: booking.depositAmount,
-      });
+      if (depositOk) {
+        await this.notifications.notifyRenterDepositReleased({
+          bookingId: booking.id,
+          renterId: booking.renterId,
+          amount: deposit,
+        });
+      }
       await this.notifications.notifyLandlordBookingCompleted({
         bookingId: booking.id,
         landlordId: booking.listing.ownerId,

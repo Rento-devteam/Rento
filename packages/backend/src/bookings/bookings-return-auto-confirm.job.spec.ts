@@ -104,6 +104,11 @@ describe('BookingsReturnAutoConfirmJob', () => {
       .mockResolvedValueOnce([{ id: 'b2' }]);
 
     prisma.booking.update.mockResolvedValue({ id: 'b2' });
+    prisma.booking.findUnique.mockResolvedValue({
+      settlementStatus: BookingSettlementStatus.SETTLED,
+      renterId: 'r1',
+      listing: { ownerId: 'o1' },
+    });
 
     const job = new BookingsReturnAutoConfirmJob(
       prisma as never,
@@ -119,6 +124,14 @@ describe('BookingsReturnAutoConfirmJob', () => {
       data: { settlementStatus: BookingSettlementStatus.PENDING },
     });
     expect(settlement.attemptSettlement).toHaveBeenCalledWith({ bookingId: 'b2', now });
+    expect(trustScoreService.recalculateForUser).toHaveBeenCalledWith({
+      userId: 'r1',
+      eventType: 'booking_completed',
+    });
+    expect(trustScoreService.recalculateForUser).toHaveBeenCalledWith({
+      userId: 'o1',
+      eventType: 'booking_completed',
+    });
 
     jest.useRealTimers();
   });

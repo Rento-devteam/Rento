@@ -4,10 +4,14 @@ import type { IListing, RentalPeriod } from '@rento/shared'
 import { useAuth } from '../auth/AuthContext'
 import { createBooking, retryBookingPayment } from '../bookings/bookingsApi'
 import { getBookingSummary, type BookingSummaryResponse } from '../bookings/bookingSummaryApi'
-import { getListingDetails } from '../catalog/catalogApi'
+import { getListingDetails, getOwnedListingForEdit } from '../catalog/catalogApi'
+import { PhotoLightbox } from '../components/PhotoLightbox'
 import { ApiError } from '../lib/apiClient'
 import { listPaymentMethods, type BankCard } from '../payments/paymentMethodsApi'
+import { listingConditionLabelRu } from '../lib/listingConditionRu'
 import { getListingDisplayParts } from '../lib/listingDescriptionParts'
+import { logListingDetails } from '../lib/listingDetailsDebugLog'
+import { LISTING_RENTAL_PRICE_CAPTION } from '../lib/rentalPeriodRu'
 
 const STUB_CARD_BALANCE_KEY = 'rento_stub_card_balance'
 
@@ -18,6 +22,13 @@ function formatMoneyRub(n: number): string {
 function toDatetimeLocalValue(d: Date): string {
   const pad = (x: number) => String(x).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function minDatetimeLocalNow(): string {
+  const d = new Date()
+  d.setSeconds(0, 0)
+  d.setMilliseconds(0)
+  return toDatetimeLocalValue(d)
 }
 
 function defaultRangeForPeriod(period: RentalPeriod): { start: Date; end: Date } {
@@ -54,6 +65,8 @@ function periodShort(period: RentalPeriod): string {
       return 'неделя'
     case 'MONTH':
       return 'месяц'
+    default:
+      return 'сутки'
   }
 }
 
@@ -67,6 +80,8 @@ function periodFull(period: RentalPeriod): string {
       return 'Понедельная'
     case 'MONTH':
       return 'Помесячная'
+    default:
+      return 'Аренда'
   }
 }
 
@@ -113,6 +128,7 @@ export function ListingDetailsPage() {
   const [loading, setLoading] = useState(() => Boolean(id))
   const [error, setError] = useState<string | null>(null)
   const [activePhoto, setActivePhoto] = useState(0)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   const [bookModalOpen, setBookModalOpen] = useState(false)
   const [bookStartLocal, setBookStartLocal] = useState('')
@@ -189,6 +205,15 @@ export function ListingDetailsPage() {
     setPaymentMethodsLoading(false)
     setSelectedCardId(null)
   }, [])
+
+  const photoLightboxSlides = useMemo(() => {
+    if (!listing?.photos || !Array.isArray(listing.photos)) return []
+    return listing.photos.map((p) => ({ url: p.url, alt: listing.title }))
+  }, [listing])
+
+  useEffect(() => {
+    setLightboxIndex(null)
+  }, [id])
 
   useEffect(() => {
     if (!bookModalOpen || !accessToken) return
@@ -285,39 +310,121 @@ export function ListingDetailsPage() {
   }, [accessToken, payFailedBookingId, selectedCardId, stubCardBalance, navigate, closeBookingModal])
 
   useEffect(() => {
-    if (!id) return
+    if (!id) {
+      logListingDetails('skip-load:no-id', { id })
+      return
+    }
     const listingId = id
+    let cancelled = false
+
+    logListingDetails('load:start', {
+      listingId,
+      hasAccessToken: Boolean(accessToken),
+    })
+
+    setLoading(true)
+    setError(null)
 
     async function loadListing() {
-      await Promise.resolve()
-      setLoading(true)
-      setError(null)
       try {
         const data = await getListingDetails(listingId)
+        if (cancelled) {
+          logListingDetails('load:cancelled-after-public', { listingId })
+          return
+        }
+        logListingDetails('load:ok-public', {
+          listingId,
+          status: data.status,
+          photosCount: data.photos?.length ?? 0,
+          hasCategory: Boolean(data.category),
+        })
         setListing(data)
         setActivePhoto(0)
       } catch (err: unknown) {
-        if (err instanceof ApiError && err.status === 404) {
-          setError('Объявление не найдено или уже недоступно')
-        } else if (err instanceof Error) {
-          setError(err.message)
-        } else {
-          setError('Не удалось загрузить объявление')
+        logListingDetails('load:public-error', {
+          listingId,
+          cancelled,
+          isApiError: err instanceof ApiError,
+          status: err instanceof ApiError ? err.status : undefined,
+          message: err instanceof Error ? err.message : String(err),
+        })
+        if (
+          err instanceof ApiError &&
+          err.status === 404 &&
+          accessToken &&
+          !cancelled
+        ) {
+          try {
+            logListingDetails('load:try-owned', { listingId })
+            const owned = await getOwnedListingForEdit(listingId, accessToken)
+            if (!cancelled) {
+              logListingDetails('load:ok-owned', {
+                listingId,
+                status: owned.status,
+                photosCount: owned.photos?.length ?? 0,
+              })
+              setListing(owned)
+              setActivePhoto(0)
+              setError(null)
+            }
+            return
+          } catch (ownedErr: unknown) {
+            logListingDetails('load:owned-failed', {
+              listingId,
+              message:
+                ownedErr instanceof Error ? ownedErr.message : String(ownedErr),
+            })
+            // fall through to public error
+          }
+        }
+        if (!cancelled) {
+          if (err instanceof ApiError && err.status === 404) {
+            setError(
+              accessToken
+                ? 'Объявление не найдено или у вас нет доступа к этому черновику.'
+                : 'Объявление не найдено. Если это ваш черновик — войдите в аккаунт, чтобы открыть его.',
+            )
+          } else if (err instanceof Error) {
+            setError(err.message.trim() || 'Не удалось загрузить объявление')
+          } else {
+            setError('Не удалось загрузить объявление')
+          }
+          setListing(null)
         }
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          logListingDetails('load:finally', { listingId })
+        }
       }
     }
 
     void loadListing()
-  }, [id])
+    return () => {
+      cancelled = true
+      logListingDetails('load:cleanup', { listingId })
+    }
+  }, [id, accessToken])
+
+  useEffect(() => {
+    logListingDetails('render-state', {
+      id,
+      loading,
+      error: error === null ? null : error === '' ? '(empty string)' : error,
+      hasListing: Boolean(listing),
+      listingId: listing?.id,
+      listingStatus: listing?.status,
+    })
+  }, [id, loading, error, listing])
 
   const periodLabel = useMemo(() => (listing ? periodShort(listing.rentalPeriod) : ''), [listing])
   const periodTitle = useMemo(() => (listing ? periodFull(listing.rentalPeriod) : ''), [listing])
   const displayParts = useMemo(
-    () => (listing ? getListingDisplayParts(listing.description) : null),
+    () => (listing ? getListingDisplayParts(listing.description ?? '') : null),
     [listing],
   )
+
+  const bookingDatetimeMin = useMemo(() => minDatetimeLocalNow(), [bookModalOpen])
 
   if (!id) {
     return (
@@ -343,10 +450,13 @@ export function ListingDetailsPage() {
   }
 
   if (error || !listing) {
+    const errorMessage = error?.trim()
+      ? error
+      : 'Объявление не найдено или не удалось загрузить данные.'
     return (
       <main className="listing-page">
         <div className="listing-page__inner container">
-          <div className="status status--error">{error ?? 'Объявление не найдено'}</div>
+          <div className="status status--error">{errorMessage}</div>
           <Link to="/" className="btn btn--brand" style={{ marginTop: 'var(--sp-4)' }}>
             На главную
           </Link>
@@ -355,14 +465,17 @@ export function ListingDetailsPage() {
     )
   }
 
-  const photos = listing.photos
+  const photos = Array.isArray(listing.photos) ? listing.photos : []
+  const categoryName = listing.category?.name?.trim() || 'Категория'
   const hasPhotos = photos.length > 0
   const currentPhoto = hasPhotos ? photos[Math.min(activePhoto, photos.length - 1)] : null
   const isDraft = listing.status === 'DRAFT'
 
-  const showCharacteristics = Boolean(
-    displayParts?.brand || displayParts?.year || displayParts?.condition,
-  )
+  const conditionLabel =
+    displayParts?.condition != null && displayParts.condition !== ''
+      ? listingConditionLabelRu(displayParts.condition) ?? displayParts.condition
+      : null
+  const showCharacteristics = Boolean(displayParts?.brand || displayParts?.year || conditionLabel)
   const needsGapBeforeDescription = Boolean(displayParts?.address || showCharacteristics)
   const isOwner = Boolean(user?.id && listing.ownerId === user.id)
 
@@ -409,6 +522,7 @@ export function ListingDetailsPage() {
                   id="book-start-at"
                   className="field__input"
                   type="datetime-local"
+                  min={bookingDatetimeMin}
                   value={bookStartLocal}
                   disabled={Boolean(payFailedBookingId)}
                   onChange={(e) => setBookStartLocal(e.target.value)}
@@ -422,6 +536,7 @@ export function ListingDetailsPage() {
                   id="book-end-at"
                   className="field__input"
                   type="datetime-local"
+                  min={bookStartLocal || bookingDatetimeMin}
                   value={bookEndLocal}
                   disabled={Boolean(payFailedBookingId)}
                   onChange={(e) => setBookEndLocal(e.target.value)}
@@ -485,8 +600,9 @@ export function ListingDetailsPage() {
                   <strong>{formatMoneyRub(bookingSummary.totalHoldAmount)}</strong>
                 </div>
                 <p className="listing-booking-modal__fineprint">
-                  Единиц периода: {bookingSummary.units.toLocaleString('ru-RU')}. Даты на сервере:{' '}
-                  {new Date(bookingSummary.startAt).toLocaleString('ru-RU')} —{' '}
+                  Аренда: ставка {formatMoneyRub(listing.rentalPrice)} за {periodShort(listing.rentalPeriod)} ×{' '}
+                  {bookingSummary.units.toLocaleString('ru-RU')} ед. тарифа = {formatMoneyRub(bookingSummary.rentalAmount)}.
+                  Интервал: {new Date(bookingSummary.startAt).toLocaleString('ru-RU')} —{' '}
                   {new Date(bookingSummary.endAt).toLocaleString('ru-RU')}.
                 </p>
               </div>
@@ -625,16 +741,29 @@ export function ListingDetailsPage() {
             <span className="listing-page__crumb-sep" aria-hidden>
               /
             </span>
-            <span className="listing-page__crumb-current">{listing.category.name}</span>
+            <span className="listing-page__crumb-current">{categoryName}</span>
           </nav>
         </div>
 
         <div className="listing-page__layout">
+          {listing.status === 'DRAFT' && isOwner ? (
+            <div className="listing-page__draft-banner alert">
+              Черновик не показывается в каталоге. Загрузите фото и нажмите «Опубликовать» на странице{' '}
+              <Link to={`/listings/${listing.id}/edit`}>редактирования</Link>, либо откройте её из профиля.
+            </div>
+          ) : null}
           <div className="listing-page__main">
             <div className="listing-page__gallery">
               <div className="listing-page__hero">
                 {currentPhoto ? (
-                  <img src={currentPhoto.url} alt={listing.title} />
+                  <button
+                    type="button"
+                    className="listing-page__hero-trigger"
+                    onClick={() => setLightboxIndex(activePhoto)}
+                    aria-label="Открыть фото на весь экран"
+                  >
+                    <img src={currentPhoto.url} alt={listing.title} />
+                  </button>
                 ) : (
                   <div className="listing-page__hero-empty">Нет фотографий</div>
                 )}
@@ -651,13 +780,25 @@ export function ListingDetailsPage() {
                       key={photo.id}
                       role="tab"
                       aria-selected={index === activePhoto}
+                      title="Выбрать фото. Двойной щелчок — просмотр на весь экран."
                       className={`listing-page__thumb${index === activePhoto ? ' is-active' : ''}`}
                       onClick={() => setActivePhoto(index)}
+                      onDoubleClick={(e) => {
+                        e.preventDefault()
+                        setActivePhoto(index)
+                        setLightboxIndex(index)
+                      }}
                     >
                       <img src={photo.thumbnailUrl ?? photo.url} alt="" />
                     </button>
                   ))}
                 </div>
+              ) : null}
+              {hasPhotos && currentPhoto ? (
+                <p className="listing-page__gallery-hint">
+                  Нажмите на большое фото, чтобы открыть его на весь экран. В миниатюрах двойной щелчок тоже
+                  открывает просмотр.
+                </p>
               ) : null}
             </div>
 
@@ -692,10 +833,10 @@ export function ListingDetailsPage() {
                         <dd className="listing-page__meta-dd">{displayParts.year}</dd>
                       </div>
                     ) : null}
-                    {displayParts?.condition ? (
+                    {conditionLabel ? (
                       <div className="listing-page__meta-row">
                         <dt className="listing-page__meta-dt">Состояние</dt>
-                        <dd className="listing-page__meta-dd">{displayParts.condition}</dd>
+                        <dd className="listing-page__meta-dd">{conditionLabel}</dd>
                       </div>
                     ) : null}
                   </dl>
@@ -717,7 +858,7 @@ export function ListingDetailsPage() {
           <aside className="listing-page__aside" aria-label="Условия и действия">
             <div className="listing-page__card">
               <div className="listing-page__card-head">
-                <span className="listing-page__category">{listing.category.name}</span>
+                <span className="listing-page__category">{categoryName}</span>
                 {isDraft ? <span className="listing-page__pill listing-page__pill--draft">Не опубликовано</span> : null}
               </div>
 
@@ -731,7 +872,7 @@ export function ListingDetailsPage() {
                   </span>
                   <span className="listing-page__price-period">/ {periodLabel}</span>
                 </div>
-                <p className="listing-page__price-caption">Арендная ставка за выбранный период</p>
+                <p className="listing-page__price-caption">{LISTING_RENTAL_PRICE_CAPTION}</p>
               </div>
 
               <dl className="listing-page__specs">
@@ -754,9 +895,17 @@ export function ListingDetailsPage() {
               </dl>
 
               <div className="listing-page__actions">
+                {isOwner ? (
+                  <Link
+                    to={`/listings/${listing.id}/edit`}
+                    className="btn btn--brand btn--block listing-page__cta-primary"
+                  >
+                    {listing.status === 'DRAFT' ? 'Редактировать и опубликовать' : 'Редактировать объявление'}
+                  </Link>
+                ) : null}
                 <Link
                   to={`/listings/${listing.id}/calendar`}
-                  className="btn btn--accent btn--block listing-page__cta-primary"
+                  className={`btn btn--accent btn--block${isOwner ? '' : ' listing-page__cta-primary'}`}
                 >
                   Календарь и даты
                 </Link>
@@ -769,21 +918,34 @@ export function ListingDetailsPage() {
                     Забронировать
                   </button>
                 ) : null}
-                <button type="button" className="btn btn--ghost btn--block" disabled>
-                  Написать арендодателю
-                </button>
+                {!isOwner ? (
+                  <button type="button" className="btn btn--ghost btn--block" disabled>
+                    Написать арендодателю
+                  </button>
+                ) : null}
               </div>
               <p className="listing-page__actions-hint">
                 {listing.status !== 'ACTIVE'
                   ? 'Бронирование доступно только для опубликованных объявлений. Сообщения между пользователями появятся в следующей версии.'
                   : isOwner
-                    ? 'Это ваше объявление — бронировать у себя нельзя. Сообщения между пользователями появятся в следующей версии.'
+                    ? 'Это ваше объявление — бронировать у себя нельзя.'
                     : 'Сообщения между пользователями появятся в следующей версии.'}
               </p>
             </div>
           </aside>
         </div>
       </div>
+
+      <PhotoLightbox
+        open={lightboxIndex !== null}
+        slides={photoLightboxSlides}
+        index={lightboxIndex ?? 0}
+        onClose={() => setLightboxIndex(null)}
+        onNavigate={(i) => {
+          setLightboxIndex(i)
+          setActivePhoto(i)
+        }}
+      />
     </main>
   )
 }

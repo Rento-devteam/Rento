@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { getListingDetails, getOwnedListingForEdit } from '../catalog/catalogApi'
 import {
   blockDates,
   checkAvailability,
@@ -70,7 +71,9 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 export function ManageCalendarPage() {
   const { id: listingId } = useParams<{ id: string }>()
-  const { accessToken } = useAuth()
+  const { user, accessToken } = useAuth()
+  const [listingOwnerId, setListingOwnerId] = useState<string | null>(null)
+  const [listingMetaError, setListingMetaError] = useState<string | null>(null)
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [slots, setSlots] = useState<Map<string, CalendarSlot>>(new Map())
   const [loading, setLoading] = useState(false)
@@ -83,6 +86,45 @@ export function ManageCalendarPage() {
   // Action state
   const [actionPending, setActionPending] = useState(false)
   const [conflictWarning, setConflictWarning] = useState<string | null>(null)
+
+  const isOwner = Boolean(user?.id && listingOwnerId && user.id === listingOwnerId)
+
+  useEffect(() => {
+    if (!listingId) return
+    const calendarListingId = listingId
+    let cancelled = false
+    async function loadListingMeta() {
+      setListingMetaError(null)
+      try {
+        if (accessToken) {
+          try {
+            const owned = await getOwnedListingForEdit(calendarListingId, accessToken)
+            if (!cancelled) {
+              setListingOwnerId(owned.ownerId)
+            }
+            return
+          } catch (err: unknown) {
+            if (!(err instanceof ApiError && err.status === 404)) {
+              throw err
+            }
+          }
+        }
+        const listing = await getListingDetails(calendarListingId)
+        if (!cancelled) {
+          setListingOwnerId(listing.ownerId)
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setListingOwnerId(null)
+          setListingMetaError(getErrorMessage(err, 'Не удалось загрузить объявление'))
+        }
+      }
+    }
+    void loadListingMeta()
+    return () => {
+      cancelled = true
+    }
+  }, [listingId, accessToken])
 
   useEffect(() => {
     if (!listingId) return
@@ -110,6 +152,7 @@ export function ManageCalendarPage() {
   const gridDays = useMemo(() => getDaysInMonthGrid(currentMonth), [currentMonth])
 
   const handleDayClick = (isoDate: string) => {
+    if (!isOwner) return
     if (!selectStart || (selectStart && selectEnd)) {
       setSelectStart(isoDate)
       setSelectEnd(null)
@@ -142,7 +185,7 @@ export function ManageCalendarPage() {
   }
 
   const handleBlock = async () => {
-    if (!listingId || !selectStart) return
+    if (!isOwner || !listingId || !selectStart) return
     const rangeEnd = selectEnd ?? selectStart
     setActionPending(true)
     setError(null)
@@ -171,7 +214,7 @@ export function ManageCalendarPage() {
   }
 
   const handleUnblock = async (force = false, cancelBookings = false) => {
-    if (!listingId || !selectStart) return
+    if (!isOwner || !listingId || !selectStart) return
     const rangeEnd = selectEnd ?? selectStart
     setActionPending(true)
     setError(null)
@@ -208,15 +251,43 @@ export function ManageCalendarPage() {
   return (
     <main className="container" style={{ padding: 'var(--sp-7) 0', flex: 1 }}>
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
-        <h1 className="hero__title" style={{ marginBottom: 'var(--sp-5)', fontSize: '2.2rem' }}>
-          Календарь доступности
-        </h1>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 'var(--sp-3)',
+            marginBottom: 'var(--sp-5)',
+          }}
+        >
+          <h1 className="hero__title" style={{ margin: 0, fontSize: '2.2rem' }}>
+            Календарь доступности
+          </h1>
+          {listingId ? (
+            <Link to={`/listings/${listingId}`} className="btn btn--ghost">
+              Выйти из календаря
+            </Link>
+          ) : null}
+        </div>
 
         <div className="calendar-legend">
           <div className="legend-item"><span className="legend-color legend-color--free"></span> Свободно</div>
           <div className="legend-item"><span className="legend-color legend-color--booked"></span> Занято (Сделка)</div>
           <div className="legend-item"><span className="legend-color legend-color--blocked"></span> Заблокировано</div>
         </div>
+
+        {listingMetaError ? (
+          <div className="alert alert--error" style={{ marginBottom: 'var(--sp-4)' }}>
+            {listingMetaError}
+          </div>
+        ) : null}
+
+        {!listingMetaError && listingOwnerId && user && !isOwner ? (
+          <p className="listing-booking-modal__fineprint" style={{ marginBottom: 'var(--sp-4)' }}>
+            Управлять блокировкой дат может только владелец объявления.
+          </p>
+        ) : null}
 
         <div className="calendar-card">
           <div className="calendar-header">
@@ -261,7 +332,7 @@ export function ManageCalendarPage() {
                   key={i}
                   className={`calendar-day ${statusClass} ${!isCurrentMonth ? 'calendar-day--dimmed' : ''} ${selected ? 'calendar-day--selected' : ''}`}
                   onClick={() => handleDayClick(iso)}
-                  disabled={loading}
+                  disabled={loading || !isOwner}
                 >
                   {date.getDate()}
                 </button>
@@ -270,7 +341,7 @@ export function ManageCalendarPage() {
           </div>
         </div>
 
-        {selectStart && (
+        {isOwner && selectStart && (
           <div className="calendar-actions">
             <h3 style={{ marginBottom: 'var(--sp-3)' }}>
               Выбран диапазон: {parseISODate(selectStart).toLocaleDateString('ru-RU')} — {parseISODate(selectEnd ?? selectStart).toLocaleDateString('ru-RU')}

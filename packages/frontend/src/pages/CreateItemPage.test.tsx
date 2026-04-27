@@ -9,13 +9,17 @@ const useAuthMock = vi.hoisted(() => vi.fn())
 const getCreateMetadataMock = vi.hoisted(() => vi.fn())
 const createListingMock = vi.hoisted(() => vi.fn())
 const uploadListingPhotoMock = vi.hoisted(() => vi.fn())
+const deleteListingPhotoMock = vi.hoisted(() => vi.fn())
 const publishListingMock = vi.hoisted(() => vi.fn())
+const getOwnedListingForEditMock = vi.hoisted(() => vi.fn())
+const updateListingMock = vi.hoisted(() => vi.fn())
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
   return {
     ...actual,
     useNavigate: () => navigateMock,
+    useParams: () => ({}),
   }
 })
 
@@ -27,7 +31,10 @@ vi.mock('../catalog/catalogApi', () => ({
   getCreateMetadata: (...args: unknown[]) => getCreateMetadataMock(...args),
   createListing: (...args: unknown[]) => createListingMock(...args),
   uploadListingPhoto: (...args: unknown[]) => uploadListingPhotoMock(...args),
+  deleteListingPhoto: (...args: unknown[]) => deleteListingPhotoMock(...args),
   publishListing: (...args: unknown[]) => publishListingMock(...args),
+  getOwnedListingForEdit: (...args: unknown[]) => getOwnedListingForEditMock(...args),
+  updateListing: (...args: unknown[]) => updateListingMock(...args),
 }))
 
 describe('CreateItemPage', () => {
@@ -51,6 +58,11 @@ describe('CreateItemPage', () => {
       totalPhotos: 1,
       message: 'Photo uploaded',
       nextStep: 'publish_listing',
+    })
+    deleteListingPhotoMock.mockResolvedValue({
+      success: true,
+      totalPhotos: 0,
+      message: 'Photo removed',
     })
     publishListingMock.mockResolvedValue({
       id: 'listing-1',
@@ -90,7 +102,7 @@ describe('CreateItemPage', () => {
 
     await user.type(screen.getByLabelText(/^название$/i), 'Палатка')
     await user.selectOptions(screen.getByLabelText(/категория товара/i), 'cat-1')
-    await user.type(screen.getByLabelText(/цена за сутки/i), '500')
+    await user.type(screen.getByLabelText(/цена за период/i), '500')
     await user.type(screen.getByLabelText(/расскажите о нём/i), 'Отличная палатка')
     await user.type(screen.getByLabelText(/размер залога/i), '1000')
     await user.selectOptions(screen.getByLabelText(/состояние товара/i), 'good')
@@ -115,7 +127,7 @@ describe('CreateItemPage', () => {
 
     await user.type(screen.getByLabelText(/^название$/i), 'Палатка')
     await user.selectOptions(screen.getByLabelText(/категория товара/i), 'cat-1')
-    await user.type(screen.getByLabelText(/цена за сутки/i), '500')
+    await user.type(screen.getByLabelText(/цена за период/i), '500')
     await user.type(screen.getByLabelText(/расскажите о нём/i), 'Отличная палатка')
     await user.type(screen.getByLabelText(/размер залога/i), '1000')
     await user.selectOptions(screen.getByLabelText(/состояние товара/i), 'good')
@@ -129,7 +141,7 @@ describe('CreateItemPage', () => {
     await user.upload(fileInput, file)
 
     await waitFor(() => {
-      expect(uploadListingPhotoMock).toHaveBeenCalledWith('listing-1', expect.any(File), 'token-123', 0)
+      expect(uploadListingPhotoMock).toHaveBeenCalledWith('listing-1', expect.any(File), 'token-123')
     })
   })
 
@@ -146,7 +158,7 @@ describe('CreateItemPage', () => {
 
     await user.type(screen.getByLabelText(/^название$/i), 'Палатка')
     await user.selectOptions(screen.getByLabelText(/категория товара/i), 'cat-1')
-    await user.type(screen.getByLabelText(/цена за сутки/i), '500')
+    await user.type(screen.getByLabelText(/цена за период/i), '500')
     await user.type(screen.getByLabelText(/расскажите о нём/i), 'Отличная палатка')
     await user.type(screen.getByLabelText(/размер залога/i), '1000')
     await user.selectOptions(screen.getByLabelText(/состояние товара/i), 'good')

@@ -50,7 +50,7 @@ export function AppHeader({ onAuthRequest }: AppHeaderProps) {
           {user ? (
             <button
               type="button"
-              className="btn btn--brand app-header__compact"
+              className="btn btn--primary app-header__compact"
               onClick={() => navigate('/profile')}
               aria-label="Профиль"
             >

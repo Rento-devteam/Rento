@@ -19,10 +19,12 @@ import {
   LISTING_TITLE_MIN,
 } from '../listing.constants';
 
-export class CreateListingDto {
+export class UpdateListingDto {
+  @IsOptional()
   @IsUUID()
-  categoryId!: string;
+  categoryId?: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(LISTING_TITLE_MIN, {
     message: `Название не короче ${LISTING_TITLE_MIN} символов`,
@@ -30,8 +32,9 @@ export class CreateListingDto {
   @MaxLength(LISTING_TITLE_MAX, {
     message: `Название не длиннее ${LISTING_TITLE_MAX} символов`,
   })
-  title!: string;
+  title?: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(LISTING_DESCRIPTION_MIN, {
     message: `Описание не короче ${LISTING_DESCRIPTION_MIN} символов`,
@@ -39,22 +42,25 @@ export class CreateListingDto {
   @MaxLength(LISTING_DESCRIPTION_MAX, {
     message: `Описание не длиннее ${LISTING_DESCRIPTION_MAX} символов`,
   })
-  description!: string;
+  description?: string;
 
+  @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01, { message: 'Цена аренды должна быть больше нуля' })
   @Max(LISTING_PRICE_MAX, { message: 'Слишком большая цена аренды' })
-  rentalPrice!: number;
+  rentalPrice?: number;
 
+  @IsOptional()
   @IsEnum(RentalPeriod)
-  rentalPeriod!: RentalPeriod;
+  rentalPeriod?: RentalPeriod;
 
+  @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0, { message: 'Залог не может быть отрицательным' })
   @Max(LISTING_PRICE_MAX, { message: 'Слишком большой залог' })
-  depositAmount!: number;
+  depositAmount?: number;
 
   @IsOptional()
   @Type(() => Number)

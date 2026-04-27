@@ -31,6 +31,16 @@
 $ npm install
 ```
 
+## Local database (demo seed)
+
+Содержимое таблиц после `TRUNCATE` или удаления **не восстановить** без бэкапа. Чтобы снова завести **минимальный демо-набор** (категория, пользователь, черновик объявления), из каталога `packages/backend` выполните:
+
+```bash
+npm run seed:demo-listing
+```
+
+В консоль выводятся `demoEmail` и `demoPassword`.
+
 ## Compile and run the project
 
 ```bash
@@ -68,7 +78,7 @@ Local stack includes Elasticsearch on port **9200** (`docker compose up -d`). Se
 
 Active listings are indexed when published (`POST /listings/:id/publish`). Backfill: `npm run search:reindex`.
 
-**Integration tests:** e2e and Postgres integration suites stub `ListingSearchIndexService` so they do not require a running Elasticsearch node. To test search against a real cluster, run ES locally and call the HTTP endpoints manually or add a dedicated integration spec with `ELASTICSEARCH_NODE` set.
+**E2E tests** stub `ListingSearchIndexService`, so they do not require a running Elasticsearch node. To exercise search against a real cluster, run ES locally and hit the HTTP endpoints manually with `ELASTICSEARCH_NODE` set.
 
 ## Deployment
 

@@ -45,21 +45,24 @@ function AppLayout() {
   return (
     <div className="shell">
       {!hideChrome ? <AppHeader onAuthRequest={openAuth} /> : null}
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<HomePage />} />
-        <Route path="/register" element={<HomePage />} />
-        <Route path="/login/telegram" element={<HomePage />} />
-        <Route path="/confirm-email" element={<ConfirmEmailPage />} />
-        <Route path="/create-item" element={<CreateItemPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/bookings/hosting" element={<LandlordBookingsPage />} />
-        <Route path="/bookings/:bookingId" element={<BookingDetailPage />} />
-        <Route path="/bookings" element={<RenterBookingsPage />} />
-        <Route path="/listings/:id" element={<ListingDetailsPage />} />
-        <Route path="/listings/:id/calendar" element={<ManageCalendarPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <div className="shell__content">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<HomePage />} />
+          <Route path="/register" element={<HomePage />} />
+          <Route path="/login/telegram" element={<HomePage />} />
+          <Route path="/confirm-email" element={<ConfirmEmailPage />} />
+          <Route path="/create-item" element={<CreateItemPage />} />
+          <Route path="/listings/:id/edit" element={<CreateItemPage />} />
+          <Route path="/listings/:id/calendar" element={<ManageCalendarPage />} />
+          <Route path="/listings/:id" element={<ListingDetailsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/bookings/hosting" element={<LandlordBookingsPage />} />
+          <Route path="/bookings/:bookingId" element={<BookingDetailPage />} />
+          <Route path="/bookings" element={<RenterBookingsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
       {isModalOpen && activeTab ? (
         <AuthModal
           key={activeTab}

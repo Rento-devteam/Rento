@@ -54,6 +54,32 @@ describe('apiClient', () => {
     expect(err.message).toBe('Unauthorized')
   })
 
+  it('apiRequest maps fields from validation error JSON body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        text: async () =>
+          JSON.stringify({
+            statusCode: 400,
+            message: 'Проверьте введённые данные',
+            fields: { password: 'Слабый пароль' },
+            error: 'Bad Request',
+          }),
+      }),
+    )
+
+    try {
+      await apiRequest('/login')
+      expect.fail('expected ApiError')
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError)
+      expect((e as ApiError).fields?.password).toBe('Слабый пароль')
+    }
+  })
+
   it('apiRequest maps bookingId from error JSON body', async () => {
     vi.stubGlobal(
       'fetch',
