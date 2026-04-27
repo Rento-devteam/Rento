@@ -40,9 +40,11 @@ function ProfileEditModal({
 
   useEffect(() => {
     if (!open) return
-    setDraftFullName(user.fullName ?? '')
-    setDraftPhone(user.phone ?? '')
-    setProfileMessage(null)
+    queueMicrotask(() => {
+      setDraftFullName(user.fullName ?? '')
+      setDraftPhone(user.phone ?? '')
+      setProfileMessage(null)
+    })
   }, [open, user])
 
   const isProfileDirty = useMemo(() => {
@@ -283,7 +285,7 @@ export function ProfilePage() {
   }, [user?.id, navigate, refreshProfile])
 
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
 
     async function loadMyListings() {
       try {
@@ -308,7 +310,7 @@ export function ProfilePage() {
   }, [user?.id, accessToken])
 
   useEffect(() => {
-    if (!user || !accessToken) return
+    if (!user?.id || !accessToken) return
     const token = accessToken
 
     async function loadCards() {

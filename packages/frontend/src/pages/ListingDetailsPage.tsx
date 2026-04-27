@@ -212,10 +212,6 @@ export function ListingDetailsPage() {
   }, [listing])
 
   useEffect(() => {
-    setLightboxIndex(null)
-  }, [id])
-
-  useEffect(() => {
     if (!bookModalOpen || !accessToken) return
     const token = accessToken
     let cancelled = false
@@ -322,10 +318,10 @@ export function ListingDetailsPage() {
       hasAccessToken: Boolean(accessToken),
     })
 
-    setLoading(true)
-    setError(null)
-
     async function loadListing() {
+      setLoading(true)
+      setError(null)
+      setLightboxIndex(null)
       try {
         const data = await getListingDetails(listingId)
         if (cancelled) {
@@ -424,7 +420,7 @@ export function ListingDetailsPage() {
     [listing],
   )
 
-  const bookingDatetimeMin = useMemo(() => minDatetimeLocalNow(), [bookModalOpen])
+  const bookingDatetimeMin = minDatetimeLocalNow()
 
   if (!id) {
     return (
