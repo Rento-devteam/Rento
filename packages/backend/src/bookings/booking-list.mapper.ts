@@ -44,6 +44,9 @@ export function mapBookingDetail(
     role,
     paymentGateway: row.paymentGateway,
     paymentAuthorizationCode: row.paymentAuthorizationCode,
+    settlementStatus: row.settlementStatus,
+    settlementError: row.settlementError ?? null,
+    settledAt: row.settledAt ? row.settledAt.toISOString() : null,
   };
 }
 

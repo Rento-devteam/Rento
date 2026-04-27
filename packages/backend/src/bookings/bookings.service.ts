@@ -90,7 +90,7 @@ export class BookingsService {
 
   async listBookingsAsRenter(userId: string) {
     const rows = await this.prisma.booking.findMany({
-      where: { renterId: userId },
+      where: { renterId: userId, status: { not: BookingStatus.CANCELLED } },
       orderBy: { createdAt: 'desc' },
       include: {
         listing: { select: { id: true, title: true } },
@@ -102,7 +102,7 @@ export class BookingsService {
 
   async listBookingsAsLandlord(ownerId: string) {
     const rows = await this.prisma.booking.findMany({
-      where: { listing: { ownerId } },
+      where: { listing: { ownerId }, status: { not: BookingStatus.CANCELLED } },
       orderBy: { createdAt: 'desc' },
       include: {
         listing: { select: { id: true, title: true } },

@@ -28,6 +28,9 @@ export type BookingDetail = BookingListItem & {
   role: 'renter' | 'landlord'
   paymentGateway: string | null
   paymentAuthorizationCode: string | null
+  settlementStatus: string
+  settlementError: string | null
+  settledAt: string | null
 }
 
 export async function listBookingsAsRenter(accessToken: string): Promise<{ items: BookingListItem[] }> {
@@ -56,6 +59,16 @@ export async function confirmBookingReturn(
   accessToken: string,
 ): Promise<BookingDetail> {
   return apiRequest<BookingDetail>(`/bookings/${bookingId}/return/confirm`, {
+    method: 'POST',
+    accessToken,
+  })
+}
+
+export async function cancelBooking(
+  bookingId: string,
+  accessToken: string,
+): Promise<BookingDetail> {
+  return apiRequest<BookingDetail>(`/bookings/${bookingId}/cancel`, {
     method: 'POST',
     accessToken,
   })

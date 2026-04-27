@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { IdentityVerificationStatus } from '@prisma/client';
+import {
+  BookingSettlementStatus,
+  IdentityVerificationStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TrustScoreSnapshot } from '../users/user-profile.mapper';
 
@@ -98,14 +101,41 @@ export class TrustScoreService {
           endAt: true,
           endDate: true,
           completedAt: true,
+          depositAmount: true,
+          settledAt: true,
+          settlementStatus: true,
+          returnMutualConfirmedAt: true,
+          returnAutoConfirmedAt: true,
         },
       }),
     ]);
+
+    const depositSlaMs = this.getDepositReturnSlaMs();
 
     let lateReturnsTotal = 0;
     for (const b of completedDeals) {
       const completedAt = b.completedAt;
       if (!completedAt) continue;
+
+      const deposit = Number(b.depositAmount);
+      const hasDeposit = Number.isFinite(deposit) && deposit > 0;
+
+      if (hasDeposit) {
+        const anchor = b.returnMutualConfirmedAt ?? b.returnAutoConfirmedAt;
+        if (!anchor) continue;
+        if (
+          b.settlementStatus !== BookingSettlementStatus.SETTLED ||
+          !b.settledAt
+        ) {
+          continue;
+        }
+        const dueByDeposit = anchor.getTime() + depositSlaMs;
+        if (b.settledAt.getTime() > dueByDeposit) {
+          lateReturnsTotal += 1;
+        }
+        continue;
+      }
+
       const dueAt = b.endAt ?? this.endOfDay(b.endDate);
       if (completedAt.getTime() > dueAt.getTime()) {
         lateReturnsTotal += 1;
@@ -114,7 +144,7 @@ export class TrustScoreService {
     lateReturnsTotal = Math.min(totalDeals, lateReturnsTotal);
     const successfulDeals = Math.max(0, totalDeals - lateReturnsTotal);
 
-    const reliabilityFactor = totalDeals > 0 ? successfulDeals / totalDeals : 0.5;
+    const reliabilityFactor = totalDeals > 0 ? successfulDeals / totalDeals : 0;
 
     const ars =
       verificationFactor * 0.2 + ratingFactor * 0.3 + reliabilityFactor * 0.5;
@@ -172,6 +202,14 @@ export class TrustScoreService {
     const d = new Date(date);
     d.setHours(23, 59, 59, 999);
     return d;
+  }
+
+  /** SLA from mutual (or auto) return confirm until deposit must be settled in the stub/real gateway. */
+  private getDepositReturnSlaMs(): number {
+    const raw = process.env.DEPOSIT_RETURN_SLA_HOURS;
+    const parsed = raw ? Number(raw) : NaN;
+    const hours = Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
+    return hours * 60 * 60 * 1000;
   }
 }
 

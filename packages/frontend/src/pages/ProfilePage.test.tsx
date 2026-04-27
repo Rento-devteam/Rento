@@ -8,6 +8,7 @@ const useAuthMock = vi.hoisted(() => vi.fn())
 const apiRequestMock = vi.hoisted(() => vi.fn())
 const resendConfirmationMock = vi.hoisted(() => vi.fn())
 const updateCurrentUserMock = vi.hoisted(() => vi.fn())
+const deleteListingMock = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true }))
 
 vi.mock('../auth/AuthContext', () => ({
   useAuth: () => useAuthMock(),
@@ -29,6 +30,10 @@ vi.mock('../lib/apiClient', () => ({
       this.status = status
     }
   },
+}))
+
+vi.mock('../catalog/catalogApi', () => ({
+  deleteListing: (...args: unknown[]) => deleteListingMock(...args),
 }))
 
 describe('ProfilePage', () => {
@@ -157,7 +162,9 @@ describe('ProfilePage', () => {
       </MemoryRouter>,
     )
 
-    const nameInput = screen.getByLabelText(/Имя и фамилия/i)
+    await user.click(screen.getByRole('button', { name: /Редактировать данные профиля/i }))
+
+    const nameInput = await screen.findByLabelText(/Имя и фамилия/i)
     await user.clear(nameInput)
     await user.type(nameInput, 'Новое имя')
 
@@ -167,6 +174,9 @@ describe('ProfilePage', () => {
       expect(updateCurrentUserMock).toHaveBeenCalledWith({ fullName: 'Новое имя' }, 'token-123')
     })
     expect(refreshProfile).toHaveBeenCalled()
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /Личные данные/i })).not.toBeInTheDocument()
+    })
   })
 
   it('renders user listings', async () => {
@@ -178,8 +188,37 @@ describe('ProfilePage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Моя палатка')).toBeInTheDocument()
-      expect(screen.getByText(/500 ₽ \/ сутки/i)).toBeInTheDocument()
+      expect(screen.getByText(/500\s*₽\s*\/\s*сутки/i)).toBeInTheDocument()
       expect(screen.getByText('Активно')).toBeInTheDocument()
+    })
+  })
+
+  it('opens delete listing modal and deletes on confirm', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <ProfilePage />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('Моя палатка')
+    const listingsSection = screen.getByRole('heading', { name: /Мои объявления/i }).closest('section')
+    expect(listingsSection).toBeTruthy()
+    const buttons = (listingsSection as HTMLElement).querySelectorAll('button.btn')
+    const deleteListingBtn = [...buttons].find((b) => b.textContent?.trim() === 'Удалить')
+    expect(deleteListingBtn).toBeTruthy()
+    await user.click(deleteListingBtn!)
+
+    expect(await screen.findByRole('heading', { name: /Удалить объявление\?/i })).toBeInTheDocument()
+    expect(screen.getAllByText(/Моя палатка/i).length).toBeGreaterThanOrEqual(1)
+
+    await user.click(screen.getByRole('button', { name: /^Да, удалить$/i }))
+
+    await waitFor(() => {
+      expect(deleteListingMock).toHaveBeenCalledWith('l1', 'token-123')
+    })
+    await waitFor(() => {
+      expect(screen.queryByText('Моя палатка')).not.toBeInTheDocument()
     })
   })
 

@@ -5,7 +5,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CALENDAR_BLOCKING_BOOKING_STATUSES } from '../bookings/bookings.constants';
 import { BookingsService } from '../bookings/bookings.service';
 import {
   defaultUtcMonthRange,
@@ -209,6 +211,8 @@ export class CalendarService {
           reason: mergedReason,
         },
       });
+
+      await this.assertListingKeepsBookableFutureDay(listingId, tx);
     });
 
     const { start: viewStart, end: viewEnd } = defaultUtcMonthRange(rangeStart);
@@ -328,5 +332,78 @@ export class CalendarService {
     if (start.getTime() > end.getTime()) {
       throw new BadRequestException('start must be on or before end');
     }
+  }
+
+  /**
+   * Ensures at least one calendar day in the next 24 months stays available for new bookings
+   * (not covered by manual owner blocks and not covered by active bookings).
+   */
+  private async assertListingKeepsBookableFutureDay(
+    listingId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    const today = utcDateOnly(new Date());
+    const horizon = new Date(
+      Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth() + 24,
+        today.getUTCDate(),
+      ),
+    );
+
+    const manualBlocks = await tx.listingManualCalendarBlock.findMany({
+      where: {
+        listingId,
+        AND: [{ endDate: { gte: today } }, { startDate: { lte: horizon } }],
+      },
+      select: { startDate: true, endDate: true },
+    });
+
+    const bookings = await tx.booking.findMany({
+      where: {
+        listingId,
+        status: { in: CALENDAR_BLOCKING_BOOKING_STATUSES },
+        AND: [{ startDate: { lte: horizon } }, { endDate: { gte: today } }],
+      },
+      select: { startDate: true, endDate: true },
+    });
+
+    const manualDays = new Set<string>();
+    for (const block of manualBlocks) {
+      const bs = utcDateOnly(block.startDate);
+      const be = utcDateOnly(block.endDate);
+      const from = bs > today ? bs : today;
+      const to = be < horizon ? be : horizon;
+      if (from.getTime() > to.getTime()) {
+        continue;
+      }
+      for (const d of eachUtcDateInclusive(from, to)) {
+        manualDays.add(d);
+      }
+    }
+
+    const bookedDays = new Set<string>();
+    for (const row of bookings) {
+      const bs = utcDateOnly(row.startDate);
+      const be = utcDateOnly(row.endDate);
+      const from = bs > today ? bs : today;
+      const to = be < horizon ? be : horizon;
+      if (from.getTime() > to.getTime()) {
+        continue;
+      }
+      for (const d of eachUtcDateInclusive(from, to)) {
+        bookedDays.add(d);
+      }
+    }
+
+    for (const d of eachUtcDateInclusive(today, horizon)) {
+      if (!manualDays.has(d) && !bookedDays.has(d)) {
+        return;
+      }
+    }
+
+    throw new BadRequestException(
+      'Нельзя заблокировать все доступные даты: оставьте хотя бы один свободный день в пределах двух лет.',
+    );
   }
 }

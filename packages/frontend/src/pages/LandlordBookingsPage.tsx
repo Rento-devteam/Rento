@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { bookingStatusLabel } from '../bookings/bookingUi'
 import { listBookingsAsLandlord, type BookingListItem } from '../bookings/bookingsApi'
@@ -17,6 +17,7 @@ function formatRange(b: BookingListItem): string {
 }
 
 export function LandlordBookingsPage() {
+  const location = useLocation()
   const { accessToken, user } = useAuth()
   const [items, setItems] = useState<BookingListItem[]>([])
   const [loading, setLoading] = useState(() => Boolean(accessToken))
@@ -51,7 +52,7 @@ export function LandlordBookingsPage() {
     return () => {
       cancelled = true
     }
-  }, [accessToken])
+  }, [accessToken, location.key])
 
   if (!user) {
     return (

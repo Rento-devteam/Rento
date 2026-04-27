@@ -117,6 +117,20 @@ export async function uploadListingPhoto(
   })
 }
 
+export async function deleteListingPhoto(
+  listingId: string,
+  photoId: string,
+  accessToken: string,
+): Promise<{ success: boolean; totalPhotos: number; message: string }> {
+  return apiRequest<{ success: boolean; totalPhotos: number; message: string }>(
+    `/listings/${listingId}/photos/${photoId}`,
+    {
+      method: 'DELETE',
+      accessToken,
+    },
+  )
+}
+
 export async function publishListing(
   listingId: string,
   accessToken: string,
@@ -132,6 +146,27 @@ export async function getListingDetails(listingId: string): Promise<IListing> {
     `/listings/${listingId}`,
   )
   return response
+}
+
+export async function getOwnedListingForEdit(
+  listingId: string,
+  accessToken: string,
+): Promise<IListing> {
+  return apiRequest<IListing>(`/listings/owned/${listingId}`, { accessToken })
+}
+
+export type UpdateListingPayload = Partial<CreateListingDto>
+
+export async function updateListing(
+  listingId: string,
+  dto: UpdateListingPayload,
+  accessToken: string,
+): Promise<IListing> {
+  return apiRequest<IListing>(`/listings/owned/${listingId}`, {
+    method: 'PATCH',
+    accessToken,
+    body: JSON.stringify(dto),
+  })
 }
 
 export async function deleteListing(

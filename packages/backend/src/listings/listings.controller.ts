@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   UploadedFile,
@@ -20,7 +21,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { RequestWithUser } from '../auth/jwt-auth.guard';
+import { createValidationExceptionFactory } from '../validation/validation-exception.factory';
 import { CreateListingDto } from './dto/create-listing.dto';
+import { UpdateListingDto } from './dto/update-listing.dto';
 import { UploadListingPhotoDto } from './dto/upload-listing-photo.dto';
 import {
   MAX_LISTING_PHOTO_BYTES,
@@ -33,7 +36,7 @@ import { ListingsService } from './listings.service';
     whitelist: true,
     forbidNonWhitelisted: true,
     transform: true,
-    errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+    exceptionFactory: createValidationExceptionFactory(),
   }),
 )
 @Controller('listings')
@@ -51,6 +54,33 @@ export class ListingsController {
   @Get('my')
   getMyListings(@Req() request: RequestWithUser) {
     return this.listingsService.getMyListings(this.getUserId(request));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('owned/:listingId')
+  getOwnedListing(
+    @Req() request: RequestWithUser,
+    @Param('listingId', ParseUUIDPipe) listingId: string,
+  ) {
+    return this.listingsService.getOwnedListing(
+      this.getUserId(request),
+      listingId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('owned/:listingId')
+  @HttpCode(HttpStatus.OK)
+  updateOwnedListing(
+    @Req() request: RequestWithUser,
+    @Param('listingId', ParseUUIDPipe) listingId: string,
+    @Body() dto: UpdateListingDto,
+  ) {
+    return this.listingsService.updateOwnedListing(
+      this.getUserId(request),
+      listingId,
+      dto,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -107,6 +137,21 @@ export class ListingsController {
       listingId,
       dto,
       file,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete(':listingId/photos/:photoId')
+  @HttpCode(HttpStatus.OK)
+  deleteListingPhoto(
+    @Req() request: RequestWithUser,
+    @Param('listingId', ParseUUIDPipe) listingId: string,
+    @Param('photoId', ParseUUIDPipe) photoId: string,
+  ) {
+    return this.listingsService.deleteListingPhoto(
+      this.getUserId(request),
+      listingId,
+      photoId,
     );
   }
 

@@ -5,6 +5,7 @@ import type { ICategory, IListing, RentalPeriod } from '@rento/shared'
 import { useAuth } from '../auth/AuthContext'
 import { searchCatalog } from '../catalog/catalogApi'
 import { ApiError } from '../lib/apiClient'
+import { formatListingRentalPriceRu } from '../lib/rentalPeriodRu'
 type SortApi = 'relevance' | 'newest' | 'price_asc' | 'price_desc'
 type SortPreset = 'cheap' | 'expensive' | 'popular' | 'near' | 'new'
 type RentalFilter = RentalPeriod | 'ALL'
@@ -26,6 +27,27 @@ const DEFAULT_SECTIONS: SectionTile[] = [
   { key: 'pets', title: 'Для питомцев', iconKey: 'pets' },
   { key: 'tech', title: 'Для техники', iconKey: 'tech' },
 ]
+
+/** Подписи разделов на русском, если в каталоге пришёл slug/имя на английском. */
+const CATEGORY_SECTION_TITLE_RU: Record<string, string> = {
+  'default-catalog': 'Разное',
+  tools: 'Инструменты',
+  vehicles: 'Транспорт',
+  'demo-power-tools': 'Электроинструмент',
+}
+
+function sectionTitleRu(cat: ICategory): string {
+  const bySlug = CATEGORY_SECTION_TITLE_RU[cat.slug]
+  if (bySlug) return bySlug
+  const byName = cat.name?.trim()
+  if (byName && /^[A-Za-z][A-Za-z\s&'-]+$/.test(byName)) {
+    const lower = byName.toLowerCase()
+    if (lower === 'tools') return 'Инструменты'
+    if (lower === 'vehicles') return 'Транспорт'
+    if (lower === 'miscellaneous' || lower === 'misc') return 'Разное'
+  }
+  return cat.name
+}
 
 const SORT_TO_API: Record<SortPreset, SortApi> = {
   cheap: 'price_asc',
@@ -113,8 +135,8 @@ export function HomePage() {
     return categories.slice(0, 6).map<SectionTile>((cat) => ({
       key: cat.id,
       categoryId: cat.id,
-      title: cat.name,
-      iconKey: matchIcon(cat.name),
+      title: sectionTitleRu(cat),
+      iconKey: matchIcon(sectionTitleRu(cat)),
     }))
   }, [categories])
 
@@ -309,8 +331,7 @@ function Card({ item }: { item: IListing }) {
         </h3>
         <p className="card__desc">{item.description}</p>
         <div className="card__prices">
-          <span className="card__price-main">{formatPrice(item)}</span>
-          <span className="card__price-secondary">{secondaryPrice(item)}</span>
+          <span className="card__price-main">{formatListingRentalPriceRu(item.rentalPrice, item.rentalPeriod)}</span>
         </div>
       </div>
       <div className="card__footer" style={{ zIndex: 2, position: 'relative' }}>
@@ -331,29 +352,6 @@ function Card({ item }: { item: IListing }) {
 }
 
 /* ---------- helpers ---------- */
-
-function formatPrice(item: IListing): string {
-  const currency = '₽'
-  const unit =
-    item.rentalPeriod === 'HOUR'
-      ? '/час'
-      : item.rentalPeriod === 'DAY'
-        ? '/сутки'
-        : item.rentalPeriod === 'WEEK'
-          ? '/неделя'
-          : '/месяц'
-  return `${Math.round(item.rentalPrice).toLocaleString('ru-RU')}${currency}${unit}`
-}
-
-function secondaryPrice(item: IListing): string {
-  if (item.rentalPeriod === 'HOUR') {
-    return `${Math.round(item.rentalPrice * 24).toLocaleString('ru-RU')}₽/сутки`
-  }
-  if (item.rentalPeriod === 'DAY') {
-    return `${Math.max(1, Math.round(item.rentalPrice / 24)).toLocaleString('ru-RU')}₽/час`
-  }
-  return ''
-}
 
 function periodLabel(period: RentalPeriod): string {
   switch (period) {

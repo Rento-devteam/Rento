@@ -1,7 +1,7 @@
 import { ListingSearchIndexService } from '../src/search/listing-search-index.service';
 
 /**
- * E2E/integration tests must not connect to Elasticsearch during app bootstrap.
+ * E2E tests must not connect to Elasticsearch during app bootstrap.
  */
 export function createListingSearchIndexStub(): ListingSearchIndexService {
   return {

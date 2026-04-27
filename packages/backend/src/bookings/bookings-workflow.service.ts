@@ -23,7 +23,7 @@ import {
 } from '../payments-hold/payment-hold.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { BookingsSettlementService } from './bookings-settlement.service';
-import { computeDayProjection } from './booking-dates';
+import { assertBookingStartsInFuture, computeDayProjection } from './booking-dates';
 import { computeUnits } from './booking-pricing';
 import { CALENDAR_BLOCKING_BOOKING_STATUSES } from './bookings.constants';
 import { TrustScoreService } from '../trust-score/trust-score.service';
@@ -54,6 +54,7 @@ export class BookingsWorkflowService {
     if (startAt.getTime() >= endAt.getTime()) {
       throw new BadRequestException('startAt must be before endAt');
     }
+    assertBookingStartsInFuture(startAt);
 
     const renter = await this.prisma.user.findUnique({
       where: { id: params.renterId },
@@ -316,12 +317,81 @@ export class BookingsWorkflowService {
     }
   }
 
+  async cancelBooking(params: { bookingId: string; actorUserId: string }) {
+    const booking = await this.prisma.booking.findFirst({
+      where: {
+        id: params.bookingId,
+        OR: [
+          { renterId: params.actorUserId },
+          { listing: { ownerId: params.actorUserId } },
+        ],
+      },
+      select: {
+        id: true,
+        status: true,
+        renterId: true,
+        totalAmount: true,
+        amountHeld: true,
+        paymentHoldId: true,
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    if (
+      booking.status === BookingStatus.CANCELLED ||
+      booking.status === BookingStatus.COMPLETED
+    ) {
+      throw new ConflictException('Бронирование уже закрыто или отменено');
+    }
+    if (booking.status === BookingStatus.DISPUTED) {
+      throw new ConflictException(
+        'Нельзя отменить бронирование со статусом «спор»',
+      );
+    }
+
+    const cancellable: BookingStatus[] = [
+      BookingStatus.PENDING,
+      BookingStatus.PENDING_PAYMENT,
+      BookingStatus.PAYMENT_FAILED,
+      BookingStatus.CONFIRMED,
+      BookingStatus.ACTIVE,
+    ];
+    if (!cancellable.includes(booking.status)) {
+      throw new ConflictException('Бронирование нельзя отменить');
+    }
+
+    const releaseAmount = round2(
+      booking.amountHeld ?? booking.totalAmount ?? 0,
+    );
+
+    if (booking.paymentHoldId && releaseAmount > 0) {
+      await this.holdGateway.releaseDeposit({
+        holdId: booking.paymentHoldId,
+        amount: releaseAmount,
+        currency: 'RUB',
+        idempotencyKey: `booking_cancel_release:${booking.id}`,
+        metadata: { bookingId: booking.id, reason: 'cancel' },
+      });
+    }
+
+    await this.prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: BookingStatus.CANCELLED,
+        amountHeld: null,
+        paymentHoldId: null,
+        paymentAuthorizationCode: null,
+      },
+    });
+
+    return { bookingId: booking.id, status: BookingStatus.CANCELLED };
+  }
+
   async confirmReturn(params: { bookingId: string; actorUserId: string }) {
     const now = new Date();
-
-    let didComplete = false;
-    let renterIdForScore: string | null = null;
-    let landlordIdForScore: string | null = null;
 
     const { booking, shouldRunSettlement } = await this.prisma.$transaction(
       async (tx) => {
@@ -360,17 +430,47 @@ export class BookingsWorkflowService {
         if (booking.status === BookingStatus.DISPUTED) {
           throw new ConflictException('Booking is disputed');
         }
-        if (
-          booking.status !== BookingStatus.ACTIVE &&
-          booking.status !== BookingStatus.CONFIRMED
-        ) {
-          throw new ConflictException('Booking is not eligible for return');
-        }
 
         const isRenter = booking.renterId === params.actorUserId;
         const isLandlord = booking.listing.ownerId === params.actorUserId;
         if (!isRenter && !isLandlord) {
           throw new ForbiddenException('Not a participant');
+        }
+
+        if (booking.status === BookingStatus.COMPLETED) {
+          const canRetrySettlement =
+            booking.returnMutualConfirmedAt != null &&
+            booking.paymentHoldId != null &&
+            booking.settlementStatus !== BookingSettlementStatus.SETTLED;
+
+          if (!canRetrySettlement) {
+            throw new ConflictException(
+              'Сделка уже завершена, повторное подтверждение не требуется.',
+            );
+          }
+
+          const updated = await tx.booking.update({
+            where: { id: booking.id },
+            data: { settlementStatus: BookingSettlementStatus.PENDING },
+            select: {
+              id: true,
+              paymentHoldId: true,
+              rentAmount: true,
+              depositAmount: true,
+              settlementStatus: true,
+            },
+          });
+
+          return { booking: updated, shouldRunSettlement: true };
+        }
+
+        if (
+          booking.status !== BookingStatus.ACTIVE &&
+          booking.status !== BookingStatus.CONFIRMED
+        ) {
+          throw new ConflictException(
+            'Нельзя подтвердить возврат в текущем статусе бронирования.',
+          );
         }
 
         const data: Prisma.BookingUpdateInput = {};
@@ -404,9 +504,6 @@ export class BookingsWorkflowService {
           data.returnMutualConfirmedAt = now;
           data.status = BookingStatus.COMPLETED;
           data.completedAt = now;
-          didComplete = true;
-          renterIdForScore = booking.renterId;
-          landlordIdForScore = booking.listing.ownerId;
 
           if (booking.settlementStatus === BookingSettlementStatus.NONE) {
             data.settlementStatus = BookingSettlementStatus.PENDING;
@@ -452,30 +549,30 @@ export class BookingsWorkflowService {
     );
 
     if (!shouldRunSettlement) {
-      if (didComplete && renterIdForScore && landlordIdForScore) {
-        await Promise.allSettled([
-          this.trustScoreService.recalculateForUser({
-            userId: renterIdForScore,
-            eventType: 'booking_completed',
-          }),
-          this.trustScoreService.recalculateForUser({
-            userId: landlordIdForScore,
-            eventType: 'booking_completed',
-          }),
-        ]);
-      }
       return { bookingId: booking.id, status: 'ok' as const };
     }
     await this.settlement.attemptSettlement({ bookingId: booking.id, now });
 
-    if (didComplete && renterIdForScore && landlordIdForScore) {
+    const settledParticipants = await this.prisma.booking.findUnique({
+      where: { id: booking.id },
+      select: {
+        settlementStatus: true,
+        renterId: true,
+        listing: { select: { ownerId: true } },
+      },
+    });
+    if (
+      settledParticipants?.settlementStatus === BookingSettlementStatus.SETTLED &&
+      settledParticipants.renterId &&
+      settledParticipants.listing?.ownerId
+    ) {
       await Promise.allSettled([
         this.trustScoreService.recalculateForUser({
-          userId: renterIdForScore,
+          userId: settledParticipants.renterId,
           eventType: 'booking_completed',
         }),
         this.trustScoreService.recalculateForUser({
-          userId: landlordIdForScore,
+          userId: settledParticipants.listing.ownerId,
           eventType: 'booking_completed',
         }),
       ]);

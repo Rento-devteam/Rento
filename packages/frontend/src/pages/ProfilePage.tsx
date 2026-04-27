@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import type { AuthUser } from '../auth/types'
 import { authApi } from '../auth/authApi'
 import { apiRequest, ApiError } from '../lib/apiClient'
-import type { IListing } from '@rento/shared'
+import type { IListing, RentalPeriod } from '@rento/shared'
+import { formatListingRentalPriceRu } from '../lib/rentalPeriodRu'
 import { deleteListing } from '../catalog/catalogApi'
 import {
   attachCard,
@@ -15,19 +16,36 @@ import {
 } from '../payments/paymentMethodsApi'
 import '../styles/profile.css'
 
-type ProfileIdentitySectionProps = {
+type ProfileEditModalProps = {
+  open: boolean
+  onClose: () => void
   user: AuthUser
   accessToken: string | null
   refreshProfile: () => Promise<void>
 }
 
-function ProfileIdentitySection({ user, accessToken, refreshProfile }: ProfileIdentitySectionProps) {
+function ProfileEditModal({
+  open,
+  onClose,
+  user,
+  accessToken,
+  refreshProfile,
+}: ProfileEditModalProps) {
   const [draftFullName, setDraftFullName] = useState(() => user.fullName ?? '')
   const [draftPhone, setDraftPhone] = useState(() => user.phone ?? '')
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileMessage, setProfileMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(
     null,
   )
+
+  useEffect(() => {
+    if (!open) return
+    queueMicrotask(() => {
+      setDraftFullName(user.fullName ?? '')
+      setDraftPhone(user.phone ?? '')
+      setProfileMessage(null)
+    })
+  }, [open, user])
 
   const isProfileDirty = useMemo(() => {
     return (
@@ -53,7 +71,7 @@ function ProfileIdentitySection({ user, accessToken, refreshProfile }: ProfileId
     try {
       await authApi.updateCurrentUser(body, accessToken)
       await refreshProfile()
-      setProfileMessage({ type: 'ok', text: 'Изменения сохранены' })
+      onClose()
     } catch (err: unknown) {
       setProfileMessage({
         type: 'err',
@@ -64,79 +82,127 @@ function ProfileIdentitySection({ user, accessToken, refreshProfile }: ProfileId
     }
   }
 
+  if (!open) return null
+
   return (
-    <section
-      id="profile-personal-data"
-      className="profile-panel profile-panel--form"
-      aria-labelledby="profile-edit-title"
+    <div
+      className="modal"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
     >
-      <h3 id="profile-edit-title" className="profile-panel__title">
-        Личные данные
-      </h3>
-      <form onSubmit={(e) => void handleSaveProfile(e)}>
-        <div className="profile-form__grid">
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label className="field__label" htmlFor="profile-fullName">
-              Имя и фамилия
-            </label>
-            <input
-              id="profile-fullName"
-              className="field__input"
-              type="text"
-              autoComplete="name"
-              maxLength={120}
-              value={draftFullName}
-              onChange={(e) => setDraftFullName(e.target.value)}
-            />
+      <div
+        className="modal__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profile-edit-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" className="modal__close" onClick={onClose} aria-label="Закрыть">
+          ×
+        </button>
+        <h2 id="profile-edit-modal-title" className="modal__title" style={{ marginTop: 0 }}>
+          Личные данные
+        </h2>
+        <form onSubmit={(e) => void handleSaveProfile(e)}>
+          <div className="profile-form__grid profile-form__grid--modal-stack">
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label className="field__label" htmlFor="profile-fullName">
+                Имя и фамилия
+              </label>
+              <input
+                id="profile-fullName"
+                className="field__input"
+                type="text"
+                autoComplete="name"
+                maxLength={120}
+                value={draftFullName}
+                onChange={(e) => setDraftFullName(e.target.value)}
+              />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label className="field__label" htmlFor="profile-phone">
+                Телефон
+              </label>
+              <input
+                id="profile-phone"
+                className="field__input"
+                type="tel"
+                autoComplete="tel"
+                maxLength={30}
+                placeholder="+7 …"
+                value={draftPhone}
+                onChange={(e) => setDraftPhone(e.target.value)}
+              />
+              <span className="field__hint">Не более 30 символов.</span>
+            </div>
           </div>
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label className="field__label" htmlFor="profile-phone">
-              Телефон
-            </label>
-            <input
-              id="profile-phone"
-              className="field__input"
-              type="tel"
-              autoComplete="tel"
-              maxLength={30}
-              placeholder="+7 …"
-              value={draftPhone}
-              onChange={(e) => setDraftPhone(e.target.value)}
-            />
-            <span className="field__hint">Не более 30 символов.</span>
+          {profileMessage ? (
+            <p
+              className={`profile-resend-msg${profileMessage.type === 'ok' ? ' profile-resend-msg--ok' : ' profile-resend-msg--err'}`}
+              style={{ marginTop: 'var(--sp-3)' }}
+            >
+              {profileMessage.text}
+            </p>
+          ) : null}
+          <div className="profile-form__actions" style={{ marginTop: 'var(--sp-4)' }}>
+            <button
+              type="submit"
+              className="btn btn--brand"
+              disabled={!isProfileDirty || profileSaving || !accessToken}
+            >
+              {profileSaving ? 'Сохранение…' : 'Сохранить'}
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost"
+              disabled={!isProfileDirty || profileSaving || !accessToken}
+              onClick={() => {
+                setDraftFullName(user.fullName ?? '')
+                setDraftPhone(user.phone ?? '')
+                setProfileMessage(null)
+              }}
+            >
+              Сбросить
+            </button>
           </div>
-        </div>
-        {profileMessage ? (
-          <p
-            className={`profile-resend-msg${profileMessage.type === 'ok' ? ' profile-resend-msg--ok' : ' profile-resend-msg--err'}`}
-            style={{ marginTop: 'var(--sp-3)' }}
-          >
-            {profileMessage.text}
-          </p>
-        ) : null}
-        <div className="profile-form__actions">
-          <button
-            type="submit"
-            className="btn btn--brand"
-            disabled={!isProfileDirty || profileSaving || !accessToken}
-          >
-            {profileSaving ? 'Сохранение…' : 'Сохранить'}
-          </button>
-          <button
-            type="button"
-            className="btn btn--ghost"
-            disabled={!isProfileDirty || profileSaving || !accessToken}
-            onClick={() => {
-              setDraftFullName(user.fullName ?? '')
-              setDraftPhone(user.phone ?? '')
-              setProfileMessage(null)
-            }}
-          >
-            Сбросить
-          </button>
-        </div>
-      </form>
-    </section>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+const PROFILE_CARDS_PREVIEW = 3
+const PROFILE_LISTINGS_PREVIEW = 4
+
+type ProfileFullListModalProps = {
+  title: string
+  open: boolean
+  onClose: () => void
+  children: ReactNode
+}
+
+function ProfileFullListModal({ title, open, onClose, children }: ProfileFullListModalProps) {
+  if (!open) return null
+  return (
+    <div className="modal" role="presentation" onClick={onClose}>
+      <div
+        className="modal__dialog profile-full-list-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profile-full-list-heading"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" className="modal__close" onClick={onClose} aria-label="Закрыть">
+          ×
+        </button>
+        <h2 id="profile-full-list-heading" className="modal__title" style={{ marginTop: 0 }}>
+          {title}
+        </h2>
+        <div className="profile-full-list-modal__body">{children}</div>
+      </div>
+    </div>
   )
 }
 
@@ -158,7 +224,7 @@ function accountStatusLabel(status: string): string {
 }
 
 function calculateOnTimeReturnsRate(totalDeals: number, lateReturns: number): number {
-  if (totalDeals <= 0) return 100
+  if (totalDeals <= 0) return 0
   const onTime = Math.max(0, totalDeals - lateReturns)
   return Math.round((onTime / totalDeals) * 100)
 }
@@ -197,6 +263,16 @@ export function ProfilePage() {
   const [setAsDefault, setSetAsDefault] = useState(false)
   const [cardActionLoading, setCardActionLoading] = useState(false)
   const [cardMessage, setCardMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [profileEditOpen, setProfileEditOpen] = useState(false)
+  const [profileFullListOpen, setProfileFullListOpen] = useState<'cards' | 'listings' | null>(null)
+  const [listingDeleteTarget, setListingDeleteTarget] = useState<{ id: string; title: string } | null>(
+    null,
+  )
+  const [listingDeleteSubmitting, setListingDeleteSubmitting] = useState(false)
+  const [listingDeleteError, setListingDeleteError] = useState<string | null>(null)
+
+  const visibleCards = useMemo(() => cards.slice(0, PROFILE_CARDS_PREVIEW), [cards])
+  const visibleListings = useMemo(() => listings.slice(0, PROFILE_LISTINGS_PREVIEW), [listings])
 
   useEffect(() => {
     if (!user?.id) {
@@ -209,7 +285,7 @@ export function ProfilePage() {
   }, [user?.id, navigate, refreshProfile])
 
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
 
     async function loadMyListings() {
       try {
@@ -234,7 +310,7 @@ export function ProfilePage() {
   }, [user?.id, accessToken])
 
   useEffect(() => {
-    if (!user || !accessToken) return
+    if (!user?.id || !accessToken) return
     const token = accessToken
 
     async function loadCards() {
@@ -255,13 +331,26 @@ export function ProfilePage() {
     void loadCards()
   }, [user?.id, accessToken])
 
-  const handleDelete = async (listingId: string) => {
-    if (!window.confirm('Вы уверены, что хотите удалить это объявление?')) return
+  const openListingDeleteModal = (listingId: string, title: string) => {
+    setListingDeleteError(null)
+    setListingDeleteTarget({ id: listingId, title })
+  }
+
+  const handleListingDeleteConfirm = async () => {
+    if (!listingDeleteTarget || !accessToken) return
+    setListingDeleteSubmitting(true)
+    setListingDeleteError(null)
     try {
-      await deleteListing(listingId, accessToken!)
-      setListings((prev) => prev.filter((l) => l.id !== listingId))
-    } catch {
-      alert('Не удалось удалить объявление')
+      await deleteListing(listingDeleteTarget.id, accessToken)
+      setListings((prev) => prev.filter((l) => l.id !== listingDeleteTarget.id))
+      setListingDeleteTarget(null)
+      setProfileFullListOpen(null)
+    } catch (err: unknown) {
+      setListingDeleteError(
+        err instanceof ApiError ? err.message : 'Не удалось удалить объявление',
+      )
+    } finally {
+      setListingDeleteSubmitting(false)
     }
   }
 
@@ -373,13 +462,14 @@ export function ProfilePage() {
           <header className="profile-page__masthead">
             <h1 className="profile-page__title">Профиль</h1>
             <div className="profile-page__masthead-actions">
-              <a
-                href="#profile-personal-data"
+              <button
+                type="button"
                 className="profile-page__icon-btn"
                 aria-label="Редактировать данные профиля"
+                onClick={() => setProfileEditOpen(true)}
               >
                 <PencilGlyph />
-              </a>
+              </button>
               <button type="button" className="btn btn--ghost profile-page__logout" onClick={logout}>
                 Выйти
               </button>
@@ -559,40 +649,54 @@ export function ProfilePage() {
                     Пока нет привязанных карт
                   </div>
                 ) : (
-                  <ul className="profile-bank-cards" aria-label="Привязанные банковские карты">
-                    {cards.map((card) => (
-                      <li key={card.id} className="profile-bank-cards__item">
-                        <div>
-                          <strong>
-                            {card.cardType} •••• {card.last4}
-                          </strong>
-                          <div className="profile-bank-cards__meta">
-                            {card.isDefault ? 'Карта по умолчанию' : 'Дополнительная карта'}
+                  <>
+                    <ul className="profile-bank-cards" aria-label="Привязанные банковские карты">
+                      {visibleCards.map((card) => (
+                        <li key={card.id} className="profile-bank-cards__item">
+                          <div>
+                            <strong>
+                              {card.cardType} •••• {card.last4}
+                            </strong>
+                            <div className="profile-bank-cards__meta">
+                              {card.isDefault ? 'Карта по умолчанию' : 'Дополнительная карта'}
+                            </div>
                           </div>
-                        </div>
-                        <div className="profile-bank-cards__actions">
-                          {!card.isDefault ? (
+                          <div className="profile-bank-cards__actions">
+                            {!card.isDefault ? (
+                              <button
+                                type="button"
+                                className="btn btn--ghost"
+                                disabled={cardActionLoading}
+                                onClick={() => void handleSetDefaultCard(card.id)}
+                              >
+                                Сделать основной
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className="btn btn--ghost"
                               disabled={cardActionLoading}
-                              onClick={() => void handleSetDefaultCard(card.id)}
+                              onClick={() => void handleRemoveCard(card.id)}
                             >
-                              Сделать основной
+                              Удалить
                             </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="btn btn--ghost"
-                            disabled={cardActionLoading}
-                            onClick={() => void handleRemoveCard(card.id)}
-                          >
-                            Удалить
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    {cards.length > PROFILE_CARDS_PREVIEW ? (
+                      <button
+                        type="button"
+                        className="btn btn--ghost profile-expand-more-btn"
+                        onClick={() => setProfileFullListOpen('cards')}
+                      >
+                        Показать все карты ({cards.length})
+                        <span className="profile-expand-more-btn__chevron" aria-hidden>
+                          ▼
+                        </span>
+                      </button>
+                    ) : null}
+                  </>
                 )}
               </section>
 
@@ -660,8 +764,9 @@ export function ProfilePage() {
               ) : null}
             </div>
 
-            <ProfileIdentitySection
-              key={user.id}
+            <ProfileEditModal
+              open={profileEditOpen}
+              onClose={() => setProfileEditOpen(false)}
               user={user}
               accessToken={accessToken}
               refreshProfile={refreshProfile}
@@ -738,75 +843,282 @@ export function ProfilePage() {
               ) : listings.length === 0 ? (
                 <div className="status">У вас пока нет объявлений.</div>
               ) : (
-                <div className="profile-listings-grid">
-                  {listings.map((listing) => (
-                    <div key={listing.id} className="profile-listing-card profile-listing-card--tile">
-                      <Link
-                        to={`/listings/${listing.id}`}
-                        className="profile-listing-card__link"
-                        aria-label={listing.title}
-                      />
-                      <div className="profile-listing-card__thumb">
-                        {listing.photos?.[0]?.url ? (
-                          <img src={listing.photos[0].url} alt="" />
-                        ) : null}
-                      </div>
-                      <div className="profile-listing-card__body">
-                        <h3 className="profile-listing-card__title">{listing.title}</h3>
-                        <div className="profile-listing-card__meta">
-                          <span>
-                            {listing.rentalPrice.toLocaleString('ru-RU')} ₽ /{' '}
-                            {listing.rentalPeriod === 'HOUR'
-                              ? 'час'
-                              : listing.rentalPeriod === 'DAY'
-                                ? 'сутки'
-                                : listing.rentalPeriod === 'WEEK'
-                                  ? 'неделя'
-                                  : 'месяц'}
-                          </span>
-                          <span>•</span>
-                          <span
+                <>
+                  <div className="profile-listings-grid">
+                    {visibleListings.map((listing) => (
+                      <div key={listing.id} className="profile-listing-card profile-listing-card--tile">
+                        <Link
+                          to={
+                            listing.status === 'DRAFT'
+                              ? `/listings/${listing.id}/edit`
+                              : `/listings/${listing.id}`
+                          }
+                          className="profile-listing-card__link"
+                          aria-label={listing.title}
+                        />
+                        <div className="profile-listing-card__thumb">
+                          {listing.photos?.[0]?.url ? (
+                            <img src={listing.photos[0].url} alt="" />
+                          ) : null}
+                        </div>
+                        <div className="profile-listing-card__body">
+                          <h3 className="profile-listing-card__title">{listing.title}</h3>
+                          <div className="profile-listing-card__meta">
+                            <span>
+                              {formatListingRentalPriceRu(
+                                listing.rentalPrice,
+                                listing.rentalPeriod as RentalPeriod,
+                              )}
+                            </span>
+                            <span>•</span>
+                            <span
+                              style={{
+                                color:
+                                  listing.status === 'ACTIVE'
+                                    ? 'var(--success-fg, #15803d)'
+                                    : 'var(--ink-500)',
+                              }}
+                            >
+                              {listing.status === 'ACTIVE' ? 'Активно' : 'Черновик'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="profile-listing-card__actions">
+                          <Link
+                            to={`/listings/${listing.id}/edit`}
+                            className="btn btn--ghost"
+                            style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                          >
+                            Изменить
+                          </Link>
+                          <Link
+                            to={`/listings/${listing.id}/calendar`}
+                            className="btn btn--ghost"
+                            style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                          >
+                            Календарь
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => openListingDeleteModal(listing.id, listing.title)}
+                            className="btn btn--ghost"
                             style={{
-                              color:
-                                listing.status === 'ACTIVE'
-                                  ? 'var(--success-fg, #15803d)'
-                                  : 'var(--ink-500)',
+                              padding: '6px 12px',
+                              fontSize: '0.85rem',
+                              color: 'var(--danger-fg, #b91c1c)',
                             }}
                           >
-                            {listing.status === 'ACTIVE' ? 'Активно' : 'Черновик'}
-                          </span>
+                            Удалить
+                          </button>
                         </div>
                       </div>
-                      <div className="profile-listing-card__actions">
-                        <Link
-                          to={`/listings/${listing.id}/calendar`}
-                          className="btn btn--ghost"
-                          style={{ padding: '6px 12px', fontSize: '0.85rem' }}
-                        >
-                          Календарь
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => void handleDelete(listing.id)}
-                          className="btn btn--ghost"
-                          style={{
-                            padding: '6px 12px',
-                            fontSize: '0.85rem',
-                            color: 'var(--danger-fg, #b91c1c)',
-                          }}
-                        >
-                          Удалить
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                  {listings.length > PROFILE_LISTINGS_PREVIEW ? (
+                    <button
+                      type="button"
+                      className="btn btn--ghost profile-expand-more-btn"
+                      style={{ marginTop: 'var(--sp-4)' }}
+                      onClick={() => setProfileFullListOpen('listings')}
+                    >
+                      Показать все объявления ({listings.length})
+                      <span className="profile-expand-more-btn__chevron" aria-hidden>
+                        ▼
+                      </span>
+                    </button>
+                  ) : null}
+                </>
               )}
             </section>
           </div>
         </div>
       </div>
     </div>
+
+      <ProfileFullListModal
+        title="Все привязанные карты"
+        open={profileFullListOpen === 'cards'}
+        onClose={() => setProfileFullListOpen(null)}
+      >
+        <ul className="profile-bank-cards" aria-label="Все банковские карты">
+          {cards.map((card) => (
+            <li key={card.id} className="profile-bank-cards__item">
+              <div>
+                <strong>
+                  {card.cardType} •••• {card.last4}
+                </strong>
+                <div className="profile-bank-cards__meta">
+                  {card.isDefault ? 'Карта по умолчанию' : 'Дополнительная карта'}
+                </div>
+              </div>
+              <div className="profile-bank-cards__actions">
+                {!card.isDefault ? (
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    disabled={cardActionLoading}
+                    onClick={() => void handleSetDefaultCard(card.id)}
+                  >
+                    Сделать основной
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  disabled={cardActionLoading}
+                  onClick={() => void handleRemoveCard(card.id)}
+                >
+                  Удалить
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </ProfileFullListModal>
+
+      <ProfileFullListModal
+        title="Все объявления"
+        open={profileFullListOpen === 'listings'}
+        onClose={() => setProfileFullListOpen(null)}
+      >
+        <div className="profile-listings-grid profile-listings-grid--modal">
+          {listings.map((listing) => (
+            <div key={listing.id} className="profile-listing-card profile-listing-card--tile">
+              <Link
+                to={
+                  listing.status === 'DRAFT'
+                    ? `/listings/${listing.id}/edit`
+                    : `/listings/${listing.id}`
+                }
+                className="profile-listing-card__link"
+                aria-label={listing.title}
+              />
+              <div className="profile-listing-card__thumb">
+                {listing.photos?.[0]?.url ? <img src={listing.photos[0].url} alt="" /> : null}
+              </div>
+              <div className="profile-listing-card__body">
+                <h3 className="profile-listing-card__title">{listing.title}</h3>
+                <div className="profile-listing-card__meta">
+                  <span>
+                    {formatListingRentalPriceRu(
+                      listing.rentalPrice,
+                      listing.rentalPeriod as RentalPeriod,
+                    )}
+                  </span>
+                  <span>•</span>
+                  <span
+                    style={{
+                      color:
+                        listing.status === 'ACTIVE'
+                          ? 'var(--success-fg, #15803d)'
+                          : 'var(--ink-500)',
+                    }}
+                  >
+                    {listing.status === 'ACTIVE' ? 'Активно' : 'Черновик'}
+                  </span>
+                </div>
+              </div>
+              <div className="profile-listing-card__actions">
+                <Link
+                  to={`/listings/${listing.id}/edit`}
+                  className="btn btn--ghost"
+                  style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                >
+                  Изменить
+                </Link>
+                <Link
+                  to={`/listings/${listing.id}/calendar`}
+                  className="btn btn--ghost"
+                  style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                >
+                  Календарь
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => openListingDeleteModal(listing.id, listing.title)}
+                  className="btn btn--ghost"
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '0.85rem',
+                    color: 'var(--danger-fg, #b91c1c)',
+                  }}
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </ProfileFullListModal>
+
+      {listingDeleteTarget ? (
+        <div
+          className="modal"
+          role="presentation"
+          onClick={() => {
+            if (!listingDeleteSubmitting) {
+              setListingDeleteTarget(null)
+              setListingDeleteError(null)
+            }
+          }}
+        >
+          <div
+            className="modal__dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-delete-listing-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="modal__close"
+              aria-label="Закрыть"
+              disabled={listingDeleteSubmitting}
+              onClick={() => {
+                setListingDeleteTarget(null)
+                setListingDeleteError(null)
+              }}
+            >
+              ×
+            </button>
+            <h2 id="profile-delete-listing-title" className="modal__title" style={{ marginTop: 0 }}>
+              Удалить объявление?
+            </h2>
+            <p className="modal__subtitle" style={{ marginBottom: 'var(--sp-4)' }}>
+              Объявление «
+              <strong style={{ wordBreak: 'break-word' }}>{listingDeleteTarget.title}</strong>» будет
+              удалено без возможности восстановления. Активные карточки исчезнут из каталога, черновики
+              тоже.
+            </p>
+            {listingDeleteError ? (
+              <div className="alert alert--error" style={{ marginBottom: 'var(--sp-3)' }}>
+                {listingDeleteError}
+              </div>
+            ) : null}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-3)', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn--ghost-solid"
+                disabled={listingDeleteSubmitting}
+                onClick={() => {
+                  setListingDeleteTarget(null)
+                  setListingDeleteError(null)
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="btn btn--danger"
+                disabled={listingDeleteSubmitting}
+                onClick={() => void handleListingDeleteConfirm()}
+              >
+                {listingDeleteSubmitting ? 'Удаление…' : 'Да, удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }
