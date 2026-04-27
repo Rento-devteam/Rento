@@ -1,3 +1,7 @@
+jest.mock('./listing-photo-storage.service', () => ({
+  ListingPhotoStorage: class ListingPhotoStorage {},
+}));
+
 import {
   BadRequestException,
   ConflictException,

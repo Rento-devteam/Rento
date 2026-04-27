@@ -28,6 +28,10 @@ import {
   buildUserProfileResponse,
   UserProfileResponse,
 } from '../users/user-profile.mapper';
+import {
+  isStrongPassword,
+  PASSWORD_FORMAT_MESSAGE,
+} from './password-policy';
 
 export interface AuthSuccessResponse {
   accessToken: string;
@@ -60,6 +64,10 @@ export class AuthService {
         },
         HttpStatus.BAD_REQUEST,
       );
+    }
+
+    if (!isStrongPassword(dto.password)) {
+      throw new BadRequestException(PASSWORD_FORMAT_MESSAGE);
     }
 
     const existingUser = await this.prismaService.user.findUnique({
