@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import type { ICategory, IListing, RentalPeriod } from '@rento/shared'
@@ -90,14 +90,15 @@ export function HomePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  async function loadCatalog() {
+  const loadCatalog = useCallback(async (overrides?: { categoryId?: string }) => {
+    const effectiveCategoryId = overrides?.categoryId ?? categoryId
     setLoading(true)
     setError(null)
     try {
       const response = await searchCatalog(
         {
           q,
-          categoryId: categoryId || undefined,
+          categoryId: effectiveCategoryId || undefined,
           minPrice: minPrice ? Number(minPrice) : undefined,
           maxPrice: maxPrice ? Number(maxPrice) : undefined,
           sort: SORT_TO_API[sortPreset],
@@ -108,10 +109,13 @@ export function HomePage() {
       )
       setItems(response.results)
 
-      const map = new Map<string, ICategory>()
-      for (const cat of response.popularCategories) map.set(cat.id, cat)
-      for (const listing of response.results) map.set(listing.category.id, listing.category)
-      setCategories([...map.values()])
+      setCategories((prev) => {
+        const map = new Map<string, ICategory>()
+        for (const cat of prev) map.set(cat.id, cat)
+        for (const cat of response.popularCategories) map.set(cat.id, cat)
+        for (const listing of response.results) map.set(listing.category.id, listing.category)
+        return [...map.values()]
+      })
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : 'Не удалось загрузить карточки. Попробуйте ещё раз.',
@@ -120,7 +124,7 @@ export function HomePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [accessToken, categoryId, maxPrice, minPrice, q, sortPreset])
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -151,8 +155,9 @@ export function HomePage() {
   }
 
   function toggleCategory(nextId: string) {
-    setCategoryId((current) => (current === nextId ? '' : nextId))
-    setTimeout(() => void loadCatalog(), 0)
+    const nextCategoryId = categoryId === nextId ? '' : nextId
+    setCategoryId(nextCategoryId)
+    void loadCatalog({ categoryId: nextCategoryId })
   }
 
   return (

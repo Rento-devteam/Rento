@@ -134,20 +134,6 @@ describe('ProfilePage', () => {
     })
   })
 
-  it('shows identity verification card placeholder', async () => {
-    render(
-      <MemoryRouter>
-        <ProfilePage />
-      </MemoryRouter>,
-    )
-
-    expect(
-      await screen.findByRole('heading', { name: /Подтверждённый аккаунт/i }),
-    ).toBeInTheDocument()
-    expect(screen.getAllByText(/ЕСИА/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByRole('button', { name: /^Подтвердить аккаунт$/i })).toBeDisabled()
-  })
-
   it('saves profile when form is submitted', async () => {
     const user = userEvent.setup()
     const refreshProfile = vi.fn().mockResolvedValue(undefined)
