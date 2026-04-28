@@ -6,6 +6,8 @@ import { useAuth } from '../auth/AuthContext'
 import { searchCatalog } from '../catalog/catalogApi'
 import { ApiError } from '../lib/apiClient'
 import { formatListingRentalPriceRu } from '../lib/rentalPeriodRu'
+import { getListingDisplayParts } from '../lib/listingDescriptionParts'
+import { listingConditionLabelRu } from '../lib/listingConditionRu'
 type SortApi = 'relevance' | 'newest' | 'price_asc' | 'price_desc'
 type SortPreset = 'cheap' | 'expensive' | 'popular' | 'near' | 'new'
 type RentalFilter = RentalPeriod | 'ALL'
@@ -320,6 +322,11 @@ function Card({ item }: { item: IListing }) {
   const cover = item.photos[0]?.url
   const cityName = extractCity(item.description)
   const period = periodLabel(item.rentalPeriod)
+  const displayParts = getListingDisplayParts(item.description ?? '')
+  const conditionRu = listingConditionLabelRu(displayParts.condition)
+  const cardDescription = [conditionRu ? `Состояние: ${conditionRu}` : null, displayParts.description]
+    .filter((part): part is string => Boolean(part && part.trim() && part.trim() !== '—'))
+    .join('. ')
   return (
     <article className="card">
       <Link to={`/listings/${item.id}`} className="card__link-overlay" aria-label={item.title} />
@@ -334,7 +341,7 @@ function Card({ item }: { item: IListing }) {
         <h3 className="card__title">
           {item.title}
         </h3>
-        <p className="card__desc">{item.description}</p>
+        <p className="card__desc">{cardDescription || item.description}</p>
         <div className="card__prices">
           <span className="card__price-main">{formatListingRentalPriceRu(item.rentalPrice, item.rentalPeriod)}</span>
         </div>

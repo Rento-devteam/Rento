@@ -105,8 +105,7 @@ describe('ProfilePage', () => {
     expect(screen.getByText('test@example.com')).toBeInTheDocument()
     expect(screen.getByText('+7 999 123 45 67')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Индекс доверия/i })).toBeInTheDocument()
-    expect(screen.getByText('95 / 100')).toBeInTheDocument()
-    expect(screen.getByText('Нет данных')).toBeInTheDocument()
+    expect(screen.getAllByText('95').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('10').length).toBeGreaterThan(0)
 
     await waitFor(() => {

@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   BookingSettlementStatus,
-  IdentityVerificationStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TrustScoreSnapshot } from '../users/user-profile.mapper';
@@ -67,17 +66,6 @@ export class TrustScoreService {
     }
 
     const now = new Date();
-
-    const verification = await this.prismaService.identityVerification.findUnique({
-      where: { userId: params.userId },
-      select: { status: true },
-    });
-
-    const verificationFactor =
-      verification?.status === IdentityVerificationStatus.VERIFIED ? 1 : 0;
-
-    // Reviews are not implemented in backend yet; keep a stable base factor (50%).
-    const ratingFactor = 0.5;
 
     const baseCompletedWhere = {
       status: 'COMPLETED' as const,
@@ -146,8 +134,8 @@ export class TrustScoreService {
 
     const reliabilityFactor = totalDeals > 0 ? successfulDeals / totalDeals : 0;
 
-    const ars =
-      verificationFactor * 0.2 + ratingFactor * 0.3 + reliabilityFactor * 0.5;
+    // Trust score is based only on booking reliability (identity/reviews are excluded).
+    const ars = reliabilityFactor;
     const currentScore = this.clampInt(Math.round(ars * 100), 0, 100);
 
     const disputes = 0;

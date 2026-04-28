@@ -497,7 +497,7 @@ export function ProfilePage() {
               >
                 <PencilGlyph />
               </button>
-              <button type="button" className="btn btn--ghost profile-page__logout" onClick={logout}>
+              <button type="button" className="btn btn--primary profile-page__logout" onClick={logout}>
                 Выйти
               </button>
             </div>
@@ -506,8 +506,10 @@ export function ProfilePage() {
 
           <section className="profile-hero" aria-label="Сводка профиля">
             <div className="profile-hero__identity">
-              <div className="profile-hero__avatar" aria-hidden={!!user.avatarUrl}>
-                {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : initials}
+              <div className="profile-hero__avatar-wrap">
+                <div className="profile-hero__avatar" aria-hidden={!!user.avatarUrl}>
+                  {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : initials}
+                </div>
               </div>
               <div className="profile-hero__text">
                 <p className="profile-hero__name">{user.fullName || 'Без имени'}</p>
@@ -544,28 +546,16 @@ export function ProfilePage() {
             <div className="profile-panel__head">
               <h3 className="profile-panel__title">Индекс доверия</h3>
             </div>
+            {trust ? <div className="profile-trust-score-badge">{trust.currentScore}</div> : null}
             <p className="profile-panel__hint">
-              Сейчас в расчёт входят подтверждение личности и история возвратов в срок по сделкам. Отзывы
-              пользователей появятся здесь после запуска модуля отзывов.
+              Индекс доверия учитывает только историю возвратов по завершённым сделкам.
             </p>
             {trust ? (
               <>
                 <div className="profile-trust" style={{ marginTop: 'var(--sp-3)' }}>
                   <div className="profile-trust__item">
-                    <span className="profile-trust__label">Индекс</span>
-                    <span className="profile-trust__value profile-trust__value--primary">
-                      {trust.currentScore} / 100
-                    </span>
-                  </div>
-                  <div className="profile-trust__item">
                     <span className="profile-trust__label">Подтверждение личности</span>
-                    <span className="profile-trust__value">
-                      {trust.currentScore >= 60 ? 'Учтено' : 'Не учтено'}
-                    </span>
-                  </div>
-                  <div className="profile-trust__item">
-                    <span className="profile-trust__label">Отзывы пользователей</span>
-                    <span className="profile-trust__value">Нет данных</span>
+                    <span className="profile-trust__value">Скоро</span>
                   </div>
                   <div className="profile-trust__item">
                     <span className="profile-trust__label">Возвраты в срок</span>
@@ -573,8 +563,6 @@ export function ProfilePage() {
                       {calculateOnTimeReturnsRate(trust.totalDeals, trust.lateReturns)}%
                     </span>
                   </div>
-                </div>
-                <div className="profile-trust" style={{ marginTop: 'var(--sp-3)' }}>
                   <div className="profile-trust__item">
                     <span className="profile-trust__label">Всего сделок</span>
                     <span className="profile-trust__value">{trust.totalDeals}</span>
@@ -586,6 +574,12 @@ export function ProfilePage() {
                   <div className="profile-trust__item">
                     <span className="profile-trust__label">Просроченных возвратов</span>
                     <span className="profile-trust__value">{trust.lateReturns}</span>
+                  </div>
+                  <div className="profile-trust__item">
+                    <span className="profile-trust__label">Отзывы</span>
+                    <span className="profile-trust__value">
+                      {userReviewsCount > 0 ? `Оценка ${userRatingValue}` : 'Оценка —'}
+                    </span>
                   </div>
                 </div>
               </>
