@@ -1,7 +1,9 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
 
-function collectFieldMessages(errors: ValidationError[]): Record<string, string> {
+function collectFieldMessages(
+  errors: ValidationError[],
+): Record<string, string> {
   const fields: Record<string, string> = {};
   const walk = (errs: ValidationError[]) => {
     for (const e of errs) {

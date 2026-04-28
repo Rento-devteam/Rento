@@ -1,7 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import {
-  BookingSettlementStatus,
-} from '@prisma/client';
+import { BookingSettlementStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TrustScoreSnapshot } from '../users/user-profile.mapper';
 
@@ -67,7 +65,7 @@ export class TrustScoreService {
 
     const now = new Date();
 
-    const baseCompletedWhere = {
+    const baseCompletedWhere: Prisma.BookingWhereInput = {
       status: 'COMPLETED' as const,
       OR: [
         { renterId: params.userId },
@@ -77,13 +75,13 @@ export class TrustScoreService {
 
     const [totalDeals, completedDeals] = await Promise.all([
       this.prismaService.booking.count({
-        where: baseCompletedWhere as any,
+        where: baseCompletedWhere,
       }),
       this.prismaService.booking.findMany({
         where: {
-          ...(baseCompletedWhere as any),
+          ...baseCompletedWhere,
           completedAt: { not: null },
-        } as any,
+        },
         select: {
           id: true,
           endAt: true,
@@ -200,4 +198,3 @@ export class TrustScoreService {
     return hours * 60 * 60 * 1000;
   }
 }
-

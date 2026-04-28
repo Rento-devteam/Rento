@@ -134,16 +134,14 @@ export class BookingsReturnAutoConfirmJob {
 
   private async processRetries(now: Date) {
     const retries = await this.prisma.booking.findMany({
-      // Note: Prisma client typings in this repo may lag behind schema migrations.
-      // We keep runtime behavior correct by casting where/orderBy to any.
       where: {
         settlementStatus: BookingSettlementStatus.FAILED,
         settlementNextRetryAt: { lte: now },
         status: BookingStatus.COMPLETED,
-      } as any,
+      },
       select: { id: true },
       take: 50,
-      orderBy: { settlementNextRetryAt: 'asc' } as any,
+      orderBy: { settlementNextRetryAt: 'asc' },
     });
 
     for (const b of retries) {
@@ -180,11 +178,13 @@ export class BookingsReturnAutoConfirmJob {
         }
       } catch (err) {
         this.logger.warn(
-          { bookingId: b.id, err: err instanceof Error ? err.message : String(err) },
+          {
+            bookingId: b.id,
+            err: err instanceof Error ? err.message : String(err),
+          },
           'Settlement retry failed',
         );
       }
     }
   }
 }
-

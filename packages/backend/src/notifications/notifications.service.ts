@@ -46,7 +46,10 @@ export class NotificationsService {
     return Promise.resolve();
   }
 
-  notifyLandlordBookingCompleted(params: { bookingId: string; landlordId: string }) {
+  notifyLandlordBookingCompleted(params: {
+    bookingId: string;
+    landlordId: string;
+  }) {
     this.logger.log(
       { ...params, type: 'landlord_booking_completed' },
       'Notification stub',

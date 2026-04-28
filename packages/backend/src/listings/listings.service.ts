@@ -396,11 +396,7 @@ export class ListingsService {
     return response;
   }
 
-  async deleteListingPhoto(
-    userId: string,
-    listingId: string,
-    photoId: string,
-  ) {
+  async deleteListingPhoto(userId: string, listingId: string, photoId: string) {
     const listing = await this.prismaService.listing.findFirst({
       where: { id: listingId, ownerId: userId },
       select: {
@@ -431,10 +427,7 @@ export class ListingsService {
       throw new NotFoundException('Photo not found');
     }
 
-    if (
-      listing.status === ListingStatus.ACTIVE &&
-      listing.photos.length <= 1
-    ) {
+    if (listing.status === ListingStatus.ACTIVE && listing.photos.length <= 1) {
       throw new BadRequestException(
         'У опубликованного объявления должно остаться хотя бы одно фото',
       );

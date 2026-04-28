@@ -80,8 +80,7 @@ describe('TrustScoreService', () => {
     });
 
     // totalDeals
-    prismaService.booking.count
-      .mockResolvedValueOnce(10);
+    prismaService.booking.count.mockResolvedValueOnce(10);
 
     // completedAt compared with due endAt/endDate: 2 late out of 4 completed
     prismaService.booking.findMany.mockResolvedValue([
@@ -252,4 +251,3 @@ describe('TrustScoreService', () => {
     );
   });
 });
-

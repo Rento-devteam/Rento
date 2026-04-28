@@ -19,4 +19,3 @@ import { EsiaStubVerificationProvider } from './providers/esia-stub.provider';
   exports: [VerificationService],
 })
 export class VerificationModule {}
-

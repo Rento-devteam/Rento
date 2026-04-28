@@ -24,4 +24,3 @@ export interface IdentityVerificationProvider {
     userId: string;
   }): Promise<IdentityAssertion>;
 }
-

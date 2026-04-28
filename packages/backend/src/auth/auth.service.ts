@@ -28,10 +28,7 @@ import {
   buildUserProfileResponse,
   UserProfileResponse,
 } from '../users/user-profile.mapper';
-import {
-  isStrongPassword,
-  PASSWORD_FORMAT_MESSAGE,
-} from './password-policy';
+import { isStrongPassword, PASSWORD_FORMAT_MESSAGE } from './password-policy';
 
 export interface AuthSuccessResponse {
   accessToken: string;

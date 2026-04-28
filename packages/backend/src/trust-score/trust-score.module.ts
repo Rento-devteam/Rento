@@ -11,4 +11,3 @@ import { TrustScoreRecalculateJob } from './trust-score-recalculate.job';
   exports: [TrustScoreService],
 })
 export class TrustScoreModule {}
-

@@ -22,7 +22,7 @@ export class BookingsSettlementService {
   async attemptSettlement(params: { bookingId: string; now?: Date }) {
     const now = params.now ?? new Date();
 
-    const booking = (await this.prisma.booking.findUnique({
+    const booking = await this.prisma.booking.findUnique({
       where: { id: params.bookingId },
       select: {
         id: true,
@@ -33,8 +33,8 @@ export class BookingsSettlementService {
         depositAmount: true,
         settlementStatus: true,
         settlementRetryCount: true,
-      } as any,
-    })) as any;
+      },
+    });
 
     if (!booking) {
       throw new ConflictException('Booking not found');
@@ -49,7 +49,7 @@ export class BookingsSettlementService {
           settlementStatus: BookingSettlementStatus.FAILED,
           settlementError: 'Missing paymentHoldId',
           settlementLastAttemptAt: now,
-        } as any,
+        },
       });
       throw new ConflictException('Missing payment hold for settlement');
     }
@@ -59,7 +59,7 @@ export class BookingsSettlementService {
 
     await this.prisma.booking.update({
       where: { id: booking.id },
-      data: { settlementLastAttemptAt: now } as any,
+      data: { settlementLastAttemptAt: now },
     });
 
     const rent = Number(booking.rentAmount);
@@ -95,7 +95,7 @@ export class BookingsSettlementService {
           settlementError: null,
           settlementNextRetryAt: null,
           settledAt: now,
-        } as any,
+        },
       });
 
       if (depositOk) {
@@ -122,7 +122,7 @@ export class BookingsSettlementService {
           settlementError: message,
           settlementRetryCount: { increment: 1 },
           settlementNextRetryAt: next,
-        } as any,
+        },
       });
 
       throw err;
@@ -136,4 +136,3 @@ export class BookingsSettlementService {
     return new Date(now.getTime() + RETRY_SCHEDULE_MS[currentRetryCount]);
   }
 }
-

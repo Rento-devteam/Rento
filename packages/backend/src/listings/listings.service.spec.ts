@@ -60,7 +60,7 @@ describe('ListingsService', () => {
     service = new ListingsService(
       prismaService as never,
       usersService as never,
-      listingPhotoStorage as never,
+      listingPhotoStorage,
       listingSearchIndex as never,
     );
   });
@@ -308,12 +308,19 @@ describe('ListingsService', () => {
       },
     ]);
 
-    const result = await service.deleteListingPhoto('user-1', 'listing-1', 'p1');
+    const result = await service.deleteListingPhoto(
+      'user-1',
+      'listing-1',
+      'p1',
+    );
 
     expect(result.totalPhotos).toBe(1);
     expect(prismaService.listingPhoto.updateMany).toHaveBeenCalled();
     expect(prismaService.listingPhoto.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'p2' }, data: { isPrimary: true } }),
+      expect.objectContaining({
+        where: { id: 'p2' },
+        data: { isPrimary: true },
+      }),
     );
     expect(listingSearchIndex.indexListing).not.toHaveBeenCalled();
   });
@@ -340,7 +347,7 @@ describe('ListingsService', () => {
         { id: 'p2', order: 1, isPrimary: false },
       ],
     });
-    prismaService.listingPhoto.delete.mockResolvedValue({} as never);
+    prismaService.listingPhoto.delete.mockResolvedValue({});
     prismaService.listingPhoto.findMany.mockResolvedValue([
       {
         id: 'p2',
@@ -418,9 +425,9 @@ describe('ListingsService', () => {
     });
     prismaService.booking.count.mockResolvedValue(1);
 
-    await expect(service.deleteListing('user-1', 'listing-1')).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.deleteListing('user-1', 'listing-1'),
+    ).rejects.toBeInstanceOf(ConflictException);
     expect(prismaService.listingPhoto.deleteMany).not.toHaveBeenCalled();
     expect(prismaService.listing.delete).not.toHaveBeenCalled();
   });
@@ -432,7 +439,9 @@ describe('ListingsService', () => {
     });
     prismaService.booking.count.mockResolvedValue(0);
     prismaService.listingPhoto.deleteMany.mockResolvedValue({ count: 0 });
-    prismaService.listingManualCalendarBlock.deleteMany.mockResolvedValue({ count: 0 });
+    prismaService.listingManualCalendarBlock.deleteMany.mockResolvedValue({
+      count: 0,
+    });
     prismaService.listing.delete.mockResolvedValue({ id: 'listing-1' });
 
     await service.deleteListing('user-1', 'listing-1');
