@@ -49,6 +49,10 @@ jobs:
         working-directory: packages/backend
         run: npm install --no-package-lock
 
+      - name: Backend lint
+        working-directory: packages/backend
+        run: npm run lint
+
       - name: Backend unit tests
         working-directory: packages/backend
         run: npm test -- --runInBand

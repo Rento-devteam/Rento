@@ -105,8 +105,7 @@ describe('ProfilePage', () => {
     expect(screen.getByText('test@example.com')).toBeInTheDocument()
     expect(screen.getByText('+7 999 123 45 67')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Индекс доверия/i })).toBeInTheDocument()
-    expect(screen.getByText('95 / 100')).toBeInTheDocument()
-    expect(screen.getByText('Нет данных')).toBeInTheDocument()
+    expect(screen.getAllByText('95').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('10').length).toBeGreaterThan(0)
 
     await waitFor(() => {
@@ -132,20 +131,6 @@ describe('ProfilePage', () => {
     await waitFor(() => {
       expect(refreshProfile).toHaveBeenCalled()
     })
-  })
-
-  it('shows identity verification card placeholder', async () => {
-    render(
-      <MemoryRouter>
-        <ProfilePage />
-      </MemoryRouter>,
-    )
-
-    expect(
-      await screen.findByRole('heading', { name: /Подтверждённый аккаунт/i }),
-    ).toBeInTheDocument()
-    expect(screen.getAllByText(/ЕСИА/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByRole('button', { name: /^Подтвердить аккаунт$/i })).toBeDisabled()
   })
 
   it('saves profile when form is submitted', async () => {

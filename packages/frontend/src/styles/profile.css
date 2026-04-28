@@ -72,8 +72,13 @@
 }
 
 .profile-page__logout {
-  padding: 8px 14px;
+  padding: 8px 12px;
   font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.profile-page__logout:hover {
+  background: var(--ink-900);
 }
 
 /* Герой: аватар + рейтинг + кошелёк */
@@ -98,10 +103,16 @@
   min-width: 0;
 }
 
-.profile-hero__avatar {
+.profile-hero__avatar-wrap {
+  position: relative;
   width: 108px;
   height: 108px;
   flex-shrink: 0;
+}
+
+.profile-hero__avatar {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   background: #0f172a;
   color: #fff;
@@ -463,6 +474,15 @@
   box-shadow: var(--shadow-sm);
 }
 
+.profile-panel--trust {
+  margin-bottom: var(--sp-6);
+  border-color: rgba(37, 99, 235, 0.5);
+  background: linear-gradient(180deg, rgba(219, 234, 254, 0.95) 0%, #ffffff 100%);
+  box-shadow:
+    0 0 0 1px rgba(59, 130, 246, 0.15),
+    0 10px 28px rgba(37, 99, 235, 0.12);
+}
+
 .profile-panel__head {
   display: flex;
   align-items: center;
@@ -706,6 +726,25 @@
   color: var(--brand-700);
 }
 
+.profile-trust-score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 74px;
+  min-height: 74px;
+  margin-bottom: var(--sp-3);
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.01em;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #60a5fa 0%, #3b82f6 58%, #2563eb 100%);
+  box-shadow:
+    0 8px 18px rgba(37, 99, 235, 0.32),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
 .profile-listings__head {
   display: flex;
   align-items: center;
@@ -838,6 +877,20 @@
 .profile-expand-more-btn__chevron {
   font-size: 0.75rem;
   line-height: 1;
+}
+
+.profile-listings-pagination {
+  margin-top: var(--sp-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.profile-listings-pagination__meta {
+  font-size: 0.88rem;
+  color: var(--ink-600);
 }
 
 .profile-full-list-modal__body {

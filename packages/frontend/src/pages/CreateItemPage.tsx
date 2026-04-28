@@ -21,10 +21,10 @@ import {
 type RentalMethod = 'hour' | 'day' | 'week' | 'month'
 
 type CreateStep = 'form' | 'upload'
+type PendingPhoto = { tempId: string; file: File }
 
 const TITLE_MIN = 3
 const TITLE_MAX = 180
-const DESC_MIN = 10
 const DESC_MAX = 8000
 const PRICE_MAX = 10_000_000
 /** Совпадает с лимитом на сервере (`MAX_LISTING_PHOTOS`). */
@@ -77,9 +77,6 @@ function validateListingForm(params: {
     return `Название не длиннее ${TITLE_MAX} символов`
   }
   const desc = params.description.trim()
-  if (desc.length < DESC_MIN) {
-    return `Описание не короче ${DESC_MIN} символов`
-  }
   if (desc.length > DESC_MAX) {
     return `Описание не длиннее ${DESC_MAX} символов`
   }
@@ -114,6 +111,7 @@ export function CreateItemPage() {
   const [step, setStep] = useState<CreateStep>('form')
   const [createdListing, setCreatedListing] = useState<CreateListingResponse | null>(null)
   const [uploadedPhotos, setUploadedPhotos] = useState<Array<{ id: string; url: string }>>([])
+  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([])
   const [photoLightboxIndex, setPhotoLightboxIndex] = useState<number | null>(null)
 
   const [formData, setFormData] = useState({
@@ -128,25 +126,23 @@ export function CreateItemPage() {
     deposit: '',
   })
 
-  const formLocked = step === 'upload' && !isEditMode
+  const formLocked = false
   const effectiveListingId = createdListing?.id ?? routeListingId ?? null
   const listingStatus = createdListing?.status
   const photosEditable =
     listingStatus === 'DRAFT' || listingStatus === 'ACTIVE'
+  const totalSelectedPhotos = uploadedPhotos.length + pendingPhotos.length
 
   const canUploadPhotos = useMemo(
     () =>
-      Boolean(effectiveListingId && accessToken && createdListing && photosEditable) &&
-      uploadedPhotos.length < MAX_LISTING_PHOTOS &&
-      (isEditMode ? true : step === 'upload' && Boolean(createdListing)),
+      Boolean(accessToken) &&
+      (!createdListing || photosEditable) &&
+      totalSelectedPhotos < MAX_LISTING_PHOTOS,
     [
-      effectiveListingId,
       accessToken,
-      uploadedPhotos.length,
-      isEditMode,
+      totalSelectedPhotos,
       createdListing,
       photosEditable,
-      step,
     ],
   )
 
@@ -247,6 +243,10 @@ export function CreateItemPage() {
 
   const rentalPrice = useMemo(() => Number(formData.rentalPrice || 0), [formData.rentalPrice])
 
+  const removePendingPhoto = (tempId: string) => {
+    setPendingPhotos((prev) => prev.filter((p) => p.tempId !== tempId))
+  }
+
   const buildDescription = () => {
     const descriptionParts = [
       formData.brand.trim() ? `Бренд: ${formData.brand.trim()}` : null,
@@ -304,7 +304,22 @@ export function CreateItemPage() {
         const created = await createListing(payload, accessToken)
         setCreatedListing(created)
         setStep('upload')
-        setSuccess('Черновик создан. Необходимо загрузить фотографии.')
+        if (pendingPhotos.length > 0) {
+          setSuccess('Черновик создан. Загружаем добавленные фото...')
+          setUploadingPhoto(true)
+          try {
+            for (const pending of pendingPhotos) {
+              const uploaded = await uploadListingPhoto(created.id, pending.file, accessToken)
+              setUploadedPhotos((prev) => [...prev, { id: uploaded.photo.id, url: uploaded.photo.url }])
+            }
+            setPendingPhotos([])
+            setSuccess('Черновик создан, фото загружены. Можно продолжать редактирование.')
+          } finally {
+            setUploadingPhoto(false)
+          }
+        } else {
+          setSuccess('Черновик создан. Можно сразу добавить фото или продолжить редактирование.')
+        }
       }
     } catch (err: unknown) {
       setError(
@@ -325,13 +340,24 @@ export function CreateItemPage() {
     setError(null)
     setSuccess(null)
 
-    if (!effectiveListingId || !accessToken) {
-      setError('Сначала создайте черновик объявления')
+    if (totalSelectedPhotos >= MAX_LISTING_PHOTOS) {
+      setError(`Можно загрузить не более ${MAX_LISTING_PHOTOS} фотографий`)
+      event.target.value = ''
       return
     }
 
-    if (uploadedPhotos.length >= MAX_LISTING_PHOTOS) {
-      setError(`Можно загрузить не более ${MAX_LISTING_PHOTOS} фотографий`)
+    if (!accessToken) {
+      setError('Сессия истекла, войдите снова')
+      event.target.value = ''
+      return
+    }
+
+    if (!effectiveListingId) {
+      setPendingPhotos((prev) => [
+        ...prev,
+        { tempId: `${Date.now()}-${Math.random().toString(16).slice(2)}`, file },
+      ])
+      setSuccess('Фото добавлено. Сохраним его автоматически при создании черновика.')
       event.target.value = ''
       return
     }
@@ -343,7 +369,7 @@ export function CreateItemPage() {
       setSuccess(
         createdListing?.status === 'ACTIVE'
           ? 'Фото добавлено. Изменения видны в каталоге и на странице объявления.'
-          : 'Объявление готово к публикации. Можете перейти в профиль для дальнейших действий.',
+          : 'Фото добавлено в черновик. Можете продолжить редактирование и опубликовать позже.',
       )
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Не удалось загрузить фотографию'))
@@ -418,7 +444,7 @@ export function CreateItemPage() {
     if (isEditMode) {
       return createdListing?.status === 'ACTIVE' ? 'Сохранить изменения' : 'Сохранить черновик'
     }
-    if (step === 'upload') return 'Черновик создан'
+    if (createdListing?.status === 'DRAFT') return 'Сохранить черновик'
     return 'Создать черновик'
   }
 
@@ -464,18 +490,20 @@ export function CreateItemPage() {
                 </svg>
                 <span>
                   {!effectiveListingId
-                    ? 'Сначала сохраните черновик'
+                    ? `Добавить фото до создания (${totalSelectedPhotos}/${MAX_LISTING_PHOTOS})`
                     : !createdListing && isEditMode
                       ? 'Загрузка объявления…'
                       : !photosEditable
                         ? 'Фото для этого статуса недоступны'
-                        : uploadedPhotos.length >= MAX_LISTING_PHOTOS
+                        : totalSelectedPhotos >= MAX_LISTING_PHOTOS
                           ? `Загружено максимум фото (${MAX_LISTING_PHOTOS})`
                           : !canUploadPhotos
-                            ? 'Сначала создайте черновик'
+                          ? 'Добавление фото сейчас недоступно'
                             : uploadingPhoto
                               ? 'Загрузка фото...'
-                              : `Добавить фото (${uploadedPhotos.length}/${MAX_LISTING_PHOTOS})`}
+                              : !effectiveListingId
+                                ? `Добавить фото до создания (${totalSelectedPhotos}/${MAX_LISTING_PHOTOS})`
+                                : `Добавить фото (${totalSelectedPhotos}/${MAX_LISTING_PHOTOS})`}
                 </span>
               </label>
               <input
@@ -550,6 +578,41 @@ export function CreateItemPage() {
                           {deletingPhotoId === photo.id ? '…' : 'Удалить'}
                         </button>
                       ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {pendingPhotos.length > 0 ? (
+              <div className="field">
+                <label className="field__label">
+                  Фото к загрузке после создания ({pendingPhotos.length})
+                </label>
+                <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
+                  {pendingPhotos.map((photo) => (
+                    <div
+                      key={photo.tempId}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 'var(--sp-2)',
+                        background: 'var(--bg-surface-strong, #eef2ff)',
+                        borderRadius: 'var(--r-sm)',
+                        padding: '8px 10px',
+                      }}
+                    >
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {photo.file.name}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn--ghost"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem', minHeight: 'auto' }}
+                        onClick={() => removePendingPhoto(photo.tempId)}
+                      >
+                        Удалить
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -744,7 +807,6 @@ export function CreateItemPage() {
                   resize: 'vertical',
                   lineHeight: 1.5,
                 }}
-                required
                 maxLength={DESC_MAX}
                 disabled={formLocked}
               />
@@ -770,7 +832,7 @@ export function CreateItemPage() {
 
             {step === 'upload' && !isEditMode ? (
               <div className="alert alert--success">
-                Черновик создан. После загрузки фото объявление готово к публикации. Перейти в{' '}
+                Черновик создан. Добавляйте фото и редактируйте объявление в удобном порядке. Перейти в{' '}
                 <button type="button" className="btn btn--ghost" onClick={() => navigate('/profile')}>
                   Профиль
                 </button>
@@ -792,7 +854,7 @@ export function CreateItemPage() {
             <button
               type="submit"
               className="btn btn--brand create-item-submit"
-              disabled={submitting || (step === 'upload' && !isEditMode)}
+              disabled={submitting}
             >
               {submitLabel()}
             </button>

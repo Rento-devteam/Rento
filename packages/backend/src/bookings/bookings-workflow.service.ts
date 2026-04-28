@@ -23,7 +23,10 @@ import {
 } from '../payments-hold/payment-hold.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { BookingsSettlementService } from './bookings-settlement.service';
-import { assertBookingStartsInFuture, computeDayProjection } from './booking-dates';
+import {
+  assertBookingStartsInFuture,
+  computeDayProjection,
+} from './booking-dates';
 import { computeUnits } from './booking-pricing';
 import { CALENDAR_BLOCKING_BOOKING_STATUSES } from './bookings.constants';
 import { TrustScoreService } from '../trust-score/trust-score.service';
@@ -562,7 +565,8 @@ export class BookingsWorkflowService {
       },
     });
     if (
-      settledParticipants?.settlementStatus === BookingSettlementStatus.SETTLED &&
+      settledParticipants?.settlementStatus ===
+        BookingSettlementStatus.SETTLED &&
       settledParticipants.renterId &&
       settledParticipants.listing?.ownerId
     ) {

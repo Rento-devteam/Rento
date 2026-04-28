@@ -60,14 +60,14 @@ describe('BookingsWorkflowService', () => {
     jest.clearAllMocks();
     settlement = new BookingsSettlementService(
       prisma as never,
-      holdGateway as never,
+      holdGateway,
       notifications as never,
     );
     service = new BookingsWorkflowService(
       prisma as never,
-      holdGateway as never,
+      holdGateway,
       notifications as never,
-      settlement as never,
+      settlement,
       trustScoreService as never,
     );
   });

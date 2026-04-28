@@ -274,7 +274,9 @@ class InMemoryPrismaService {
             ? {
                 photos: photos.map((photo) => ({
                   ...(select.photos?.select?.id ? { id: photo.id } : {}),
-                  ...(select.photos?.select?.order ? { order: photo.order } : {}),
+                  ...(select.photos?.select?.order
+                    ? { order: photo.order }
+                    : {}),
                   ...(select.photos?.select?.isPrimary
                     ? { isPrimary: photo.isPrimary }
                     : {}),
@@ -367,7 +369,9 @@ class InMemoryPrismaService {
       },
     ),
     delete: jest.fn(async ({ where }: { where: { id: string } }) => {
-      const index = this.listingPhotos.findIndex((photo) => photo.id === where.id);
+      const index = this.listingPhotos.findIndex(
+        (photo) => photo.id === where.id,
+      );
       if (index === -1) {
         throw new Error('Record to delete does not exist');
       }

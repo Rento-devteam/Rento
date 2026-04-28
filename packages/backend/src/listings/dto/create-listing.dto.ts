@@ -13,7 +13,6 @@ import {
 import { RentalPeriod } from '@prisma/client';
 import {
   LISTING_DESCRIPTION_MAX,
-  LISTING_DESCRIPTION_MIN,
   LISTING_PRICE_MAX,
   LISTING_TITLE_MAX,
   LISTING_TITLE_MIN,
@@ -32,14 +31,12 @@ export class CreateListingDto {
   })
   title!: string;
 
+  @IsOptional()
   @IsString()
-  @MinLength(LISTING_DESCRIPTION_MIN, {
-    message: `Описание не короче ${LISTING_DESCRIPTION_MIN} символов`,
-  })
   @MaxLength(LISTING_DESCRIPTION_MAX, {
     message: `Описание не длиннее ${LISTING_DESCRIPTION_MAX} символов`,
   })
-  description!: string;
+  description?: string;
 
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })

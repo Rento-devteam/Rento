@@ -275,7 +275,7 @@ export class CalendarService {
         );
       }
 
-      await tx.listingManualCalendarBlock.deleteMany({
+      const overlapping = await tx.listingManualCalendarBlock.findMany({
         where: {
           listingId,
           AND: [
@@ -284,6 +284,49 @@ export class CalendarService {
           ],
         },
       });
+
+      if (overlapping.length === 0) {
+        return;
+      }
+
+      await tx.listingManualCalendarBlock.deleteMany({
+        where: { id: { in: overlapping.map((row) => row.id) } },
+      });
+
+      for (const row of overlapping) {
+        const rowStart = utcDateOnly(row.startDate);
+        const rowEnd = utcDateOnly(row.endDate);
+
+        // Keep left non-overlapping segment.
+        if (rowStart.getTime() < rangeStart.getTime()) {
+          const leftEnd = this.addUtcDays(rangeStart, -1);
+          if (rowStart.getTime() <= leftEnd.getTime()) {
+            await tx.listingManualCalendarBlock.create({
+              data: {
+                listingId,
+                startDate: rowStart,
+                endDate: leftEnd,
+                reason: row.reason ?? null,
+              },
+            });
+          }
+        }
+
+        // Keep right non-overlapping segment.
+        if (rowEnd.getTime() > rangeEnd.getTime()) {
+          const rightStart = this.addUtcDays(rangeEnd, 1);
+          if (rightStart.getTime() <= rowEnd.getTime()) {
+            await tx.listingManualCalendarBlock.create({
+              data: {
+                listingId,
+                startDate: rightStart,
+                endDate: rowEnd,
+                reason: row.reason ?? null,
+              },
+            });
+          }
+        }
+      }
     });
 
     const { start: viewStart, end: viewEnd } = defaultUtcMonthRange(rangeStart);
@@ -332,6 +375,12 @@ export class CalendarService {
     if (start.getTime() > end.getTime()) {
       throw new BadRequestException('start must be on or before end');
     }
+  }
+
+  private addUtcDays(date: Date, days: number): Date {
+    const d = utcDateOnly(date);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d;
   }
 
   /**

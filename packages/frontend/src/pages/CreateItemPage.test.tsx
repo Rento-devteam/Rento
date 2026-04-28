@@ -89,7 +89,7 @@ describe('CreateItemPage', () => {
     })
   })
 
-  it('creates draft listing and switches to upload step', async () => {
+  it('creates draft listing and keeps it editable', async () => {
     const user = userEvent.setup()
 
     render(
@@ -111,7 +111,7 @@ describe('CreateItemPage', () => {
 
     await waitFor(() => expect(createListingMock).toHaveBeenCalledTimes(1))
 
-    expect(screen.getByRole('button', { name: /черновик создан/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /сохранить черновик/i })).toBeInTheDocument()
   })
 
   it('uploads photo after draft creation', async () => {
@@ -143,6 +143,57 @@ describe('CreateItemPage', () => {
     await waitFor(() => {
       expect(uploadListingPhotoMock).toHaveBeenCalledWith('listing-1', expect.any(File), 'token-123')
     })
+  })
+
+  it('queues photo before draft creation and uploads it after save', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <MemoryRouter>
+        <CreateItemPage />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(getCreateMetadataMock).toHaveBeenCalled())
+
+    const fileInput = screen.getByLabelText(/добавить фото/i) as HTMLInputElement
+    const file = new File(['image-bytes'], 'before-create.jpg', { type: 'image/jpeg' })
+    await user.upload(fileInput, file)
+
+    await user.type(screen.getByLabelText(/^название$/i), 'Палатка')
+    await user.selectOptions(screen.getByLabelText(/категория товара/i), 'cat-1')
+    await user.type(screen.getByLabelText(/цена за период/i), '500')
+    await user.type(screen.getByLabelText(/расскажите о нём/i), 'Отличная палатка')
+    await user.type(screen.getByLabelText(/размер залога/i), '1000')
+    await user.selectOptions(screen.getByLabelText(/состояние товара/i), 'good')
+    await user.click(screen.getByRole('button', { name: /создать черновик/i }))
+
+    await waitFor(() => expect(createListingMock).toHaveBeenCalled())
+    await waitFor(() => {
+      expect(uploadListingPhotoMock).toHaveBeenCalledWith('listing-1', expect.any(File), 'token-123')
+    })
+  })
+
+  it('allows creating draft without filling description body', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <MemoryRouter>
+        <CreateItemPage />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(getCreateMetadataMock).toHaveBeenCalled())
+
+    await user.type(screen.getByLabelText(/^название$/i), 'Палатка')
+    await user.selectOptions(screen.getByLabelText(/категория товара/i), 'cat-1')
+    await user.type(screen.getByLabelText(/цена за период/i), '500')
+    await user.type(screen.getByLabelText(/размер залога/i), '1000')
+    await user.selectOptions(screen.getByLabelText(/состояние товара/i), 'good')
+    await user.click(screen.getByRole('button', { name: /создать черновик/i }))
+
+    expect(screen.getByLabelText(/расскажите о нём/i)).not.toHaveAttribute('required')
+    await waitFor(() => expect(createListingMock).toHaveBeenCalledTimes(1))
   })
 
   it('publishes listing after at least one photo', async () => {

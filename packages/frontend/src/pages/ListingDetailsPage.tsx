@@ -724,7 +724,7 @@ export function ListingDetailsPage() {
 
       <div className="listing-page__inner container">
         <div className="listing-page__top">
-          <button type="button" className="listing-page__back" onClick={() => navigate(-1)}>
+          <button type="button" className="listing-page__back" onClick={() => navigate('/')}>
             <ChevronBackIcon />
             Назад
           </button>

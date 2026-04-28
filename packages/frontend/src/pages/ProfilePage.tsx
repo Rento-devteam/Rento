@@ -174,7 +174,7 @@ function ProfileEditModal({
 }
 
 const PROFILE_CARDS_PREVIEW = 3
-const PROFILE_LISTINGS_PREVIEW = 4
+const PROFILE_LISTINGS_PREVIEW = 3
 
 type ProfileFullListModalProps = {
   title: string
@@ -234,18 +234,19 @@ function formatAccountId(id: string): string {
   return `${id.slice(0, 6)}…${id.slice(-4)}`
 }
 
-function trustLevelLabel(score: number): string {
-  if (score >= 80) return 'Высокий'
-  if (score >= 55) return 'Средний'
-  return 'Базовый'
-}
-
-function starRatingFromTrust(score: number): string {
-  const outOfFive = Math.min(5, Math.max(0, (score / 100) * 5))
-  return outOfFive.toLocaleString('ru-RU', {
+function formatStarRating(rating: number): string {
+  return Math.min(5, Math.max(0, rating)).toLocaleString('ru-RU', {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   })
+}
+
+function reviewsLabel(count: number): string {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  if (mod10 === 1 && mod100 !== 11) return `${count} оценка`
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} оценки`
+  return `${count} оценок`
 }
 
 export function ProfilePage() {
@@ -264,7 +265,8 @@ export function ProfilePage() {
   const [cardActionLoading, setCardActionLoading] = useState(false)
   const [cardMessage, setCardMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [profileEditOpen, setProfileEditOpen] = useState(false)
-  const [profileFullListOpen, setProfileFullListOpen] = useState<'cards' | 'listings' | null>(null)
+  const [profileFullListOpen, setProfileFullListOpen] = useState<'cards' | null>(null)
+  const [listingsPage, setListingsPage] = useState(1)
   const [listingDeleteTarget, setListingDeleteTarget] = useState<{ id: string; title: string } | null>(
     null,
   )
@@ -272,7 +274,15 @@ export function ProfilePage() {
   const [listingDeleteError, setListingDeleteError] = useState<string | null>(null)
 
   const visibleCards = useMemo(() => cards.slice(0, PROFILE_CARDS_PREVIEW), [cards])
-  const visibleListings = useMemo(() => listings.slice(0, PROFILE_LISTINGS_PREVIEW), [listings])
+  const listingsTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(listings.length / PROFILE_LISTINGS_PREVIEW)),
+    [listings.length],
+  )
+  const currentListingsPage = Math.min(listingsPage, listingsTotalPages)
+  const visibleListings = useMemo(() => {
+    const start = (currentListingsPage - 1) * PROFILE_LISTINGS_PREVIEW
+    return listings.slice(start, start + PROFILE_LISTINGS_PREVIEW)
+  }, [listings, currentListingsPage])
 
   useEffect(() => {
     if (!user?.id) {
@@ -453,7 +463,21 @@ export function ProfilePage() {
   const emailNeedsConfirmation = Boolean(user.email && !user.isVerified)
   const trust = user.trustScore
 
-  const trustScoreValue = trust?.currentScore ?? 0
+  const userRatingSource = user as typeof user & {
+    averageRating?: number | null
+    reviewsCount?: number | null
+    rating?: number | null
+    ratingCount?: number | null
+  }
+  const userRating = Math.min(
+    5,
+    Math.max(0, userRatingSource.averageRating ?? userRatingSource.rating ?? 0),
+  )
+  const userReviewsCount = Math.max(
+    0,
+    userRatingSource.reviewsCount ?? userRatingSource.ratingCount ?? 0,
+  )
+  const userRatingValue = userReviewsCount > 0 ? formatStarRating(userRating) : '—'
 
   return (
     <main className="profile-page">
@@ -470,7 +494,7 @@ export function ProfilePage() {
               >
                 <PencilGlyph />
               </button>
-              <button type="button" className="btn btn--ghost profile-page__logout" onClick={logout}>
+              <button type="button" className="btn btn--primary profile-page__logout" onClick={logout}>
                 Выйти
               </button>
             </div>
@@ -479,8 +503,10 @@ export function ProfilePage() {
 
           <section className="profile-hero" aria-label="Сводка профиля">
             <div className="profile-hero__identity">
-              <div className="profile-hero__avatar" aria-hidden={!!user.avatarUrl}>
-                {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : initials}
+              <div className="profile-hero__avatar-wrap">
+                <div className="profile-hero__avatar" aria-hidden={!!user.avatarUrl}>
+                  {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : initials}
+                </div>
               </div>
               <div className="profile-hero__text">
                 <p className="profile-hero__name">{user.fullName || 'Без имени'}</p>
@@ -491,12 +517,14 @@ export function ProfilePage() {
 
             <div className="profile-hero__rating-card">
               <div className="profile-hero__rating-top">
-                <span className="profile-hero__rating-value">{starRatingFromTrust(trustScoreValue)}</span>
-                <ProfileStarRow score={trustScoreValue} />
+                <span className="profile-hero__rating-value">{userRatingValue}</span>
+                <ProfileStarRow rating={userRating} />
               </div>
-              <p className="profile-hero__reviews">Отзывов пока нет</p>
+              <p className="profile-hero__reviews">
+                {userReviewsCount > 0 ? reviewsLabel(userReviewsCount) : 'Оценок пока нет'}
+              </p>
               <p className="profile-hero__trust-level">
-                Уровень доверия: <strong>{trustLevelLabel(trustScoreValue)}</strong>
+                Рейтинг зависит только от оценок пользователей
               </p>
             </div>
 
@@ -509,6 +537,54 @@ export function ProfilePage() {
               <p className="profile-hero__wallet-amount">—</p>
               <p className="profile-hero__wallet-hint">Сумма удержания отображается в карточке бронирования</p>
             </div>
+          </section>
+
+          <section className="profile-panel profile-panel--trust" aria-label="Индекс доверия">
+            <div className="profile-panel__head">
+              <h3 className="profile-panel__title">Индекс доверия</h3>
+            </div>
+            {trust ? <div className="profile-trust-score-badge">{trust.currentScore}</div> : null}
+            <p className="profile-panel__hint">
+              Индекс доверия учитывает только историю возвратов по завершённым сделкам.
+            </p>
+            {trust ? (
+              <>
+                <div className="profile-trust" style={{ marginTop: 'var(--sp-3)' }}>
+                  <div className="profile-trust__item">
+                    <span className="profile-trust__label">Подтверждение личности</span>
+                    <span className="profile-trust__value">Скоро</span>
+                  </div>
+                  <div className="profile-trust__item">
+                    <span className="profile-trust__label">Возвраты в срок</span>
+                    <span className="profile-trust__value">
+                      {calculateOnTimeReturnsRate(trust.totalDeals, trust.lateReturns)}%
+                    </span>
+                  </div>
+                  <div className="profile-trust__item">
+                    <span className="profile-trust__label">Всего сделок</span>
+                    <span className="profile-trust__value">{trust.totalDeals}</span>
+                  </div>
+                  <div className="profile-trust__item">
+                    <span className="profile-trust__label">Успешных сделок</span>
+                    <span className="profile-trust__value">{trust.successfulDeals}</span>
+                  </div>
+                  <div className="profile-trust__item">
+                    <span className="profile-trust__label">Просроченных возвратов</span>
+                    <span className="profile-trust__value">{trust.lateReturns}</span>
+                  </div>
+                  <div className="profile-trust__item">
+                    <span className="profile-trust__label">Отзывы</span>
+                    <span className="profile-trust__value">
+                      {userReviewsCount > 0 ? `Оценка ${userRatingValue}` : 'Оценка —'}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="profile-panel__hint" style={{ marginTop: 'var(--sp-3)' }}>
+                Индекс пока не рассчитан. Появится после первой синхронизации данных профиля.
+              </p>
+            )}
           </section>
 
           <div className="profile-layout profile-layout--dashboard">
@@ -700,36 +776,6 @@ export function ProfilePage() {
                 )}
               </section>
 
-              <section className="profile-panel profile-panel--identity" aria-labelledby="profile-identity-title">
-                <div className="profile-panel__head">
-                  <div>
-                    <span className="profile-identity-eyebrow">Повышенное доверие</span>
-                    <h3 id="profile-identity-title" className="profile-panel__title">
-                      Подтверждённый аккаунт
-                    </h3>
-                  </div>
-                  <span className="profile-identity-badge profile-identity-badge--soon">Скоро</span>
-                </div>
-                <p className="profile-panel__hint">
-                  В дизайне эта карточка отмечает владельца, который подтвердил личность через{' '}
-                  <strong>Telegram</strong> или <strong>ЕСИА</strong> (Госуслуги). Подключение этих сценариев пока в
-                  разработке — статус «подтверждён по Telegram / ЕСИА» недоступен.
-                </p>
-                <ul className="profile-identity-methods" aria-label="Будущие способы подтверждения">
-                  <li>
-                    <TelegramMiniGlyph />
-                    Telegram
-                  </li>
-                  <li>
-                    <EsiaGlyph />
-                    ЕСИА
-                  </li>
-                </ul>
-                <button type="button" className="btn btn--brand" disabled>
-                  Подтвердить аккаунт
-                </button>
-              </section>
-
               {emailNeedsConfirmation ? (
                 <section
                   className="profile-panel profile-panel--alert profile-cards__span"
@@ -771,60 +817,6 @@ export function ProfilePage() {
               accessToken={accessToken}
               refreshProfile={refreshProfile}
             />
-
-            <section className="profile-panel" aria-label="Индекс доверия">
-              <div className="profile-panel__head">
-                <h3 className="profile-panel__title">Индекс доверия</h3>
-              </div>
-              <p className="profile-panel__hint">
-                Сейчас в расчёт входят подтверждение личности и история возвратов в срок по сделкам. Отзывы
-                пользователей появятся здесь после запуска модуля отзывов.
-              </p>
-              {trust ? (
-                <>
-                  <div className="profile-trust" style={{ marginTop: 'var(--sp-3)' }}>
-                    <div className="profile-trust__item">
-                      <span className="profile-trust__label">Индекс</span>
-                      <span className="profile-trust__value">{trust.currentScore} / 100</span>
-                    </div>
-                    <div className="profile-trust__item">
-                      <span className="profile-trust__label">Подтверждение личности</span>
-                      <span className="profile-trust__value">
-                        {trust.currentScore >= 60 ? 'Учтено' : 'Не учтено'}
-                      </span>
-                    </div>
-                    <div className="profile-trust__item">
-                      <span className="profile-trust__label">Отзывы пользователей</span>
-                      <span className="profile-trust__value">Нет данных</span>
-                    </div>
-                    <div className="profile-trust__item">
-                      <span className="profile-trust__label">Возвраты в срок</span>
-                      <span className="profile-trust__value">
-                        {calculateOnTimeReturnsRate(trust.totalDeals, trust.lateReturns)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="profile-trust" style={{ marginTop: 'var(--sp-3)' }}>
-                    <div className="profile-trust__item">
-                      <span className="profile-trust__label">Всего сделок</span>
-                      <span className="profile-trust__value">{trust.totalDeals}</span>
-                    </div>
-                    <div className="profile-trust__item">
-                      <span className="profile-trust__label">Успешных сделок</span>
-                      <span className="profile-trust__value">{trust.successfulDeals}</span>
-                    </div>
-                    <div className="profile-trust__item">
-                      <span className="profile-trust__label">Просроченных возвратов</span>
-                      <span className="profile-trust__value">{trust.lateReturns}</span>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="profile-panel__hint" style={{ marginTop: 'var(--sp-3)' }}>
-                  Индекс пока не рассчитан. Появится после первой синхронизации данных профиля.
-                </p>
-              )}
-            </section>
 
             <section className="profile-listings" aria-labelledby="profile-listings-title">
               <div className="profile-listings__head">
@@ -914,18 +906,30 @@ export function ProfilePage() {
                       </div>
                     ))}
                   </div>
-                  {listings.length > PROFILE_LISTINGS_PREVIEW ? (
-                    <button
-                      type="button"
-                      className="btn btn--ghost profile-expand-more-btn"
-                      style={{ marginTop: 'var(--sp-4)' }}
-                      onClick={() => setProfileFullListOpen('listings')}
-                    >
-                      Показать все объявления ({listings.length})
-                      <span className="profile-expand-more-btn__chevron" aria-hidden>
-                        ▼
+                  {listingsTotalPages > 1 ? (
+                    <div className="profile-listings-pagination">
+                      <button
+                        type="button"
+                        className="btn btn--ghost"
+                        disabled={currentListingsPage === 1}
+                        onClick={() => setListingsPage(Math.max(1, currentListingsPage - 1))}
+                      >
+                        Назад
+                      </button>
+                      <span className="profile-listings-pagination__meta">
+                        Страница {currentListingsPage} из {listingsTotalPages}
                       </span>
-                    </button>
+                      <button
+                        type="button"
+                        className="btn btn--ghost"
+                        disabled={currentListingsPage === listingsTotalPages}
+                        onClick={() =>
+                          setListingsPage(Math.min(listingsTotalPages, currentListingsPage + 1))
+                        }
+                      >
+                        Далее
+                      </button>
+                    </div>
                   ) : null}
                 </>
               )}
@@ -974,81 +978,6 @@ export function ProfilePage() {
             </li>
           ))}
         </ul>
-      </ProfileFullListModal>
-
-      <ProfileFullListModal
-        title="Все объявления"
-        open={profileFullListOpen === 'listings'}
-        onClose={() => setProfileFullListOpen(null)}
-      >
-        <div className="profile-listings-grid profile-listings-grid--modal">
-          {listings.map((listing) => (
-            <div key={listing.id} className="profile-listing-card profile-listing-card--tile">
-              <Link
-                to={
-                  listing.status === 'DRAFT'
-                    ? `/listings/${listing.id}/edit`
-                    : `/listings/${listing.id}`
-                }
-                className="profile-listing-card__link"
-                aria-label={listing.title}
-              />
-              <div className="profile-listing-card__thumb">
-                {listing.photos?.[0]?.url ? <img src={listing.photos[0].url} alt="" /> : null}
-              </div>
-              <div className="profile-listing-card__body">
-                <h3 className="profile-listing-card__title">{listing.title}</h3>
-                <div className="profile-listing-card__meta">
-                  <span>
-                    {formatListingRentalPriceRu(
-                      listing.rentalPrice,
-                      listing.rentalPeriod as RentalPeriod,
-                    )}
-                  </span>
-                  <span>•</span>
-                  <span
-                    style={{
-                      color:
-                        listing.status === 'ACTIVE'
-                          ? 'var(--success-fg, #15803d)'
-                          : 'var(--ink-500)',
-                    }}
-                  >
-                    {listing.status === 'ACTIVE' ? 'Активно' : 'Черновик'}
-                  </span>
-                </div>
-              </div>
-              <div className="profile-listing-card__actions">
-                <Link
-                  to={`/listings/${listing.id}/edit`}
-                  className="btn btn--ghost"
-                  style={{ padding: '6px 12px', fontSize: '0.85rem' }}
-                >
-                  Изменить
-                </Link>
-                <Link
-                  to={`/listings/${listing.id}/calendar`}
-                  className="btn btn--ghost"
-                  style={{ padding: '6px 12px', fontSize: '0.85rem' }}
-                >
-                  Календарь
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => openListingDeleteModal(listing.id, listing.title)}
-                  className="btn btn--ghost"
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '0.85rem',
-                    color: 'var(--danger-fg, #b91c1c)',
-                  }}
-                >
-                  Удалить
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
       </ProfileFullListModal>
 
       {listingDeleteTarget ? (
@@ -1141,9 +1070,10 @@ function PencilGlyph() {
   )
 }
 
-function ProfileStarRow({ score }: { score: number }) {
-  const filled = Math.min(5, Math.max(0, Math.round((score / 100) * 5)))
-  const label = `${starRatingFromTrust(score)} из 5`
+function ProfileStarRow({ rating }: { rating: number }) {
+  const safeRating = Math.min(5, Math.max(0, rating))
+  const filled = Math.round(safeRating)
+  const label = `${formatStarRating(safeRating)} из 5`
   return (
     <div className="profile-hero__stars" role="img" aria-label={label}>
       {Array.from({ length: 5 }, (_, i) => (
@@ -1163,32 +1093,6 @@ function HomeGlyph() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden stroke="currentColor" fill="none" strokeWidth="1.7" strokeLinejoin="round">
       <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" />
-    </svg>
-  )
-}
-
-function TelegramMiniGlyph() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden width="18" height="18">
-      <circle cx="12" cy="12" r="10" fill="#229ED9" />
-      <path
-        fill="#fff"
-        d="M17.5 7.5l-2.2 10.4c-.2.9-.7 1.1-1.4.7l-3.9-2.9-1.9 1.8c-.2.2-.4.4-.8.4l.3-4.1 7.2-6.5c.3-.3-.1-.5-.5-.3l-8.9 5.6-3.8-1.2c-.8-.25-.8-.8.2-1.2L16.4 6.4c.7-.3 1.3.2 1.1 1.1z"
-      />
-    </svg>
-  )
-}
-
-function EsiaGlyph() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden width="18" height="18" fill="none">
-      <rect x="3" y="3" width="18" height="18" rx="4" fill="#0B4F9C" />
-      <path
-        d="M8 8h8M8 12h5M8 16h6"
-        stroke="#fff"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
     </svg>
   )
 }

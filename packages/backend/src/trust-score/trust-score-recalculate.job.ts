@@ -47,9 +47,7 @@ export class TrustScoreRecalculateJob {
         select: { id: true },
         orderBy: { id: 'asc' },
         take: pageSize,
-        ...(cursorId
-          ? { cursor: { id: cursorId }, skip: 1 }
-          : {}),
+        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
       });
 
       if (users.length === 0) {
@@ -70,4 +68,3 @@ export class TrustScoreRecalculateJob {
     }
   }
 }
-

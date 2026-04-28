@@ -76,10 +76,13 @@ describe('BookingsReturnAutoConfirmJob', () => {
         }) as unknown,
       }),
     );
-    expect(notifications.notifyLandlordAutoReturnDeadlineExpired).toHaveBeenCalledWith(
-      { bookingId: 'b1', landlordId: 'o1' },
-    );
-    expect(settlement.attemptSettlement).toHaveBeenCalledWith({ bookingId: 'b1', now });
+    expect(
+      notifications.notifyLandlordAutoReturnDeadlineExpired,
+    ).toHaveBeenCalledWith({ bookingId: 'b1', landlordId: 'o1' });
+    expect(settlement.attemptSettlement).toHaveBeenCalledWith({
+      bookingId: 'b1',
+      now,
+    });
 
     jest.useRealTimers();
   });
@@ -123,7 +126,10 @@ describe('BookingsReturnAutoConfirmJob', () => {
       where: { id: 'b2' },
       data: { settlementStatus: BookingSettlementStatus.PENDING },
     });
-    expect(settlement.attemptSettlement).toHaveBeenCalledWith({ bookingId: 'b2', now });
+    expect(settlement.attemptSettlement).toHaveBeenCalledWith({
+      bookingId: 'b2',
+      now,
+    });
     expect(trustScoreService.recalculateForUser).toHaveBeenCalledWith({
       userId: 'r1',
       eventType: 'booking_completed',
@@ -136,4 +142,3 @@ describe('BookingsReturnAutoConfirmJob', () => {
     jest.useRealTimers();
   });
 });
-

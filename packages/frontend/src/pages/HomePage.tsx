@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import type { ICategory, IListing, RentalPeriod } from '@rento/shared'
@@ -6,6 +6,8 @@ import { useAuth } from '../auth/AuthContext'
 import { searchCatalog } from '../catalog/catalogApi'
 import { ApiError } from '../lib/apiClient'
 import { formatListingRentalPriceRu } from '../lib/rentalPeriodRu'
+import { getListingDisplayParts } from '../lib/listingDescriptionParts'
+import { listingConditionLabelRu } from '../lib/listingConditionRu'
 type SortApi = 'relevance' | 'newest' | 'price_asc' | 'price_desc'
 type SortPreset = 'cheap' | 'expensive' | 'popular' | 'near' | 'new'
 type RentalFilter = RentalPeriod | 'ALL'
@@ -90,14 +92,15 @@ export function HomePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  async function loadCatalog() {
+  const loadCatalog = useCallback(async (overrides?: { categoryId?: string }) => {
+    const effectiveCategoryId = overrides?.categoryId ?? categoryId
     setLoading(true)
     setError(null)
     try {
       const response = await searchCatalog(
         {
           q,
-          categoryId: categoryId || undefined,
+          categoryId: effectiveCategoryId || undefined,
           minPrice: minPrice ? Number(minPrice) : undefined,
           maxPrice: maxPrice ? Number(maxPrice) : undefined,
           sort: SORT_TO_API[sortPreset],
@@ -108,10 +111,13 @@ export function HomePage() {
       )
       setItems(response.results)
 
-      const map = new Map<string, ICategory>()
-      for (const cat of response.popularCategories) map.set(cat.id, cat)
-      for (const listing of response.results) map.set(listing.category.id, listing.category)
-      setCategories([...map.values()])
+      setCategories((prev) => {
+        const map = new Map<string, ICategory>()
+        for (const cat of prev) map.set(cat.id, cat)
+        for (const cat of response.popularCategories) map.set(cat.id, cat)
+        for (const listing of response.results) map.set(listing.category.id, listing.category)
+        return [...map.values()]
+      })
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : 'Не удалось загрузить карточки. Попробуйте ещё раз.',
@@ -120,7 +126,7 @@ export function HomePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [accessToken, categoryId, maxPrice, minPrice, q, sortPreset])
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -151,8 +157,9 @@ export function HomePage() {
   }
 
   function toggleCategory(nextId: string) {
-    setCategoryId((current) => (current === nextId ? '' : nextId))
-    setTimeout(() => void loadCatalog(), 0)
+    const nextCategoryId = categoryId === nextId ? '' : nextId
+    setCategoryId(nextCategoryId)
+    void loadCatalog({ categoryId: nextCategoryId })
   }
 
   return (
@@ -315,6 +322,11 @@ function Card({ item }: { item: IListing }) {
   const cover = item.photos[0]?.url
   const cityName = extractCity(item.description)
   const period = periodLabel(item.rentalPeriod)
+  const displayParts = getListingDisplayParts(item.description ?? '')
+  const conditionRu = listingConditionLabelRu(displayParts.condition)
+  const cardDescription = [conditionRu ? `Состояние: ${conditionRu}` : null, displayParts.description]
+    .filter((part): part is string => Boolean(part && part.trim() && part.trim() !== '—'))
+    .join('. ')
   return (
     <article className="card">
       <Link to={`/listings/${item.id}`} className="card__link-overlay" aria-label={item.title} />
@@ -329,7 +341,7 @@ function Card({ item }: { item: IListing }) {
         <h3 className="card__title">
           {item.title}
         </h3>
-        <p className="card__desc">{item.description}</p>
+        <p className="card__desc">{cardDescription || item.description}</p>
         <div className="card__prices">
           <span className="card__price-main">{formatListingRentalPriceRu(item.rentalPrice, item.rentalPeriod)}</span>
         </div>

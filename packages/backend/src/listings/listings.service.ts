@@ -145,11 +145,7 @@ export class ListingsService {
       data.title = t;
     }
     if (dto.description !== undefined) {
-      const d = dto.description.trim();
-      if (!d) {
-        throw new UnprocessableEntityException('Укажите описание');
-      }
-      data.description = d;
+      data.description = dto.description.trim();
     }
     if (dto.rentalPrice !== undefined) {
       data.rentalPrice = dto.rentalPrice;
@@ -265,11 +261,9 @@ export class ListingsService {
     }
 
     const title = dto.title.trim();
-    const description = dto.description.trim();
-    if (!title || !description) {
-      throw new UnprocessableEntityException(
-        'Title and description are required',
-      );
+    const description = dto.description?.trim() ?? '';
+    if (!title) {
+      throw new UnprocessableEntityException('Title is required');
     }
 
     const listing = await this.prismaService.listing.create({
@@ -402,11 +396,7 @@ export class ListingsService {
     return response;
   }
 
-  async deleteListingPhoto(
-    userId: string,
-    listingId: string,
-    photoId: string,
-  ) {
+  async deleteListingPhoto(userId: string, listingId: string, photoId: string) {
     const listing = await this.prismaService.listing.findFirst({
       where: { id: listingId, ownerId: userId },
       select: {
@@ -437,10 +427,7 @@ export class ListingsService {
       throw new NotFoundException('Photo not found');
     }
 
-    if (
-      listing.status === ListingStatus.ACTIVE &&
-      listing.photos.length <= 1
-    ) {
+    if (listing.status === ListingStatus.ACTIVE && listing.photos.length <= 1) {
       throw new BadRequestException(
         'У опубликованного объявления должно остаться хотя бы одно фото',
       );
