@@ -278,14 +278,11 @@ export function ProfilePage() {
     () => Math.max(1, Math.ceil(listings.length / PROFILE_LISTINGS_PREVIEW)),
     [listings.length],
   )
+  const currentListingsPage = Math.min(listingsPage, listingsTotalPages)
   const visibleListings = useMemo(() => {
-    const start = (listingsPage - 1) * PROFILE_LISTINGS_PREVIEW
+    const start = (currentListingsPage - 1) * PROFILE_LISTINGS_PREVIEW
     return listings.slice(start, start + PROFILE_LISTINGS_PREVIEW)
-  }, [listings, listingsPage])
-
-  useEffect(() => {
-    setListingsPage((prev) => Math.min(prev, listingsTotalPages))
-  }, [listingsTotalPages])
+  }, [listings, currentListingsPage])
 
   useEffect(() => {
     if (!user?.id) {
@@ -914,19 +911,21 @@ export function ProfilePage() {
                       <button
                         type="button"
                         className="btn btn--ghost"
-                        disabled={listingsPage === 1}
-                        onClick={() => setListingsPage((prev) => Math.max(1, prev - 1))}
+                        disabled={currentListingsPage === 1}
+                        onClick={() => setListingsPage(Math.max(1, currentListingsPage - 1))}
                       >
                         Назад
                       </button>
                       <span className="profile-listings-pagination__meta">
-                        Страница {listingsPage} из {listingsTotalPages}
+                        Страница {currentListingsPage} из {listingsTotalPages}
                       </span>
                       <button
                         type="button"
                         className="btn btn--ghost"
-                        disabled={listingsPage === listingsTotalPages}
-                        onClick={() => setListingsPage((prev) => Math.min(listingsTotalPages, prev + 1))}
+                        disabled={currentListingsPage === listingsTotalPages}
+                        onClick={() =>
+                          setListingsPage(Math.min(listingsTotalPages, currentListingsPage + 1))
+                        }
                       >
                         Далее
                       </button>
