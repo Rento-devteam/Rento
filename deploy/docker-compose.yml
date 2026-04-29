@@ -44,6 +44,10 @@ services:
         condition: service_healthy
     networks:
       - internal
+    dns:
+      - 77.88.8.8
+      - 1.1.1.1
+      - 8.8.8.8
 
   frontend:
     build:
