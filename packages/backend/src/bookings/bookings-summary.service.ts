@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { assertBookingStartsInFuture } from './booking-dates';
 import { computeUnits } from './booking-pricing';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class BookingsSummaryService {
     if (start.getTime() >= end.getTime()) {
       throw new BadRequestException('startAt must be before endAt');
     }
+    assertBookingStartsInFuture(start);
 
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },

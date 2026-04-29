@@ -7,4 +7,4 @@ export function isStrongPassword(password: string): boolean {
 }
 
 export const PASSWORD_HINT =
-  'Не менее 8 символов: заглавная и строчная буква, цифра и спецсимвол'
+  'Не менее 8 символов. Нужны заглавная и строчная буква, цифра и спецсимвол.'

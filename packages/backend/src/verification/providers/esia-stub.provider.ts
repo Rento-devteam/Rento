@@ -4,7 +4,7 @@ import type {
 } from './identity-verification.provider';
 
 export class EsiaStubVerificationProvider implements IdentityVerificationProvider {
-  async getAuthorizationRedirectUrl(params: {
+  getAuthorizationRedirectUrl(params: {
     userId: string;
     attemptId: string;
   }): Promise<string> {
@@ -14,10 +14,10 @@ export class EsiaStubVerificationProvider implements IdentityVerificationProvide
     // `deny=1` path allows testing the alternative flow without UI.
     const url = new URL('/verify/esia/stub', baseUrl);
     url.searchParams.set('attemptId', params.attemptId);
-    return url.toString();
+    return Promise.resolve(url.toString());
   }
 
-  async exchangeCodeForAssertion(params: {
+  exchangeCodeForAssertion(params: {
     code: string;
     attemptId: string;
     userId: string;
@@ -26,11 +26,10 @@ export class EsiaStubVerificationProvider implements IdentityVerificationProvide
       throw new Error('Missing code');
     }
 
-    return {
+    return Promise.resolve({
       provider: 'ESIA',
       subject: `stub:${params.userId}`,
       assertedAt: new Date(),
-    };
+    });
   }
 }
-

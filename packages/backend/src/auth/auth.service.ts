@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -24,7 +26,6 @@ import { TelegramLoginExchangeDto } from './dto/telegram-login-exchange.dto';
 import { TelegramLoginStartDto } from './dto/telegram-login-start.dto';
 import { TelegramVerifyDto } from './dto/telegram-verify.dto';
 import { AuthUserStatus } from './auth-status';
-import { isStrongPassword } from './password-policy';
 import { EmailSenderStub } from '../email/email-sender.stub';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtTokenService } from '../tokens/jwt-token.service';
@@ -32,6 +33,7 @@ import {
   buildUserProfileResponse,
   UserProfileResponse,
 } from '../users/user-profile.mapper';
+import { isStrongPassword, PASSWORD_FORMAT_MESSAGE } from './password-policy';
 
 export interface AuthSuccessResponse {
   accessToken: string;
@@ -54,21 +56,27 @@ export class AuthService {
   }> {
     const email = dto.email.trim().toLowerCase();
 
-    if (dto.confirmPassword && dto.password !== dto.confirmPassword) {
-      throw new BadRequestException('Password confirmation does not match');
+    if (dto.confirmPassword != null && dto.confirmPassword !== dto.password) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.BAD_REQUEST,
+          message: 'Проверьте введённые данные',
+          fields: { confirmPassword: 'Пароли не совпадают' },
+          error: 'Bad Request',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     if (!isStrongPassword(dto.password)) {
-      throw new BadRequestException(
-        'Password must include uppercase, lowercase, number and special character',
-      );
+      throw new BadRequestException(PASSWORD_FORMAT_MESSAGE);
     }
 
     const existingUser = await this.prismaService.user.findUnique({
       where: { email },
     });
     if (existingUser) {
-      throw new ConflictException('Email already exists');
+      throw new ConflictException('Этот email уже зарегистрирован');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -157,21 +165,21 @@ export class AuthService {
     const user = await this.prismaService.user.findUnique({ where: { email } });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Неверный email или пароль');
     }
 
     if (!user.passwordHash) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Неверный email или пароль');
     }
 
     const matches = await bcrypt.compare(dto.password, user.passwordHash);
     if (!matches) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Неверный email или пароль');
     }
 
     if (user.status !== AuthUserStatus.ACTIVE) {
       throw new ForbiddenException(
-        'Account is not activated. Confirm your email.',
+        'Аккаунт не активирован. Подтвердите email по ссылке из письма.',
       );
     }
 

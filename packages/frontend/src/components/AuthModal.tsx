@@ -72,17 +72,27 @@ function LoginForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
   const [pending, setPending] = useState(false)
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
+    setFieldErrors({})
     setPending(true)
     try {
       await login(email, password)
       reloadHomeAfterLogin()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось выполнить вход')
+      if (err instanceof ApiError && err.fields) {
+        setFieldErrors({
+          email: err.fields.email,
+          password: err.fields.password,
+        })
+        setError(err.message)
+      } else {
+        setError(err instanceof ApiError ? err.message : 'Не удалось выполнить вход')
+      }
     } finally {
       setPending(false)
     }
@@ -102,8 +112,17 @@ function LoginForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           autoComplete="email"
           required
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => {
+            setEmail(event.target.value)
+            setFieldErrors((f) => ({ ...f, email: undefined }))
+          }}
+          aria-invalid={Boolean(fieldErrors.email)}
         />
+        {fieldErrors.email ? (
+          <p className="field__error" role="alert">
+            {fieldErrors.email}
+          </p>
+        ) : null}
       </div>
       <div className="field">
         <label className="field__label" htmlFor="login-password">
@@ -116,8 +135,17 @@ function LoginForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           autoComplete="current-password"
           required
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event) => {
+            setPassword(event.target.value)
+            setFieldErrors((f) => ({ ...f, password: undefined }))
+          }}
+          aria-invalid={Boolean(fieldErrors.password)}
         />
+        {fieldErrors.password ? (
+          <p className="field__error" role="alert">
+            {fieldErrors.password}
+          </p>
+        ) : null}
       </div>
       <div className="stack" style={{ marginTop: 'var(--sp-5)' }}>
         <button type="submit" className="btn btn--brand btn--block" disabled={pending}>
@@ -125,7 +153,7 @@ function LoginForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
         </button>
       </div>
 
-      <div className="divider-or">или войти через</div>
+      <div className="divider-or">Или войти через</div>
       <button
         type="button"
         className="oauth-btn"
@@ -150,6 +178,12 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{
+    fullName?: string
+    email?: string
+    password?: string
+    confirmPassword?: string
+  }>({})
   const [success, setSuccess] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -160,14 +194,15 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
+    setFieldErrors({})
     setSuccess(null)
 
     if (password !== confirmPassword) {
-      setError('Пароли не совпадают')
+      setFieldErrors({ confirmPassword: 'Пароли не совпадают' })
       return
     }
     if (!isStrongPassword(password)) {
-      setError(PASSWORD_HINT)
+      setFieldErrors({ password: PASSWORD_HINT })
       return
     }
 
@@ -182,7 +217,17 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
       setSuccess('Аккаунт создан. Подтвердите email по ссылке из письма.')
       setResendEmail(email)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось зарегистрироваться')
+      if (err instanceof ApiError && err.fields) {
+        setFieldErrors({
+          fullName: err.fields.fullName,
+          email: err.fields.email,
+          password: err.fields.password,
+          confirmPassword: err.fields.confirmPassword,
+        })
+        setError(err.message)
+      } else {
+        setError(err instanceof ApiError ? err.message : 'Не удалось зарегистрироваться')
+      }
     } finally {
       setPending(false)
     }
@@ -249,8 +294,17 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           type="text"
           autoComplete="nickname"
           value={fullName}
-          onChange={(event) => setFullName(event.target.value)}
+          onChange={(event) => {
+            setFullName(event.target.value)
+            setFieldErrors((f) => ({ ...f, fullName: undefined }))
+          }}
+          aria-invalid={Boolean(fieldErrors.fullName)}
         />
+        {fieldErrors.fullName ? (
+          <p className="field__error" role="alert">
+            {fieldErrors.fullName}
+          </p>
+        ) : null}
       </div>
       <div className="field">
         <label className="field__label" htmlFor="reg-email">
@@ -263,8 +317,17 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           autoComplete="email"
           required
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => {
+            setEmail(event.target.value)
+            setFieldErrors((f) => ({ ...f, email: undefined }))
+          }}
+          aria-invalid={Boolean(fieldErrors.email)}
         />
+        {fieldErrors.email ? (
+          <p className="field__error" role="alert">
+            {fieldErrors.email}
+          </p>
+        ) : null}
       </div>
       <div className="field">
         <label className="field__label" htmlFor="reg-password">
@@ -277,8 +340,17 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           autoComplete="new-password"
           required
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event) => {
+            setPassword(event.target.value)
+            setFieldErrors((f) => ({ ...f, password: undefined }))
+          }}
+          aria-invalid={Boolean(fieldErrors.password)}
         />
+        {fieldErrors.password ? (
+          <p className="field__error" role="alert">
+            {fieldErrors.password}
+          </p>
+        ) : null}
       </div>
       <div className="field">
         <label className="field__label" htmlFor="reg-confirm">
@@ -291,8 +363,17 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           autoComplete="new-password"
           required
           value={confirmPassword}
-          onChange={(event) => setConfirmPassword(event.target.value)}
+          onChange={(event) => {
+            setConfirmPassword(event.target.value)
+            setFieldErrors((f) => ({ ...f, confirmPassword: undefined }))
+          }}
+          aria-invalid={Boolean(fieldErrors.confirmPassword)}
         />
+        {fieldErrors.confirmPassword ? (
+          <p className="field__error" role="alert">
+            {fieldErrors.confirmPassword}
+          </p>
+        ) : null}
       </div>
       <div className="stack" style={{ marginTop: 'var(--sp-5)' }}>
         <button type="submit" className="btn btn--brand btn--block" disabled={pending}>
@@ -300,7 +381,7 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
         </button>
       </div>
 
-      <div className="divider-or">или войти через</div>
+      <div className="divider-or">Или войти через</div>
       <button
         type="button"
         className="oauth-btn"

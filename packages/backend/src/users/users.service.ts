@@ -27,7 +27,8 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    const trustScore = await this.trustScoreService.getTrustScoreForUser(userId);
+    const trustScore =
+      await this.trustScoreService.getTrustScoreForUser(userId);
     return buildUserProfileResponse(user, trustScore);
   }
 
@@ -50,7 +51,8 @@ export class UsersService {
       },
     });
 
-    const trustScore = await this.trustScoreService.getTrustScoreForUser(userId);
+    const trustScore =
+      await this.trustScoreService.getTrustScoreForUser(userId);
     return buildUserProfileResponse(user, trustScore);
   }
 

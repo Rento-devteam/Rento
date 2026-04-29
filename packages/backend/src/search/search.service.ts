@@ -97,6 +97,18 @@ export class SearchService {
     const normalizedCity = this.normalizeQuery(dto.city);
     const sort = dto.sort ?? SearchSort.relevance;
 
+    // Elasticsearch полнотекстовый анализатор плохо ранжирует односимвольные запросы
+    // (например, "м"), поэтому для таких префиксов используем прямой DB fallback.
+    if (normalizedQ.length === 1) {
+      return this.searchFromDatabase(
+        dto,
+        normalizedQ,
+        page,
+        limit,
+        excludeOwnerId,
+      );
+    }
+
     const filter: estypes.QueryDslQueryContainer[] = [
       { term: { status: 'ACTIVE' } },
     ];
@@ -370,16 +382,37 @@ export class SearchService {
       multiMatch.fuzziness = 'AUTO';
     }
 
+    const should: estypes.QueryDslQueryContainer[] = [
+      { multi_match: multiMatch },
+      {
+        multi_match: {
+          query: normalizedQ,
+          fields: ['title^4', 'categoryName^2', 'description'],
+          type: 'bool_prefix',
+        },
+      },
+      {
+        match_phrase: {
+          title: { query: normalizedQ, boost: 2 },
+        },
+      },
+    ];
+
+    if (normalizedQ.length <= 2) {
+      should.push({
+        wildcard: {
+          title: {
+            value: `${normalizedQ}*`,
+            case_insensitive: true,
+            boost: 5,
+          },
+        },
+      });
+    }
+
     return {
       bool: {
-        should: [
-          { multi_match: multiMatch },
-          {
-            match_phrase: {
-              title: { query: normalizedQ, boost: 2 },
-            },
-          },
-        ],
+        should,
         minimum_should_match: 1,
       },
     };

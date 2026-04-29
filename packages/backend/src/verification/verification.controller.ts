@@ -102,4 +102,3 @@ export class VerificationController {
     return userId;
   }
 }
-

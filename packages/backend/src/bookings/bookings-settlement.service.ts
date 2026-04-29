@@ -22,7 +22,7 @@ export class BookingsSettlementService {
   async attemptSettlement(params: { bookingId: string; now?: Date }) {
     const now = params.now ?? new Date();
 
-    const booking = (await this.prisma.booking.findUnique({
+    const booking = await this.prisma.booking.findUnique({
       where: { id: params.bookingId },
       select: {
         id: true,
@@ -33,11 +33,14 @@ export class BookingsSettlementService {
         depositAmount: true,
         settlementStatus: true,
         settlementRetryCount: true,
-      } as any,
-    })) as any;
+      },
+    });
 
     if (!booking) {
       throw new ConflictException('Booking not found');
+    }
+    if (booking.settlementStatus === BookingSettlementStatus.SETTLED) {
+      return { bookingId: booking.id, status: 'ok' as const };
     }
     if (!booking.paymentHoldId) {
       await this.prisma.booking.update({
@@ -46,7 +49,7 @@ export class BookingsSettlementService {
           settlementStatus: BookingSettlementStatus.FAILED,
           settlementError: 'Missing paymentHoldId',
           settlementLastAttemptAt: now,
-        } as any,
+        },
       });
       throw new ConflictException('Missing payment hold for settlement');
     }
@@ -56,25 +59,34 @@ export class BookingsSettlementService {
 
     await this.prisma.booking.update({
       where: { id: booking.id },
-      data: { settlementLastAttemptAt: now } as any,
+      data: { settlementLastAttemptAt: now },
     });
 
-    try {
-      await this.holdGateway.captureRent({
-        holdId: booking.paymentHoldId,
-        amount: booking.rentAmount,
-        currency: 'RUB',
-        idempotencyKey: captureKey,
-        metadata: { bookingId: booking.id },
-      });
+    const rent = Number(booking.rentAmount);
+    const deposit = Number(booking.depositAmount);
+    const rentOk = Number.isFinite(rent) && rent > 0;
+    const depositOk = Number.isFinite(deposit) && deposit > 0;
 
-      await this.holdGateway.releaseDeposit({
-        holdId: booking.paymentHoldId,
-        amount: booking.depositAmount,
-        currency: 'RUB',
-        idempotencyKey: releaseKey,
-        metadata: { bookingId: booking.id },
-      });
+    try {
+      if (rentOk) {
+        await this.holdGateway.captureRent({
+          holdId: booking.paymentHoldId,
+          amount: rent,
+          currency: 'RUB',
+          idempotencyKey: captureKey,
+          metadata: { bookingId: booking.id },
+        });
+      }
+
+      if (depositOk) {
+        await this.holdGateway.releaseDeposit({
+          holdId: booking.paymentHoldId,
+          amount: deposit,
+          currency: 'RUB',
+          idempotencyKey: releaseKey,
+          metadata: { bookingId: booking.id },
+        });
+      }
 
       await this.prisma.booking.update({
         where: { id: booking.id },
@@ -83,14 +95,16 @@ export class BookingsSettlementService {
           settlementError: null,
           settlementNextRetryAt: null,
           settledAt: now,
-        } as any,
+        },
       });
 
-      await this.notifications.notifyRenterDepositReleased({
-        bookingId: booking.id,
-        renterId: booking.renterId,
-        amount: booking.depositAmount,
-      });
+      if (depositOk) {
+        await this.notifications.notifyRenterDepositReleased({
+          bookingId: booking.id,
+          renterId: booking.renterId,
+          amount: deposit,
+        });
+      }
       await this.notifications.notifyLandlordBookingCompleted({
         bookingId: booking.id,
         landlordId: booking.listing.ownerId,
@@ -108,7 +122,7 @@ export class BookingsSettlementService {
           settlementError: message,
           settlementRetryCount: { increment: 1 },
           settlementNextRetryAt: next,
-        } as any,
+        },
       });
 
       throw err;
@@ -122,4 +136,3 @@ export class BookingsSettlementService {
     return new Date(now.getTime() + RETRY_SCHEDULE_MS[currentRetryCount]);
   }
 }
-

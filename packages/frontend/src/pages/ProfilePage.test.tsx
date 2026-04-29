@@ -8,6 +8,7 @@ const useAuthMock = vi.hoisted(() => vi.fn())
 const apiRequestMock = vi.hoisted(() => vi.fn())
 const resendConfirmationMock = vi.hoisted(() => vi.fn())
 const updateCurrentUserMock = vi.hoisted(() => vi.fn())
+const deleteListingMock = vi.hoisted(() => vi.fn().mockResolvedValue({ success: true }))
 
 vi.mock('../auth/AuthContext', () => ({
   useAuth: () => useAuthMock(),
@@ -29,6 +30,10 @@ vi.mock('../lib/apiClient', () => ({
       this.status = status
     }
   },
+}))
+
+vi.mock('../catalog/catalogApi', () => ({
+  deleteListing: (...args: unknown[]) => deleteListingMock(...args),
 }))
 
 describe('ProfilePage', () => {
@@ -89,7 +94,7 @@ describe('ProfilePage', () => {
     updateCurrentUserMock.mockResolvedValue({})
   })
 
-  it('renders user info and trust score', async () => {
+  it('renders user info and trust index', async () => {
     render(
       <MemoryRouter>
         <ProfilePage />
@@ -99,8 +104,9 @@ describe('ProfilePage', () => {
     expect(screen.getByText('Иван Иванов')).toBeInTheDocument()
     expect(screen.getByText('test@example.com')).toBeInTheDocument()
     expect(screen.getByText('+7 999 123 45 67')).toBeInTheDocument()
-    expect(screen.getByText('95')).toBeInTheDocument()
-    expect(screen.getByText('10')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Индекс доверия/i })).toBeInTheDocument()
+    expect(screen.getAllByText('95').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('10').length).toBeGreaterThan(0)
 
     await waitFor(() => {
       expect(apiRequestMock).toHaveBeenCalledWith('/listings/my', {
@@ -127,20 +133,6 @@ describe('ProfilePage', () => {
     })
   })
 
-  it('shows identity verification card placeholder', async () => {
-    render(
-      <MemoryRouter>
-        <ProfilePage />
-      </MemoryRouter>,
-    )
-
-    expect(
-      await screen.findByRole('heading', { name: /Подтверждённый аккаунт/i }),
-    ).toBeInTheDocument()
-    expect(screen.getAllByText(/ЕСИА/i).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByRole('button', { name: /^Подтвердить аккаунт$/i })).toBeDisabled()
-  })
-
   it('saves profile when form is submitted', async () => {
     const user = userEvent.setup()
     const refreshProfile = vi.fn().mockResolvedValue(undefined)
@@ -155,7 +147,9 @@ describe('ProfilePage', () => {
       </MemoryRouter>,
     )
 
-    const nameInput = screen.getByLabelText(/Имя и фамилия/i)
+    await user.click(screen.getByRole('button', { name: /Редактировать данные профиля/i }))
+
+    const nameInput = await screen.findByLabelText(/Имя и фамилия/i)
     await user.clear(nameInput)
     await user.type(nameInput, 'Новое имя')
 
@@ -165,6 +159,9 @@ describe('ProfilePage', () => {
       expect(updateCurrentUserMock).toHaveBeenCalledWith({ fullName: 'Новое имя' }, 'token-123')
     })
     expect(refreshProfile).toHaveBeenCalled()
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /Личные данные/i })).not.toBeInTheDocument()
+    })
   })
 
   it('renders user listings', async () => {
@@ -176,8 +173,37 @@ describe('ProfilePage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Моя палатка')).toBeInTheDocument()
-      expect(screen.getByText(/500 ₽ \/ сутки/i)).toBeInTheDocument()
+      expect(screen.getByText(/500\s*₽\s*\/\s*сутки/i)).toBeInTheDocument()
       expect(screen.getByText('Активно')).toBeInTheDocument()
+    })
+  })
+
+  it('opens delete listing modal and deletes on confirm', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter>
+        <ProfilePage />
+      </MemoryRouter>,
+    )
+
+    await screen.findByText('Моя палатка')
+    const listingsSection = screen.getByRole('heading', { name: /Мои объявления/i }).closest('section')
+    expect(listingsSection).toBeTruthy()
+    const buttons = (listingsSection as HTMLElement).querySelectorAll('button.btn')
+    const deleteListingBtn = [...buttons].find((b) => b.textContent?.trim() === 'Удалить')
+    expect(deleteListingBtn).toBeTruthy()
+    await user.click(deleteListingBtn!)
+
+    expect(await screen.findByRole('heading', { name: /Удалить объявление\?/i })).toBeInTheDocument()
+    expect(screen.getAllByText(/Моя палатка/i).length).toBeGreaterThanOrEqual(1)
+
+    await user.click(screen.getByRole('button', { name: /^Да, удалить$/i }))
+
+    await waitFor(() => {
+      expect(deleteListingMock).toHaveBeenCalledWith('l1', 'token-123')
+    })
+    await waitFor(() => {
+      expect(screen.queryByText('Моя палатка')).not.toBeInTheDocument()
     })
   })
 

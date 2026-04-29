@@ -1,6 +1,11 @@
+jest.mock('./listing-photo-storage.service', () => ({
+  ListingPhotoStorage: class ListingPhotoStorage {},
+}));
+
 import {
   BadRequestException,
   ConflictException,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ListingStatus, RentalPeriod } from '@prisma/client';
@@ -17,6 +22,7 @@ describe('ListingsService', () => {
 
   const listingSearchIndex = {
     indexListing: jest.fn(async () => undefined),
+    removeListing: jest.fn(async () => undefined),
   };
 
   const prismaService = {
@@ -27,11 +33,23 @@ describe('ListingsService', () => {
     listing: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     listingPhoto: {
       updateMany: jest.fn(),
+      update: jest.fn(),
       create: jest.fn(),
+      deleteMany: jest.fn(),
+      delete: jest.fn(),
+      findMany: jest.fn(),
+    },
+    booking: {
+      count: jest.fn(),
+    },
+    listingManualCalendarBlock: {
+      deleteMany: jest.fn(),
     },
   };
 
@@ -42,7 +60,7 @@ describe('ListingsService', () => {
     service = new ListingsService(
       prismaService as never,
       usersService as never,
-      listingPhotoStorage as never,
+      listingPhotoStorage,
       listingSearchIndex as never,
     );
   });
@@ -229,6 +247,136 @@ describe('ListingsService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it('allows photo upload for an active listing and reindexes search', async () => {
+    prismaService.listing.findUnique.mockResolvedValue({
+      id: 'listing-1',
+      ownerId: 'user-1',
+      status: ListingStatus.ACTIVE,
+      photos: [{ order: 0 }],
+    });
+    listingPhotoStorage.uploadListingPhoto.mockResolvedValue({
+      url: 'https://cdn.example.com/p2.png',
+      thumbnailUrl: null,
+    });
+    prismaService.listingPhoto.updateMany.mockResolvedValue({ count: 0 });
+    prismaService.listingPhoto.create.mockResolvedValue({
+      id: 'photo-2',
+      listingId: 'listing-1',
+      url: 'https://cdn.example.com/p2.png',
+      thumbnailUrl: null,
+      order: 1,
+      isPrimary: false,
+      uploadedAt: new Date('2026-04-17T12:00:00.000Z'),
+    });
+
+    await service.uploadPhoto('user-1', 'listing-1', {}, {
+      originalname: 'photo.png',
+      mimetype: 'image/png',
+      buffer: Buffer.from('image'),
+    } as Express.Multer.File);
+
+    expect(listingSearchIndex.indexListing).toHaveBeenCalledWith('listing-1');
+  });
+
+  it('deletes a listing photo for draft and reassigns primary when needed', async () => {
+    prismaService.listing.findFirst.mockResolvedValue({
+      id: 'listing-1',
+      status: ListingStatus.DRAFT,
+      photos: [
+        { id: 'p1', order: 0, isPrimary: true },
+        { id: 'p2', order: 1, isPrimary: false },
+      ],
+    });
+    prismaService.listingPhoto.delete.mockResolvedValue({
+      id: 'p1',
+      listingId: 'listing-1',
+      url: 'x',
+      thumbnailUrl: null,
+      order: 0,
+      isPrimary: true,
+      uploadedAt: new Date(),
+    });
+    prismaService.listingPhoto.findMany.mockResolvedValue([
+      {
+        id: 'p2',
+        listingId: 'listing-1',
+        url: 'y',
+        thumbnailUrl: null,
+        order: 1,
+        isPrimary: false,
+        uploadedAt: new Date(),
+      },
+    ]);
+
+    const result = await service.deleteListingPhoto(
+      'user-1',
+      'listing-1',
+      'p1',
+    );
+
+    expect(result.totalPhotos).toBe(1);
+    expect(prismaService.listingPhoto.updateMany).toHaveBeenCalled();
+    expect(prismaService.listingPhoto.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'p2' },
+        data: { isPrimary: true },
+      }),
+    );
+    expect(listingSearchIndex.indexListing).not.toHaveBeenCalled();
+  });
+
+  it('rejects deleting the only photo of an active listing', async () => {
+    prismaService.listing.findFirst.mockResolvedValue({
+      id: 'listing-1',
+      status: ListingStatus.ACTIVE,
+      photos: [{ id: 'p1', order: 0, isPrimary: true }],
+    });
+
+    await expect(
+      service.deleteListingPhoto('user-1', 'listing-1', 'p1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prismaService.listingPhoto.delete).not.toHaveBeenCalled();
+  });
+
+  it('deletes a photo from an active listing and reindexes', async () => {
+    prismaService.listing.findFirst.mockResolvedValue({
+      id: 'listing-1',
+      status: ListingStatus.ACTIVE,
+      photos: [
+        { id: 'p1', order: 0, isPrimary: true },
+        { id: 'p2', order: 1, isPrimary: false },
+      ],
+    });
+    prismaService.listingPhoto.delete.mockResolvedValue({});
+    prismaService.listingPhoto.findMany.mockResolvedValue([
+      {
+        id: 'p2',
+        listingId: 'listing-1',
+        url: 'y',
+        thumbnailUrl: null,
+        order: 1,
+        isPrimary: false,
+        uploadedAt: new Date(),
+      },
+    ]);
+
+    await service.deleteListingPhoto('user-1', 'listing-1', 'p1');
+
+    expect(listingSearchIndex.indexListing).toHaveBeenCalledWith('listing-1');
+  });
+
+  it('rejects deleteListingPhoto when photo id is not on listing', async () => {
+    prismaService.listing.findFirst.mockResolvedValue({
+      id: 'listing-1',
+      status: ListingStatus.DRAFT,
+      photos: [{ id: 'p1', order: 0, isPrimary: true }],
+    });
+
+    await expect(
+      service.deleteListingPhoto('user-1', 'listing-1', 'missing'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('publishes a draft listing with photos', async () => {
     prismaService.listing.findUnique.mockResolvedValue({
       id: 'listing-1',
@@ -268,5 +416,39 @@ describe('ListingsService', () => {
     await expect(
       service.publishListing('user-1', 'listing-1'),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects delete when listing has calendar-blocking bookings', async () => {
+    prismaService.listing.findUnique.mockResolvedValue({
+      id: 'listing-1',
+      ownerId: 'user-1',
+    });
+    prismaService.booking.count.mockResolvedValue(1);
+
+    await expect(
+      service.deleteListing('user-1', 'listing-1'),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(prismaService.listingPhoto.deleteMany).not.toHaveBeenCalled();
+    expect(prismaService.listing.delete).not.toHaveBeenCalled();
+  });
+
+  it('deletes listing when there are no blocking bookings', async () => {
+    prismaService.listing.findUnique.mockResolvedValue({
+      id: 'listing-1',
+      ownerId: 'user-1',
+    });
+    prismaService.booking.count.mockResolvedValue(0);
+    prismaService.listingPhoto.deleteMany.mockResolvedValue({ count: 0 });
+    prismaService.listingManualCalendarBlock.deleteMany.mockResolvedValue({
+      count: 0,
+    });
+    prismaService.listing.delete.mockResolvedValue({ id: 'listing-1' });
+
+    await service.deleteListing('user-1', 'listing-1');
+
+    expect(prismaService.booking.count).toHaveBeenCalled();
+    expect(prismaService.listing.delete).toHaveBeenCalledWith({
+      where: { id: 'listing-1' },
+    });
   });
 });

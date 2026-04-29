@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { bookingStatusLabel } from '../bookings/bookingUi'
 import { listBookingsAsLandlord, type BookingListItem } from '../bookings/bookingsApi'
@@ -17,6 +17,7 @@ function formatRange(b: BookingListItem): string {
 }
 
 export function LandlordBookingsPage() {
+  const location = useLocation()
   const { accessToken, user } = useAuth()
   const [items, setItems] = useState<BookingListItem[]>([])
   const [loading, setLoading] = useState(() => Boolean(accessToken))
@@ -51,7 +52,7 @@ export function LandlordBookingsPage() {
     return () => {
       cancelled = true
     }
-  }, [accessToken])
+  }, [accessToken, location.key])
 
   if (!user) {
     return (
@@ -90,7 +91,10 @@ export function LandlordBookingsPage() {
         ) : (
           <ul className="bookings-page__list">
             {displayItems.map((b) => (
-              <li key={b.id} className="bookings-page__card">
+              <li
+                key={b.id}
+                className={`bookings-page__card ${b.status === 'COMPLETED' ? 'bookings-page__card--completed' : ''}`}
+              >
                 <div className="bookings-page__card-main">
                   <Link to={`/bookings/${b.id}`} className="bookings-page__card-title">
                     {b.listingTitle}
@@ -105,6 +109,9 @@ export function LandlordBookingsPage() {
                   </p>
                 </div>
                 <div className="bookings-page__card-side">
+                  {b.status === 'COMPLETED' ? (
+                    <span className="bookings-page__done-pill">Сделка завершена</span>
+                  ) : null}
                   <span className="bookings-page__status">{bookingStatusLabel(b.status)}</span>
                   <Link
                     to={`/listings/${b.listingId}`}

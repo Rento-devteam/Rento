@@ -13,4 +13,3 @@ export class EsiaCallbackQueryDto {
   @IsString()
   error?: string;
 }
-

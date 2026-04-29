@@ -99,6 +99,17 @@ export class BookingsApiController {
     return this.bookings.getBookingForParticipant(bookingId, userId);
   }
 
+  @Post('bookings/:bookingId/cancel')
+  @HttpCode(HttpStatus.OK)
+  async cancelBooking(
+    @Req() request: RequestWithUser,
+    @Param('bookingId', ParseUUIDPipe) bookingId: string,
+  ) {
+    const userId = this.getUserId(request);
+    await this.workflow.cancelBooking({ bookingId, actorUserId: userId });
+    return this.bookings.getBookingForParticipant(bookingId, userId);
+  }
+
   private getUserId(request: RequestWithUser): string {
     const userId = request.user?.sub;
     if (!userId) {

@@ -20,7 +20,7 @@ describe('VerificationService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new VerificationService(prismaService as never, provider as never);
+    service = new VerificationService(prismaService as never, provider);
   });
 
   it('rejects initiate when already verified', async () => {
@@ -70,7 +70,10 @@ describe('VerificationService', () => {
 
     expect(prismaService.identityVerification.update).toHaveBeenCalledWith({
       where: { id: 'a1' },
-      data: { status: IdentityVerificationStatus.REJECTED, lastError: 'access_denied' },
+      data: {
+        status: IdentityVerificationStatus.REJECTED,
+        lastError: 'access_denied',
+      },
     });
     expect(result.status).toBe(IdentityVerificationStatus.REJECTED);
     expect(result.userId).toBe('u1');
@@ -107,4 +110,3 @@ describe('VerificationService', () => {
     expect(result.userId).toBe('u1');
   });
 });
-

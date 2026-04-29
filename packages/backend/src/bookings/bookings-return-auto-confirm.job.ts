@@ -134,16 +134,14 @@ export class BookingsReturnAutoConfirmJob {
 
   private async processRetries(now: Date) {
     const retries = await this.prisma.booking.findMany({
-      // Note: Prisma client typings in this repo may lag behind schema migrations.
-      // We keep runtime behavior correct by casting where/orderBy to any.
       where: {
         settlementStatus: BookingSettlementStatus.FAILED,
         settlementNextRetryAt: { lte: now },
         status: BookingStatus.COMPLETED,
-      } as any,
+      },
       select: { id: true },
       take: 50,
-      orderBy: { settlementNextRetryAt: 'asc' } as any,
+      orderBy: { settlementNextRetryAt: 'asc' },
     });
 
     for (const b of retries) {
@@ -153,13 +151,40 @@ export class BookingsReturnAutoConfirmJob {
           data: { settlementStatus: BookingSettlementStatus.PENDING },
         });
         await this.settlement.attemptSettlement({ bookingId: b.id, now });
+
+        const after = await this.prisma.booking.findUnique({
+          where: { id: b.id },
+          select: {
+            settlementStatus: true,
+            renterId: true,
+            listing: { select: { ownerId: true } },
+          },
+        });
+        if (
+          after?.settlementStatus === BookingSettlementStatus.SETTLED &&
+          after.renterId &&
+          after.listing?.ownerId
+        ) {
+          await Promise.allSettled([
+            this.trustScoreService.recalculateForUser({
+              userId: after.renterId,
+              eventType: 'booking_completed',
+            }),
+            this.trustScoreService.recalculateForUser({
+              userId: after.listing.ownerId,
+              eventType: 'booking_completed',
+            }),
+          ]);
+        }
       } catch (err) {
         this.logger.warn(
-          { bookingId: b.id, err: err instanceof Error ? err.message : String(err) },
+          {
+            bookingId: b.id,
+            err: err instanceof Error ? err.message : String(err),
+          },
           'Settlement retry failed',
         );
       }
     }
   }
 }
-

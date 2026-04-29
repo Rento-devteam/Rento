@@ -1,6 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
 import { utcDateOnly } from '../util/date-only';
 
+/** Rejects intervals whose start is already in the past (client clock skew is not compensated). */
+export function assertBookingStartsInFuture(startAt: Date): void {
+  if (startAt.getTime() < Date.now()) {
+    throw new BadRequestException('Дата начала брони должна быть в будущем');
+  }
+}
+
 export function computeDayProjection(
   startAt: Date,
   endAt: Date,

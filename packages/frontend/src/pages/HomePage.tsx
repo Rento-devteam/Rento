@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import type { ICategory, IListing, RentalPeriod } from '@rento/shared'
 import { useAuth } from '../auth/AuthContext'
 import { searchCatalog } from '../catalog/catalogApi'
 import { ApiError } from '../lib/apiClient'
+import { formatListingRentalPriceRu } from '../lib/rentalPeriodRu'
+import { getListingDisplayParts } from '../lib/listingDescriptionParts'
+import { listingConditionLabelRu } from '../lib/listingConditionRu'
 type SortApi = 'relevance' | 'newest' | 'price_asc' | 'price_desc'
 type SortPreset = 'cheap' | 'expensive' | 'popular' | 'near' | 'new'
 type RentalFilter = RentalPeriod | 'ALL'
@@ -26,6 +29,27 @@ const DEFAULT_SECTIONS: SectionTile[] = [
   { key: 'pets', title: 'Для питомцев', iconKey: 'pets' },
   { key: 'tech', title: 'Для техники', iconKey: 'tech' },
 ]
+
+/** Подписи разделов на русском, если в каталоге пришёл slug/имя на английском. */
+const CATEGORY_SECTION_TITLE_RU: Record<string, string> = {
+  'default-catalog': 'Разное',
+  tools: 'Инструменты',
+  vehicles: 'Транспорт',
+  'demo-power-tools': 'Электроинструмент',
+}
+
+function sectionTitleRu(cat: ICategory): string {
+  const bySlug = CATEGORY_SECTION_TITLE_RU[cat.slug]
+  if (bySlug) return bySlug
+  const byName = cat.name?.trim()
+  if (byName && /^[A-Za-z][A-Za-z\s&'-]+$/.test(byName)) {
+    const lower = byName.toLowerCase()
+    if (lower === 'tools') return 'Инструменты'
+    if (lower === 'vehicles') return 'Транспорт'
+    if (lower === 'miscellaneous' || lower === 'misc') return 'Разное'
+  }
+  return cat.name
+}
 
 const SORT_TO_API: Record<SortPreset, SortApi> = {
   cheap: 'price_asc',
@@ -51,23 +75,15 @@ const RENTAL_FILTERS: Array<{ value: RentalFilter; label: string }> = [
   { value: 'MONTH', label: 'Помесячная' },
 ]
 
-const POPULAR_CITIES = ['Москва', 'Санкт-Петербург', 'Казань', 'Минск', 'Гродно', 'Екатеринбург']
-
 export function HomePage() {
   const { accessToken } = useAuth()
   const [q, setQ] = useState('')
-  const [city, setCity] = useState('')
-  const [cityDraft, setCityDraft] = useState('')
-  const [cityOpen, setCityOpen] = useState(false)
-  const cityRef = useRef<HTMLDivElement | null>(null)
 
   const [categoryId, setCategoryId] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
 
   const [minPrice, setMinPrice] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
-  const [radiusFrom, setRadiusFrom] = useState('1')
-  const [radiusTo, setRadiusTo] = useState('30')
   const [sortPreset, setSortPreset] = useState<SortPreset>('popular')
   const [rentalFilter, setRentalFilter] = useState<RentalFilter>('ALL')
 
@@ -76,15 +92,15 @@ export function HomePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  async function loadCatalog() {
+  const loadCatalog = useCallback(async (overrides?: { categoryId?: string }) => {
+    const effectiveCategoryId = overrides?.categoryId ?? categoryId
     setLoading(true)
     setError(null)
     try {
       const response = await searchCatalog(
         {
           q,
-          city,
-          categoryId: categoryId || undefined,
+          categoryId: effectiveCategoryId || undefined,
           minPrice: minPrice ? Number(minPrice) : undefined,
           maxPrice: maxPrice ? Number(maxPrice) : undefined,
           sort: SORT_TO_API[sortPreset],
@@ -95,10 +111,13 @@ export function HomePage() {
       )
       setItems(response.results)
 
-      const map = new Map<string, ICategory>()
-      for (const cat of response.popularCategories) map.set(cat.id, cat)
-      for (const listing of response.results) map.set(listing.category.id, listing.category)
-      setCategories([...map.values()])
+      setCategories((prev) => {
+        const map = new Map<string, ICategory>()
+        for (const cat of prev) map.set(cat.id, cat)
+        for (const cat of response.popularCategories) map.set(cat.id, cat)
+        for (const listing of response.results) map.set(listing.category.id, listing.category)
+        return [...map.values()]
+      })
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : 'Не удалось загрузить карточки. Попробуйте ещё раз.',
@@ -107,7 +126,7 @@ export function HomePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [accessToken, categoryId, maxPrice, minPrice, q, sortPreset])
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -117,24 +136,13 @@ export function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    if (!cityOpen) return
-    function onClick(event: MouseEvent) {
-      if (cityRef.current && !cityRef.current.contains(event.target as Node)) {
-        setCityOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [cityOpen])
-
   const sections: SectionTile[] = useMemo(() => {
     if (categories.length === 0) return DEFAULT_SECTIONS
     return categories.slice(0, 6).map<SectionTile>((cat) => ({
       key: cat.id,
       categoryId: cat.id,
-      title: cat.name,
-      iconKey: matchIcon(cat.name),
+      title: sectionTitleRu(cat),
+      iconKey: matchIcon(sectionTitleRu(cat)),
     }))
   }, [categories])
 
@@ -143,33 +151,15 @@ export function HomePage() {
     return items.filter((item) => item.rentalPeriod === rentalFilter)
   }, [items, rentalFilter])
 
-  const cityOptions = useMemo(() => {
-    const set = new Set<string>(POPULAR_CITIES)
-    for (const item of items) {
-      const cityName = extractCityName(item.description)
-      if (cityName) set.add(cityName)
-    }
-    const list = [...set]
-    const needle = cityDraft.trim().toLowerCase()
-    const filtered = needle ? list.filter((option) => option.toLowerCase().includes(needle)) : list
-    return filtered.sort((a, b) => a.localeCompare(b, 'ru')).slice(0, 8)
-  }, [items, cityDraft])
-
   function onSubmitSearch(event: FormEvent) {
     event.preventDefault()
     void loadCatalog()
   }
 
-  function selectCity(next: string) {
-    setCity(next)
-    setCityDraft(next)
-    setCityOpen(false)
-    void loadCatalog()
-  }
-
   function toggleCategory(nextId: string) {
-    setCategoryId((current) => (current === nextId ? '' : nextId))
-    setTimeout(() => void loadCatalog(), 0)
+    const nextCategoryId = categoryId === nextId ? '' : nextId
+    setCategoryId(nextCategoryId)
+    void loadCatalog({ categoryId: nextCategoryId })
   }
 
   return (
@@ -177,8 +167,7 @@ export function HomePage() {
       <section className="container hero" aria-label="Поиск по каталогу">
         <h1 className="hero__title">Аренда вещей без лишних сложностей</h1>
         <p className="hero__subtitle">
-          Найдите то, что нужно, на час, день или месяц. Поиск по городу, фильтрация по цене и
-          радиусу — всё в одном окне.
+          Найдите то, что нужно, на час, день или месяц. Поиск по названию и фильтрация по цене — в одном окне.
         </p>
 
         <form className="search-bar" onSubmit={onSubmitSearch}>
@@ -191,50 +180,6 @@ export function HomePage() {
               value={q}
               onChange={(event) => setQ(event.target.value)}
             />
-          </div>
-
-          <div className="city-popover" ref={cityRef}>
-            <button
-              type="button"
-              className={`search-bar__chip${city ? ' search-bar__chip--active' : ''}`}
-              onClick={() => {
-                setCityOpen((open) => !open)
-                setCityDraft(city)
-              }}
-              aria-haspopup="dialog"
-              aria-expanded={cityOpen}
-            >
-              <PinIcon />
-              {city || 'Город'}
-            </button>
-            {cityOpen ? (
-              <div className="city-popover__panel" role="dialog" aria-label="Выбор города">
-                <input
-                  className="city-popover__input"
-                  type="text"
-                  autoFocus
-                  placeholder="Введите город"
-                  value={cityDraft}
-                  onChange={(event) => setCityDraft(event.target.value)}
-                />
-                <div className="city-popover__list">
-                  {cityOptions.length === 0 ? (
-                    <p className="city-popover__empty">Ничего не найдено</p>
-                  ) : (
-                    cityOptions.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        className="city-popover__option"
-                        onClick={() => selectCity(option)}
-                      >
-                        {option}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            ) : null}
           </div>
 
           <button
@@ -299,27 +244,6 @@ export function HomePage() {
               </div>
             </div>
 
-            <div className="filters__row">
-              <span className="filters__label">Радиус поиска</span>
-              <div className="filters__range">
-                <span>от</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={radiusFrom}
-                  onChange={(event) => setRadiusFrom(event.target.value)}
-                />
-                <span>до</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={radiusTo}
-                  onChange={(event) => setRadiusTo(event.target.value)}
-                />
-                <span>км</span>
-              </div>
-            </div>
-
             <div className="filters__row filters__row--stack">
               <span className="filters__label">Показать сначала</span>
               <div className="chip-group">
@@ -367,25 +291,27 @@ export function HomePage() {
       ) : null}
 
       <section className="container catalog" aria-live="polite">
-        <div className="catalog__header">
-          <h2 className="catalog__title">Каталог</h2>
-          <span className="catalog__meta">
-            {loading ? 'Загрузка…' : `Найдено: ${visibleItems.length}`}
-          </span>
-        </div>
+        <div className="catalog__shell">
+          <div className="catalog__header">
+            <h2 className="catalog__title">Каталог</h2>
+            <span className="catalog__meta">
+              {loading ? 'Загрузка…' : `Найдено: ${visibleItems.length}`}
+            </span>
+          </div>
 
-        {error ? <div className="status status--error">{error}</div> : null}
+          {error ? <div className="status status--error">{error}</div> : null}
 
-        <div className="catalog__grid">
-          {loading
-            ? Array.from({ length: 8 }).map((_, index) => <div key={index} className="skeleton" />)
-            : visibleItems.map((item) => <Card key={item.id} item={item} />)}
+          <div className="catalog__grid">
+            {loading
+              ? Array.from({ length: 8 }).map((_, index) => <div key={index} className="skeleton" />)
+              : visibleItems.map((item) => <Card key={item.id} item={item} />)}
 
-          {!loading && !error && visibleItems.length === 0 ? (
-            <div className="status">
-              По запросу ничего не найдено. Попробуйте изменить параметры фильтрации.
-            </div>
-          ) : null}
+            {!loading && !error && visibleItems.length === 0 ? (
+              <div className="status catalog__grid-span">
+                По запросу ничего не найдено. Попробуйте изменить параметры фильтрации.
+              </div>
+            ) : null}
+          </div>
         </div>
       </section>
     </main>
@@ -396,6 +322,11 @@ function Card({ item }: { item: IListing }) {
   const cover = item.photos[0]?.url
   const cityName = extractCity(item.description)
   const period = periodLabel(item.rentalPeriod)
+  const displayParts = getListingDisplayParts(item.description ?? '')
+  const conditionRu = listingConditionLabelRu(displayParts.condition)
+  const cardDescription = [conditionRu ? `Состояние: ${conditionRu}` : null, displayParts.description]
+    .filter((part): part is string => Boolean(part && part.trim() && part.trim() !== '—'))
+    .join('. ')
   return (
     <article className="card">
       <Link to={`/listings/${item.id}`} className="card__link-overlay" aria-label={item.title} />
@@ -410,10 +341,9 @@ function Card({ item }: { item: IListing }) {
         <h3 className="card__title">
           {item.title}
         </h3>
-        <p className="card__desc">{item.description}</p>
+        <p className="card__desc">{cardDescription || item.description}</p>
         <div className="card__prices">
-          <span className="card__price-main">{formatPrice(item)}</span>
-          <span className="card__price-secondary">{secondaryPrice(item)}</span>
+          <span className="card__price-main">{formatListingRentalPriceRu(item.rentalPrice, item.rentalPeriod)}</span>
         </div>
       </div>
       <div className="card__footer" style={{ zIndex: 2, position: 'relative' }}>
@@ -435,29 +365,6 @@ function Card({ item }: { item: IListing }) {
 
 /* ---------- helpers ---------- */
 
-function formatPrice(item: IListing): string {
-  const currency = '₽'
-  const unit =
-    item.rentalPeriod === 'HOUR'
-      ? '/час'
-      : item.rentalPeriod === 'DAY'
-        ? '/сутки'
-        : item.rentalPeriod === 'WEEK'
-          ? '/неделя'
-          : '/месяц'
-  return `${Math.round(item.rentalPrice).toLocaleString('ru-RU')}${currency}${unit}`
-}
-
-function secondaryPrice(item: IListing): string {
-  if (item.rentalPeriod === 'HOUR') {
-    return `${Math.round(item.rentalPrice * 24).toLocaleString('ru-RU')}₽/сутки`
-  }
-  if (item.rentalPeriod === 'DAY') {
-    return `${Math.max(1, Math.round(item.rentalPrice / 24)).toLocaleString('ru-RU')}₽/час`
-  }
-  return ''
-}
-
 function periodLabel(period: RentalPeriod): string {
   switch (period) {
     case 'HOUR':
@@ -474,11 +381,6 @@ function periodLabel(period: RentalPeriod): string {
 function extractCity(description: string): string {
   const match = description.match(/г\.\s*[^,]+,?[^,]*/i)
   return match?.[0]?.trim() ?? 'г. Москва'
-}
-
-function extractCityName(description: string): string | null {
-  const match = description.match(/г\.\s*([^,]+)/i)
-  return match?.[1]?.trim() ?? null
 }
 
 function matchIcon(name: string): SectionIconKey {

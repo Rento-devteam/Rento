@@ -11,8 +11,12 @@ export class VerificationService {
     private readonly provider: IdentityVerificationProvider,
   ) {}
 
-  async initiateEsiaVerification(userId: string): Promise<{ redirectUrl: string }> {
-    const existing = await this.prismaService.identityVerification.findUnique({ where: { userId } });
+  async initiateEsiaVerification(
+    userId: string,
+  ): Promise<{ redirectUrl: string }> {
+    const existing = await this.prismaService.identityVerification.findUnique({
+      where: { userId },
+    });
     if (existing?.status === IdentityVerificationStatus.VERIFIED) {
       throw new BadRequestException('User is already verified');
     }
@@ -64,13 +68,19 @@ export class VerificationService {
     }
 
     if (attempt.status === IdentityVerificationStatus.VERIFIED) {
-      return { status: IdentityVerificationStatus.VERIFIED, userId: attempt.userId };
+      return {
+        status: IdentityVerificationStatus.VERIFIED,
+        userId: attempt.userId,
+      };
     }
 
     if (params.error) {
       await this.prismaService.identityVerification.update({
         where: { id: attempt.id },
-        data: { status: IdentityVerificationStatus.REJECTED, lastError: params.error },
+        data: {
+          status: IdentityVerificationStatus.REJECTED,
+          lastError: params.error,
+        },
       });
       return {
         status: IdentityVerificationStatus.REJECTED,
@@ -86,7 +96,10 @@ export class VerificationService {
     if (attempt.expiresAt && attempt.expiresAt.getTime() < Date.now()) {
       await this.prismaService.identityVerification.update({
         where: { id: attempt.id },
-        data: { status: IdentityVerificationStatus.EXPIRED, lastError: 'expired' },
+        data: {
+          status: IdentityVerificationStatus.EXPIRED,
+          lastError: 'expired',
+        },
       });
       return {
         status: IdentityVerificationStatus.EXPIRED,
@@ -110,7 +123,10 @@ export class VerificationService {
       },
     });
 
-    return { status: IdentityVerificationStatus.VERIFIED, userId: attempt.userId };
+    return {
+      status: IdentityVerificationStatus.VERIFIED,
+      userId: attempt.userId,
+    };
   }
 
   async escalateEsiaVerification(params: {
@@ -138,4 +154,3 @@ export class VerificationService {
     return { message: 'Escalation accepted' };
   }
 }
-

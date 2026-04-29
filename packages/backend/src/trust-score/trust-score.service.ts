@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { IdentityVerificationStatus } from '@prisma/client';
+import { BookingSettlementStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TrustScoreSnapshot } from '../users/user-profile.mapper';
 
@@ -65,18 +65,7 @@ export class TrustScoreService {
 
     const now = new Date();
 
-    const verification = await this.prismaService.identityVerification.findUnique({
-      where: { userId: params.userId },
-      select: { status: true },
-    });
-
-    const verificationFactor =
-      verification?.status === IdentityVerificationStatus.VERIFIED ? 1 : 0;
-
-    // Reviews are not implemented in backend yet; keep a stable base factor (50%).
-    const ratingFactor = 0.5;
-
-    const baseCompletedWhere = {
+    const baseCompletedWhere: Prisma.BookingWhereInput = {
       status: 'COMPLETED' as const,
       OR: [
         { renterId: params.userId },
@@ -84,60 +73,67 @@ export class TrustScoreService {
       ],
     };
 
-    const [totalDeals, lateReturns] = await Promise.all([
+    const [totalDeals, completedDeals] = await Promise.all([
       this.prismaService.booking.count({
-        where: baseCompletedWhere as any,
+        where: baseCompletedWhere,
       }),
-      this.prismaService.booking.count({
+      this.prismaService.booking.findMany({
         where: {
-          ...(baseCompletedWhere as any),
-          OR: [
-            { returnAutoConfirmedAt: { not: null } },
-            {
-              AND: [
-                { returnConfirmationDeadlineAt: { not: null } },
-                { returnMutualConfirmedAt: { not: null } },
-                // Prisma supports field references, but keep it simple and robust across versions:
-                // treat late if mutual confirmation happens after the deadline by pulling candidates and comparing.
-              ],
-            },
-          ],
-        } as any,
+          ...baseCompletedWhere,
+          completedAt: { not: null },
+        },
+        select: {
+          id: true,
+          endAt: true,
+          endDate: true,
+          completedAt: true,
+          depositAmount: true,
+          settledAt: true,
+          settlementStatus: true,
+          returnMutualConfirmedAt: true,
+          returnAutoConfirmedAt: true,
+        },
       }),
     ]);
 
-    // The second condition above can't compare two columns reliably in all prisma versions in this repo.
-    // Do a small follow-up query for records with both timestamps set and compare in JS.
-    const lateByDeadlineCandidates = await this.prismaService.booking.findMany({
-      where: {
-        ...(baseCompletedWhere as any),
-        returnAutoConfirmedAt: null,
-        returnConfirmationDeadlineAt: { not: null },
-        returnMutualConfirmedAt: { not: null },
-      } as any,
-      select: {
-        id: true,
-        returnConfirmationDeadlineAt: true,
-        returnMutualConfirmedAt: true,
-      },
-    });
+    const depositSlaMs = this.getDepositReturnSlaMs();
 
-    let lateByDeadline = 0;
-    for (const b of lateByDeadlineCandidates) {
-      const deadline = b.returnConfirmationDeadlineAt;
-      const confirmed = b.returnMutualConfirmedAt;
-      if (deadline && confirmed && confirmed.getTime() > deadline.getTime()) {
-        lateByDeadline += 1;
+    let lateReturnsTotal = 0;
+    for (const b of completedDeals) {
+      const completedAt = b.completedAt;
+      if (!completedAt) continue;
+
+      const deposit = Number(b.depositAmount);
+      const hasDeposit = Number.isFinite(deposit) && deposit > 0;
+
+      if (hasDeposit) {
+        const anchor = b.returnMutualConfirmedAt ?? b.returnAutoConfirmedAt;
+        if (!anchor) continue;
+        if (
+          b.settlementStatus !== BookingSettlementStatus.SETTLED ||
+          !b.settledAt
+        ) {
+          continue;
+        }
+        const dueByDeposit = anchor.getTime() + depositSlaMs;
+        if (b.settledAt.getTime() > dueByDeposit) {
+          lateReturnsTotal += 1;
+        }
+        continue;
+      }
+
+      const dueAt = b.endAt ?? this.endOfDay(b.endDate);
+      if (completedAt.getTime() > dueAt.getTime()) {
+        lateReturnsTotal += 1;
       }
     }
-
-    const lateReturnsTotal = Math.min(totalDeals, lateReturns + lateByDeadline);
+    lateReturnsTotal = Math.min(totalDeals, lateReturnsTotal);
     const successfulDeals = Math.max(0, totalDeals - lateReturnsTotal);
 
-    const reliabilityFactor = totalDeals > 0 ? successfulDeals / totalDeals : 0.5;
+    const reliabilityFactor = totalDeals > 0 ? successfulDeals / totalDeals : 0;
 
-    const ars =
-      verificationFactor * 0.2 + ratingFactor * 0.3 + reliabilityFactor * 0.5;
+    // Trust score is based only on booking reliability (identity/reviews are excluded).
+    const ars = reliabilityFactor;
     const currentScore = this.clampInt(Math.round(ars * 100), 0, 100);
 
     const disputes = 0;
@@ -187,5 +183,18 @@ export class TrustScoreService {
     if (value > max) return max;
     return value;
   }
-}
 
+  private endOfDay(date: Date): Date {
+    const d = new Date(date);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  }
+
+  /** SLA from mutual (or auto) return confirm until deposit must be settled in the stub/real gateway. */
+  private getDepositReturnSlaMs(): number {
+    const raw = process.env.DEPOSIT_RETURN_SLA_HOURS;
+    const parsed = raw ? Number(raw) : NaN;
+    const hours = Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
+    return hours * 60 * 60 * 1000;
+  }
+}

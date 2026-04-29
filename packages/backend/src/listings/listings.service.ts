@@ -8,10 +8,11 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ListingStatus, RentalPeriod } from '@prisma/client';
+import { ListingStatus, Prisma, RentalPeriod } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { CreateListingDto } from './dto/create-listing.dto';
+import { UpdateListingDto } from './dto/update-listing.dto';
 import { UploadListingPhotoDto } from './dto/upload-listing-photo.dto';
 import {
   LISTING_PHOTO_ALLOWED_MIME_TYPES,
@@ -20,12 +21,14 @@ import {
 import {
   mapCategory,
   mapListingCreatedResponse,
+  mapListingDetail,
   mapListingPhotoUploadResponse,
   mapListingPhotosResponse,
   mapListingPublishResponse,
 } from './listing.mapper';
 import { ListingPhotoStorage } from './listing-photo-storage.service';
 import { ListingSearchIndexService } from '../search/listing-search-index.service';
+import { CALENDAR_BLOCKING_BOOKING_STATUSES } from '../bookings/bookings.constants';
 
 @Injectable()
 export class ListingsService {
@@ -50,7 +53,7 @@ export class ListingsService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return listings.map(mapListingCreatedResponse);
+    return listings.map(mapListingDetail);
   }
 
   async getListingById(listingId: string) {
@@ -68,7 +71,120 @@ export class ListingsService {
       throw new NotFoundException('Listing not found');
     }
 
-    return mapListingCreatedResponse(listing);
+    if (listing.status === ListingStatus.DRAFT) {
+      throw new NotFoundException('Listing not found');
+    }
+
+    return mapListingDetail(listing);
+  }
+
+  async getOwnedListing(userId: string, listingId: string) {
+    const listing = await this.prismaService.listing.findFirst({
+      where: { id: listingId, ownerId: userId },
+      include: {
+        category: true,
+        photos: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (!listing) {
+      throw new NotFoundException('Listing not found');
+    }
+
+    return mapListingDetail(listing);
+  }
+
+  async updateOwnedListing(
+    userId: string,
+    listingId: string,
+    dto: UpdateListingDto,
+  ) {
+    const listing = await this.prismaService.listing.findFirst({
+      where: { id: listingId, ownerId: userId },
+      select: { id: true, status: true },
+    });
+
+    if (!listing) {
+      throw new NotFoundException('Listing not found');
+    }
+
+    if (
+      listing.status !== ListingStatus.DRAFT &&
+      listing.status !== ListingStatus.ACTIVE
+    ) {
+      throw new ConflictException('Это объявление нельзя редактировать');
+    }
+
+    const definedKeys = (
+      Object.keys(dto) as Array<keyof UpdateListingDto>
+    ).filter((k) => dto[k] !== undefined);
+    if (definedKeys.length === 0) {
+      throw new BadRequestException('Нет данных для обновления');
+    }
+
+    if (dto.categoryId !== undefined) {
+      const category = await this.prismaService.category.findFirst({
+        where: { id: dto.categoryId, isActive: true },
+      });
+      if (!category) {
+        throw new UnprocessableEntityException('Категория недоступна');
+      }
+    }
+
+    const data: Prisma.ListingUpdateInput = {};
+    if (dto.categoryId !== undefined) {
+      data.category = { connect: { id: dto.categoryId } };
+    }
+    if (dto.title !== undefined) {
+      const t = dto.title.trim();
+      if (!t) {
+        throw new UnprocessableEntityException('Укажите название');
+      }
+      data.title = t;
+    }
+    if (dto.description !== undefined) {
+      data.description = dto.description.trim();
+    }
+    if (dto.rentalPrice !== undefined) {
+      data.rentalPrice = dto.rentalPrice;
+    }
+    if (dto.rentalPeriod !== undefined) {
+      data.rentalPeriod = dto.rentalPeriod;
+    }
+    if (dto.depositAmount !== undefined) {
+      data.depositAmount = dto.depositAmount;
+    }
+    if (dto.latitude !== undefined) {
+      data.latitude = dto.latitude;
+    }
+    if (dto.longitude !== undefined) {
+      data.longitude = dto.longitude;
+    }
+
+    const updated = await this.prismaService.listing.update({
+      where: { id: listingId },
+      data,
+      include: {
+        category: true,
+        photos: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (updated.status === ListingStatus.ACTIVE) {
+      try {
+        await this.listingSearchIndex.indexListing(listingId);
+      } catch (err) {
+        this.logger.warn(
+          `Failed to index listing ${listingId} in Elasticsearch: ${String(err)}`,
+        );
+      }
+    }
+
+    return mapListingDetail(updated);
   }
 
   async deleteListing(userId: string, listingId: string) {
@@ -83,6 +199,18 @@ export class ListingsService {
 
     if (listing.ownerId !== userId) {
       throw new ForbiddenException('You can only delete your own listings');
+    }
+
+    const blockingBookings = await this.prismaService.booking.count({
+      where: {
+        listingId,
+        status: { in: CALENDAR_BLOCKING_BOOKING_STATUSES },
+      },
+    });
+    if (blockingBookings > 0) {
+      throw new ConflictException(
+        'Нельзя удалить объявление: есть активные или ожидающие бронирования. Отмените сделки или дождитесь их завершения.',
+      );
     }
 
     await this.prismaService.listingPhoto.deleteMany({ where: { listingId } });
@@ -114,7 +242,7 @@ export class ListingsService {
         currency: 'RUB',
         supportedPeriods: Object.values(RentalPeriod),
         minPrice: 0.01,
-        minDeposit: 0.01,
+        minDeposit: 0,
       },
       limits: {
         maxPhotos: MAX_LISTING_PHOTOS,
@@ -133,11 +261,9 @@ export class ListingsService {
     }
 
     const title = dto.title.trim();
-    const description = dto.description.trim();
-    if (!title || !description) {
-      throw new UnprocessableEntityException(
-        'Title and description are required',
-      );
+    const description = dto.description?.trim() ?? '';
+    if (!title) {
+      throw new UnprocessableEntityException('Title is required');
     }
 
     const listing = await this.prismaService.listing.create({
@@ -212,9 +338,12 @@ export class ListingsService {
       );
     }
 
-    if (listing.status !== ListingStatus.DRAFT) {
+    if (
+      listing.status !== ListingStatus.DRAFT &&
+      listing.status !== ListingStatus.ACTIVE
+    ) {
       throw new ConflictException(
-        'Photos can only be uploaded for draft listings',
+        'Photos can only be uploaded for draft or active listings',
       );
     }
 
@@ -249,10 +378,98 @@ export class ListingsService {
       },
     });
 
-    return mapListingPhotoUploadResponse(
+    const response = mapListingPhotoUploadResponse(
       createdPhoto,
       listing.photos.length + 1,
     );
+
+    if (listing.status === ListingStatus.ACTIVE) {
+      try {
+        await this.listingSearchIndex.indexListing(listingId);
+      } catch (err) {
+        this.logger.warn(
+          `Failed to index listing ${listingId} in Elasticsearch: ${String(err)}`,
+        );
+      }
+    }
+
+    return response;
+  }
+
+  async deleteListingPhoto(userId: string, listingId: string, photoId: string) {
+    const listing = await this.prismaService.listing.findFirst({
+      where: { id: listingId, ownerId: userId },
+      select: {
+        id: true,
+        status: true,
+        photos: {
+          orderBy: { order: 'asc' },
+          select: { id: true, order: true, isPrimary: true },
+        },
+      },
+    });
+
+    if (!listing) {
+      throw new NotFoundException('Listing not found');
+    }
+
+    if (
+      listing.status !== ListingStatus.DRAFT &&
+      listing.status !== ListingStatus.ACTIVE
+    ) {
+      throw new ConflictException(
+        'Photos can only be managed for draft or active listings',
+      );
+    }
+
+    const photo = listing.photos.find((p) => p.id === photoId);
+    if (!photo) {
+      throw new NotFoundException('Photo not found');
+    }
+
+    if (listing.status === ListingStatus.ACTIVE && listing.photos.length <= 1) {
+      throw new BadRequestException(
+        'У опубликованного объявления должно остаться хотя бы одно фото',
+      );
+    }
+
+    const wasPrimary = photo.isPrimary;
+
+    await this.prismaService.listingPhoto.delete({
+      where: { id: photoId },
+    });
+
+    const remaining = await this.prismaService.listingPhoto.findMany({
+      where: { listingId },
+      orderBy: { order: 'asc' },
+    });
+
+    if (wasPrimary && remaining.length > 0) {
+      await this.prismaService.listingPhoto.updateMany({
+        where: { listingId },
+        data: { isPrimary: false },
+      });
+      await this.prismaService.listingPhoto.update({
+        where: { id: remaining[0].id },
+        data: { isPrimary: true },
+      });
+    }
+
+    if (listing.status === ListingStatus.ACTIVE) {
+      try {
+        await this.listingSearchIndex.indexListing(listingId);
+      } catch (err) {
+        this.logger.warn(
+          `Failed to index listing ${listingId} in Elasticsearch: ${String(err)}`,
+        );
+      }
+    }
+
+    return {
+      success: true,
+      totalPhotos: remaining.length,
+      message: 'Photo removed',
+    };
   }
 
   async publishListing(userId: string, listingId: string) {

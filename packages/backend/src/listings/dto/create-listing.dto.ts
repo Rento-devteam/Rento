@@ -1,31 +1,47 @@
 import { Type } from 'class-transformer';
 import {
   IsEnum,
-  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
+  MinLength,
 } from 'class-validator';
 import { RentalPeriod } from '@prisma/client';
+import {
+  LISTING_DESCRIPTION_MAX,
+  LISTING_PRICE_MAX,
+  LISTING_TITLE_MAX,
+  LISTING_TITLE_MIN,
+} from '../listing.constants';
 
 export class CreateListingDto {
   @IsUUID()
   categoryId!: string;
 
   @IsString()
-  @IsNotEmpty()
+  @MinLength(LISTING_TITLE_MIN, {
+    message: `Название не короче ${LISTING_TITLE_MIN} символов`,
+  })
+  @MaxLength(LISTING_TITLE_MAX, {
+    message: `Название не длиннее ${LISTING_TITLE_MAX} символов`,
+  })
   title!: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  description!: string;
+  @MaxLength(LISTING_DESCRIPTION_MAX, {
+    message: `Описание не длиннее ${LISTING_DESCRIPTION_MAX} символов`,
+  })
+  description?: string;
 
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0.01)
+  @Min(0.01, { message: 'Цена аренды должна быть больше нуля' })
+  @Max(LISTING_PRICE_MAX, { message: 'Слишком большая цена аренды' })
   rentalPrice!: number;
 
   @IsEnum(RentalPeriod)
@@ -33,7 +49,8 @@ export class CreateListingDto {
 
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0.01)
+  @Min(0, { message: 'Залог не может быть отрицательным' })
+  @Max(LISTING_PRICE_MAX, { message: 'Слишком большой залог' })
   depositAmount!: number;
 
   @IsOptional()

@@ -239,6 +239,53 @@ class InMemoryPrismaService {
         };
       },
     ),
+    findFirst: jest.fn(
+      async ({
+        where,
+        select,
+      }: {
+        where: { id: string; ownerId: string };
+        select?: {
+          id?: true;
+          status?: true;
+          photos?: {
+            orderBy?: { order: 'asc' | 'desc' };
+            select?: { id?: true; order?: true; isPrimary?: true };
+          };
+        };
+      }) => {
+        const listing =
+          this.listings.find(
+            (entry) => entry.id === where.id && entry.ownerId === where.ownerId,
+          ) ?? null;
+        if (!listing) {
+          return null;
+        }
+
+        const photos = this.getListingPhotos(listing.id);
+        if (!select) {
+          return { ...listing, photos };
+        }
+
+        return {
+          ...(select.id ? { id: listing.id } : {}),
+          ...(select.status ? { status: listing.status } : {}),
+          ...(select.photos
+            ? {
+                photos: photos.map((photo) => ({
+                  ...(select.photos?.select?.id ? { id: photo.id } : {}),
+                  ...(select.photos?.select?.order
+                    ? { order: photo.order }
+                    : {}),
+                  ...(select.photos?.select?.isPrimary
+                    ? { isPrimary: photo.isPrimary }
+                    : {}),
+                })),
+              }
+            : {}),
+        };
+      },
+    ),
     update: jest.fn(
       async ({
         where,
@@ -318,6 +365,44 @@ class InMemoryPrismaService {
           uploadedAt: new Date(),
         };
         this.listingPhotos.push(photo);
+        return photo;
+      },
+    ),
+    delete: jest.fn(async ({ where }: { where: { id: string } }) => {
+      const index = this.listingPhotos.findIndex(
+        (photo) => photo.id === where.id,
+      );
+      if (index === -1) {
+        throw new Error('Record to delete does not exist');
+      }
+      const [removed] = this.listingPhotos.splice(index, 1);
+      return removed;
+    }),
+    findMany: jest.fn(
+      async ({
+        where,
+      }: {
+        where: { listingId: string };
+        orderBy?: { order: 'asc' | 'desc' };
+      }) => {
+        return this.getListingPhotos(where.listingId);
+      },
+    ),
+    update: jest.fn(
+      async ({
+        where,
+        data,
+      }: {
+        where: { id: string };
+        data: { isPrimary?: boolean };
+      }) => {
+        const photo = this.listingPhotos.find((entry) => entry.id === where.id);
+        if (!photo) {
+          throw new Error('Photo not found');
+        }
+        if (data.isPrimary !== undefined) {
+          photo.isPrimary = data.isPrimary;
+        }
         return photo;
       },
     ),
@@ -480,7 +565,7 @@ describe('ListingsController (e2e)', () => {
     );
   });
 
-  it('rejects invalid payloads with 422', async () => {
+  it('rejects invalid payloads with 400', async () => {
     await request(app.getHttpServer())
       .post('/listings')
       .set(
@@ -491,10 +576,10 @@ describe('ListingsController (e2e)', () => {
         categoryId: activeCategoryId,
         title: '',
       })
-      .expect(422);
+      .expect(400);
   });
 
-  it('rejects negative rental price and deposit with 422', async () => {
+  it('rejects negative rental price and deposit with 400', async () => {
     await request(app.getHttpServer())
       .post('/listings')
       .set(
@@ -509,7 +594,7 @@ describe('ListingsController (e2e)', () => {
         rentalPeriod: RentalPeriod.DAY,
         depositAmount: -10,
       })
-      .expect(422);
+      .expect(400);
   });
 
   it('rejects blocked users', async () => {
