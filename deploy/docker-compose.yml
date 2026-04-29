@@ -95,7 +95,8 @@ services:
       - 77.88.8.8
       - 1.1.1.1
       - 8.8.8.8
-
+  
+  
   postgres:
     image: postgres:16-alpine
     container_name: rento-postgres
