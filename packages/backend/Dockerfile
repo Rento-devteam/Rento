@@ -41,6 +41,8 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
 COPY --from=build /app/backend/package.json ./package.json
 COPY --from=build /app/backend/node_modules ./node_modules
 COPY --from=build /app/backend/dist ./dist
+COPY --from=build /app/backend/prisma ./prisma
+COPY --from=build /app/backend/prisma.config.ts ./prisma.config.ts
 
 EXPOSE 3000
 
