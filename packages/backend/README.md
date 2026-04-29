@@ -69,7 +69,7 @@ $ npm run test:cov
 
 ## Search (Elasticsearch, UC-09)
 
-Local stack includes Elasticsearch on port **9200** (`docker compose up -d`). Set `ELASTICSEARCH_NODE` in `.env` (see `.env.example`). The app creates index `rento-listings` (override with `ELASTICSEARCH_LISTINGS_INDEX`) on startup.
+Local stack includes Elasticsearch on port **9200** (`docker compose -f docker-compose.dev.yml up -d`). Set `ELASTICSEARCH_NODE` in `.env` (see `.env.example`). The app creates index `rento-listings` (override with `ELASTICSEARCH_LISTINGS_INDEX`) on startup.
 
 **HTTP**
 

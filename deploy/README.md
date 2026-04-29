@@ -20,6 +20,7 @@ From repo root:
 
 ### Notes
 
+- The frontend is served by `caddy` on `https://$DOMAIN/`. The API is available on `https://$DOMAIN/api/*` (Caddy strips `/api` and proxies to `backend:3000`).
 - Only `caddy` publishes ports publicly (`80/443`). `postgres` and `elasticsearch` are internal-only.
 - `DATABASE_URL` is built inside compose from `POSTGRES_*` and points to the `postgres` container.
 

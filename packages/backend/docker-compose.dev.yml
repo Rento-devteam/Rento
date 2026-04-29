@@ -42,3 +42,4 @@ services:
 volumes:
   rento_pg_data:
   rento_es_data:
+

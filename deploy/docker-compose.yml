@@ -8,6 +8,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    env_file:
+      - ./.env
     environment:
       DOMAIN: ${DOMAIN}
     volumes:
@@ -16,6 +18,7 @@ services:
       - rento_caddy_config:/config
     depends_on:
       - backend
+      - frontend
       - telegram-bot
     networks:
       - web
@@ -39,6 +42,19 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+    networks:
+      - internal
+
+  frontend:
+    build:
+      context: ../packages
+      dockerfile: frontend/Dockerfile
+    container_name: rento-frontend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
     networks:
       - internal
 
@@ -89,6 +105,8 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.4
     container_name: rento-elasticsearch
     restart: unless-stopped
+    env_file:
+      - ./.env
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false

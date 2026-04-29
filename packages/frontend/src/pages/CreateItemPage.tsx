@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import type { IListingPhoto } from '@rento/shared'
 import { useAuth } from '../auth/AuthContext'
 import {
   createListing,
@@ -212,7 +213,9 @@ export function CreateItemPage() {
           rentalPrice: String(Math.round(listing.rentalPrice)),
           deposit: String(Math.round(listing.depositAmount)),
         })
-        setUploadedPhotos((listing.photos ?? []).map((p) => ({ id: p.id, url: p.url })))
+        setUploadedPhotos(
+          (listing.photos ?? []).map((p: IListingPhoto) => ({ id: p.id, url: p.url })),
+        )
         const isActive = listing.status === 'ACTIVE'
         setStep(!isActive && (listing.photos?.length ?? 0) > 0 ? 'upload' : 'form')
         setCreatedListing({
