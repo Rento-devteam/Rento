@@ -85,8 +85,18 @@ async function main() {
         );
       }
       const webhookUrl = `${config.publicBotBaseUrl}${config.webhookPath}`;
-      await bot.telegram.setWebhook(webhookUrl);
-      console.log(`[telegram-bot] Webhook set: ${webhookUrl}`);
+      try {
+        await bot.telegram.setWebhook(webhookUrl);
+        console.log(`[telegram-bot] Webhook set: ${webhookUrl}`);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(
+          `[telegram-bot] Failed to set webhook (${webhookUrl}): ${msg}`,
+        );
+        console.error(
+          '[telegram-bot] Continuing without webhook. You can retry by restarting the service, or set USE_POLLING=true as a fallback.',
+        );
+      }
     } else {
       console.log(
         '[telegram-bot] Webhook not set on startup (SET_WEBHOOK_ON_STARTUP=false)',
