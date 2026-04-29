@@ -1,0 +1,14 @@
+{
+  # Global options
+  # email you@example.com
+}
+
+{$DOMAIN} {
+  encode zstd gzip
+
+  @telegramWebhook path /telegram/webhook*
+  reverse_proxy @telegramWebhook telegram-bot:3010
+
+  reverse_proxy backend:3000
+}
+

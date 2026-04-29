@@ -16,16 +16,13 @@ export class PrismaService
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
-    const connectionString =
-      process.env.DATABASE_URL ??
-      'postgresql://postgres:root@localhost:5434/rento?schema=public';
+    const connectionString = process.env.DATABASE_URL;
 
     super({ adapter: new PrismaPg({ connectionString }) });
 
-    if (!process.env.DATABASE_URL) {
-      this.logger.warn(
-        'DATABASE_URL is not set. Falling back to docker-compose default: postgresql://postgres:root@localhost:5434/rento?schema=public',
-      );
+    if (!connectionString) {
+      this.logger.error('DATABASE_URL is not set');
+      throw new Error('DATABASE_URL is not set');
     }
   }
 
