@@ -34,6 +34,10 @@ ENV NODE_ENV=production
 
 WORKDIR /app/backend
 
+# Prisma CLI (migrate deploy) needs OpenSSL in runtime too
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/backend/package.json ./package.json
 COPY --from=build /app/backend/node_modules ./node_modules
 COPY --from=build /app/backend/dist ./dist
