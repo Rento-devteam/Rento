@@ -48,8 +48,7 @@ services:
     dns:
       - 85.193.93.193
       - 85.193.93.194
-    extra_hosts:
-      - "smtp.yandex.ru:77.88.21.158"
+
     dns_opt:
       - use-vc
       - timeout:2
