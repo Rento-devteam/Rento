@@ -12,6 +12,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { RenterBookingsPage } from './pages/RenterBookingsPage'
 import { LandlordBookingsPage } from './pages/LandlordBookingsPage'
 import { BookingDetailPage } from './pages/BookingDetailPage'
+import { TelegramCallbackPage } from './pages/TelegramCallbackPage'
 
 const AUTH_ROUTE_TO_TAB: Record<string, AuthTab> = {
   '/login': 'login',
@@ -52,6 +53,7 @@ function AppLayout() {
           <Route path="/register" element={<HomePage />} />
           <Route path="/login/telegram" element={<HomePage />} />
           <Route path="/confirm-email" element={<ConfirmEmailPage />} />
+          <Route path="/telegram/callback" element={<TelegramCallbackPage />} />
           <Route path="/create-item" element={<CreateItemPage />} />
           <Route path="/listings/:id/edit" element={<CreateItemPage />} />
           <Route path="/listings/:id/calendar" element={<ManageCalendarPage />} />
