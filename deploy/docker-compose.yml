@@ -44,6 +44,14 @@ services:
         condition: service_healthy
     networks:
       - internal
+    dns:
+      - 85.193.93.193
+      - 85.193.93.194
+    dns_opt:
+      - use-vc
+      - timeout:2
+      - attempts:2
+      - ndots:0
 
   frontend:
     build:
