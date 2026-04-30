@@ -460,8 +460,26 @@ export function CreateItemPage() {
     [uploadedPhotos, formData.title],
   )
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+    navigate('/profile')
+  }
+
   return (
     <main className="container" style={{ padding: 'var(--sp-7) 0', flex: 1 }}>
+      {isEditMode ? (
+        <button
+          type="button"
+          className="btn btn--ghost"
+          style={{ marginBottom: 'var(--sp-4)' }}
+          onClick={handleBack}
+        >
+          Назад
+        </button>
+      ) : null}
       <h1
         className="hero__title"
         style={{
