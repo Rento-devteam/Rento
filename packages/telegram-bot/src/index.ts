@@ -17,6 +17,15 @@ async function main() {
     { state: string; username?: string; firstName?: string }
   >();
 
+  bot.catch((err, ctx) => {
+    const updateId =
+      ctx.update && typeof ctx.update === 'object' && 'update_id' in ctx.update
+        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          String((ctx.update as any).update_id)
+        : 'unknown';
+    console.error(`[telegram-bot] Unhandled error (update_id=${updateId}):`, err);
+  });
+
   bot.start(async (ctx) => {
     const state = (ctx.startPayload ?? '').trim();
     if (!state) {
@@ -163,6 +172,7 @@ async function main() {
 
   const app = express();
   app.get('/healthz', (_req, res) => res.status(200).send('ok'));
+  app.use(express.json({ limit: '1mb' }));
   app.use(bot.webhookCallback(config.webhookPath));
 
   app.listen(config.port, async () => {
