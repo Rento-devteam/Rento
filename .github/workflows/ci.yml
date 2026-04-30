@@ -76,9 +76,7 @@ jobs:
           if [ -n "${{ secrets.DEPLOY_SSH_KEY_B64 }}" ]; then
             echo "${{ secrets.DEPLOY_SSH_KEY_B64 }}" | base64 -d > /tmp/deploy_key
           else
-            cat <<'EOF' > /tmp/deploy_key
-${{ secrets.DEPLOY_SSH_KEY }}
-EOF
+            printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > /tmp/deploy_key
           fi
           chmod 600 /tmp/deploy_key
 
