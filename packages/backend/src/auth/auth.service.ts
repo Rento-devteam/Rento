@@ -379,7 +379,7 @@ export class AuthService {
           phone,
         },
       });
-    } else if (phone && !user.phone) {
+    } else if (phone && phone !== (user.phone ?? undefined)) {
       user = await this.prismaService.user.update({
         where: { id: user.id },
         data: { phone },
