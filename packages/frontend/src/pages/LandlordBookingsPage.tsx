@@ -87,7 +87,14 @@ export function LandlordBookingsPage() {
         {displayLoading ? (
           <div className="skeleton" style={{ height: 160, borderRadius: 'var(--r-md)' }} />
         ) : displayItems.length === 0 ? (
-          <p className="status">Пока никто не бронировал ваши опубликованные объявления.</p>
+          <>
+            <p className="status">Пока никто не бронировал ваши опубликованные объявления.</p>
+            <div style={{ marginTop: 'var(--sp-3)' }}>
+              <Link to="/create-item" className="btn btn--brand">
+                Создать объявление
+              </Link>
+            </div>
+          </>
         ) : (
           <ul className="bookings-page__list">
             {displayItems.map((b) => (

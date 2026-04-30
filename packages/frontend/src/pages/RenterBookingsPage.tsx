@@ -81,6 +81,11 @@ export function RenterBookingsPage() {
           <span aria-current="page">Арендую</span>
           <Link to="/bookings/hosting">Сдаю</Link>
         </nav>
+        <div style={{ marginTop: 'var(--sp-3)', marginBottom: 'var(--sp-2)' }}>
+          <Link to="/" className="btn btn--ghost">
+            Перейти на главную
+          </Link>
+        </div>
 
         {displayError ? <div className="alert alert--error">{displayError}</div> : null}
 
