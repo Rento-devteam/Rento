@@ -142,8 +142,6 @@ export function HomePage() {
   useEffect(() => {
     const query = q.trim()
     if (query.length < 1) {
-      setAutocompleteItems([])
-      setAutocompleteOpen(false)
       return
     }
 
@@ -163,6 +161,14 @@ export function HomePage() {
 
     return () => clearTimeout(timer)
   }, [q])
+
+  function handleSearchInputChange(value: string) {
+    setQ(value)
+    if (value.trim().length < 1) {
+      setAutocompleteItems([])
+      setAutocompleteOpen(false)
+    }
+  }
 
   const sections: SectionTile[] = useMemo(() => {
     if (categories.length === 0) return DEFAULT_SECTIONS
@@ -213,7 +219,7 @@ export function HomePage() {
               type="text"
               placeholder="Что ищем? Дрель, мольберт, велосипед…"
               value={q}
-              onChange={(event) => setQ(event.target.value)}
+              onChange={(event) => handleSearchInputChange(event.target.value)}
               onFocus={() => {
                 if (autocompleteItems.length > 0) setAutocompleteOpen(true)
               }}
