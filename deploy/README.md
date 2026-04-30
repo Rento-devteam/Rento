@@ -30,7 +30,10 @@ Add repository secrets (GitHub → Settings → Secrets and variables → Action
 | `DEPLOY_USER`    | SSH user (must have access to the repo clone + Docker) |
 | `DEPLOY_SSH_KEY` | Private key (pem); matching public key on the server     |
 | `DEPLOY_SSH_KEY_B64` | Optional: base64 of private key (more robust for multiline secrets) |
+| `DEPLOY_SSH_PASSPHRASE` | Passphrase for the private key, **exactly** as set at `ssh-keygen`. If the key has no passphrase, leave this secret empty or omit it. |
 | `DEPLOY_PATH`    | Absolute path to this repo on the server               |
+
+For GitHub Actions it is easiest to use a **deploy-only key with no passphrase** (then `DEPLOY_SSH_PASSPHRASE` is empty). If the key is encrypted, `DEPLOY_SSH_PASSPHRASE` must match byte-for-byte (no extra spaces or newlines).
 
 On the server: clone the repo once into `DEPLOY_PATH`, create `deploy/.env`, and ensure the SSH user can run `docker compose`.
 Keep the server clone on the `deploy` branch (`git checkout deploy` once).

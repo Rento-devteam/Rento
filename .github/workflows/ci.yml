@@ -79,11 +79,12 @@ jobs:
             printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > /tmp/deploy_key
           fi
           chmod 600 /tmp/deploy_key
-      
-      - name: Debug deploy key fingerprint
-        run: |
-          ssh-keygen -lf /tmp/deploy_key
-          ssh-keygen -y -f /tmp/deploy_key | ssh-keygen -lf -
+
+      # Fails fast if DEPLOY_SSH_PASSPHRASE does not match the encrypted key (no interactive prompt).
+      - name: Verify deploy key decrypts
+        env:
+          DEPLOY_SSH_PASSPHRASE: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
+        run: ssh-keygen -lf /tmp/deploy_key -P "${DEPLOY_SSH_PASSPHRASE}"
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
