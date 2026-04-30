@@ -12,6 +12,11 @@ build/
 .env
 .env.local
 .env.*.local
+deploy/.env
+deploy/.env.*
+.env.*
+**/.env
+**/.env.*
 
 # Logs
 logs/

@@ -14,6 +14,9 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResendConfirmationDto } from './dto/resend-confirmation.dto';
 import { TelegramAuthDto } from './dto/telegram-auth.dto';
+import { TelegramLoginConfirmDto } from './dto/telegram-login-confirm.dto';
+import { TelegramLoginExchangeDto } from './dto/telegram-login-exchange.dto';
+import { TelegramLoginStartDto } from './dto/telegram-login-start.dto';
 import { TelegramVerifyDto } from './dto/telegram-verify.dto';
 import { BotSecretGuard } from './bot-secret.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -68,5 +71,21 @@ export class AuthController {
   @Post('telegram/auth')
   telegramAuth(@Body() dto: TelegramAuthDto) {
     return this.authService.telegramAuth(dto);
+  }
+
+  @Post('telegram/login/start')
+  telegramLoginStart(@Body() dto: TelegramLoginStartDto) {
+    return this.authService.startTelegramLogin(dto);
+  }
+
+  @UseGuards(BotSecretGuard)
+  @Post('telegram/login/confirm')
+  telegramLoginConfirm(@Body() dto: TelegramLoginConfirmDto) {
+    return this.authService.confirmTelegramLogin(dto);
+  }
+
+  @Post('telegram/login/exchange')
+  telegramLoginExchange(@Body() dto: TelegramLoginExchangeDto) {
+    return this.authService.exchangeTelegramLogin(dto);
   }
 }

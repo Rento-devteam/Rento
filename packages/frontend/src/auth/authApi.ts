@@ -94,4 +94,20 @@ export const authApi = {
       accessToken,
     })
   },
+
+  telegramLoginStart(body?: {
+    redirectUrl?: string
+  }): Promise<{ state: string; deepLink: string; expiresAt: string }> {
+    return apiRequest('/telegram/login/start', {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    })
+  },
+
+  telegramLoginExchange(body: { code: string }): Promise<AuthSuccessResponse> {
+    return apiRequest<AuthSuccessResponse>('/telegram/login/exchange', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  },
 }
