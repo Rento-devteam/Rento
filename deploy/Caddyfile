@@ -6,6 +6,11 @@
 {$DOMAIN} {
   encode zstd gzip
 
+  log {
+    output stdout
+    format console
+  }
+
   @telegramWebhook path /telegram/webhook*
   reverse_proxy @telegramWebhook telegram-bot:3010
 
