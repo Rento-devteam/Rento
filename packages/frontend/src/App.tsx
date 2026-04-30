@@ -12,6 +12,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { RenterBookingsPage } from './pages/RenterBookingsPage'
 import { LandlordBookingsPage } from './pages/LandlordBookingsPage'
 import { BookingDetailPage } from './pages/BookingDetailPage'
+import { PublicUserProfilePage } from './pages/PublicUserProfilePage'
 
 const AUTH_ROUTE_TO_TAB: Record<string, AuthTab> = {
   '/login': 'login',
@@ -57,6 +58,7 @@ function AppLayout() {
           <Route path="/listings/:id/calendar" element={<ManageCalendarPage />} />
           <Route path="/listings/:id" element={<ListingDetailsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/users/:userId" element={<PublicUserProfilePage />} />
           <Route path="/bookings/hosting" element={<LandlordBookingsPage />} />
           <Route path="/bookings/:bookingId" element={<BookingDetailPage />} />
           <Route path="/bookings" element={<RenterBookingsPage />} />

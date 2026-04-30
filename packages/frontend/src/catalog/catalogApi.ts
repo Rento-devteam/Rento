@@ -155,6 +155,10 @@ export async function getOwnedListingForEdit(
   return apiRequest<IListing>(`/listings/owned/${listingId}`, { accessToken })
 }
 
+export async function getPublicListingsByOwner(ownerId: string): Promise<IListing[]> {
+  return apiRequest<IListing[]>(`/listings/owner/${ownerId}/public`)
+}
+
 export type UpdateListingPayload = Partial<CreateListingDto>
 
 export async function updateListing(

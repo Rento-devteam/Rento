@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { BookingSettlementStatus, BookingStatus } from '@prisma/client';
+import {
+  BookingSettlementStatus,
+  BookingStatus,
+  PaymentMethodStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingsSettlementService } from './bookings-settlement.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -66,6 +70,26 @@ export class BookingsReturnAutoConfirmJob {
 
     for (const b of candidates) {
       try {
+        const [renterCard, landlordCard] = await Promise.all([
+          this.prisma.userPaymentMethod.findFirst({
+            where: {
+              userId: b.renterId,
+              status: PaymentMethodStatus.ATTACHED,
+            },
+            select: { id: true },
+          }),
+          this.prisma.userPaymentMethod.findFirst({
+            where: {
+              userId: b.listing.ownerId,
+              status: PaymentMethodStatus.ATTACHED,
+            },
+            select: { id: true },
+          }),
+        ]);
+        if (!renterCard || !landlordCard) {
+          continue;
+        }
+
         const updated = await this.prisma.$transaction(async (tx) => {
           const current = await tx.booking.findUnique({
             where: { id: b.id },

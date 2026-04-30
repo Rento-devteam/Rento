@@ -56,6 +56,11 @@ export class ListingsController {
     return this.listingsService.getMyListings(this.getUserId(request));
   }
 
+  @Get('owner/:ownerId/public')
+  getPublicListingsByOwner(@Param('ownerId', ParseUUIDPipe) ownerId: string) {
+    return this.listingsService.getPublicListingsByOwner(ownerId);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('owned/:listingId')
   getOwnedListing(

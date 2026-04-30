@@ -87,6 +87,19 @@ export class BookingsWorkflowService {
       throw new ForbiddenException('You cannot book your own listing');
     }
 
+    const landlordHasAttachedCard = await this.prisma.userPaymentMethod.findFirst({
+      where: {
+        userId: listing.ownerId,
+        status: PaymentMethodStatus.ATTACHED,
+      },
+      select: { id: true },
+    });
+    if (!landlordHasAttachedCard) {
+      throw new ConflictException(
+        'Нельзя оформить аренду: у арендодателя не привязана карта',
+      );
+    }
+
     const paymentMethod = await this.resolvePaymentMethod(
       params.renterId,
       params.cardId,
@@ -438,6 +451,28 @@ export class BookingsWorkflowService {
         const isLandlord = booking.listing.ownerId === params.actorUserId;
         if (!isRenter && !isLandlord) {
           throw new ForbiddenException('Not a participant');
+        }
+
+        const [renterCard, landlordCard] = await Promise.all([
+          tx.userPaymentMethod.findFirst({
+            where: {
+              userId: booking.renterId,
+              status: PaymentMethodStatus.ATTACHED,
+            },
+            select: { id: true },
+          }),
+          tx.userPaymentMethod.findFirst({
+            where: {
+              userId: booking.listing.ownerId,
+              status: PaymentMethodStatus.ATTACHED,
+            },
+            select: { id: true },
+          }),
+        ]);
+        if (!renterCard || !landlordCard) {
+          throw new ConflictException(
+            'Нельзя завершить сделку: у одного из участников не привязана карта',
+          );
         }
 
         if (booking.status === BookingStatus.COMPLETED) {
