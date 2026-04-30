@@ -71,7 +71,7 @@ async function main() {
 
   const app = express();
   app.get('/healthz', (_req, res) => res.status(200).send('ok'));
-  app.use(config.webhookPath, bot.webhookCallback(config.webhookPath));
+  app.use(bot.webhookCallback(config.webhookPath));
 
   app.listen(config.port, async () => {
     console.log(
