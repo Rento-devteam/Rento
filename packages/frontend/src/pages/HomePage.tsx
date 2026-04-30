@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import type { ICategory, IListing, RentalPeriod } from '@rento/shared'
 import { useAuth } from '../auth/AuthContext'
-import { searchCatalog } from '../catalog/catalogApi'
+import { autocompleteCatalog, searchCatalog } from '../catalog/catalogApi'
 import { ApiError } from '../lib/apiClient'
 import { formatListingRentalPriceRu } from '../lib/rentalPeriodRu'
 import { getListingDisplayParts } from '../lib/listingDescriptionParts'
@@ -78,6 +78,9 @@ const RENTAL_FILTERS: Array<{ value: RentalFilter; label: string }> = [
 export function HomePage() {
   const { accessToken } = useAuth()
   const [q, setQ] = useState('')
+  const [autocompleteItems, setAutocompleteItems] = useState<string[]>([])
+  const [autocompleteLoading, setAutocompleteLoading] = useState(false)
+  const [autocompleteOpen, setAutocompleteOpen] = useState(false)
 
   const [categoryId, setCategoryId] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
@@ -136,6 +139,31 @@ export function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    const query = q.trim()
+    if (query.length < 1) {
+      setAutocompleteItems([])
+      setAutocompleteOpen(false)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setAutocompleteLoading(true)
+      try {
+        const items = await autocompleteCatalog(query, 8)
+        setAutocompleteItems(items)
+        setAutocompleteOpen(true)
+      } catch {
+        setAutocompleteItems([])
+        setAutocompleteOpen(false)
+      } finally {
+        setAutocompleteLoading(false)
+      }
+    }, 220)
+
+    return () => clearTimeout(timer)
+  }, [q])
+
   const sections: SectionTile[] = useMemo(() => {
     if (categories.length === 0) return DEFAULT_SECTIONS
     return categories.slice(0, 6).map<SectionTile>((cat) => ({
@@ -153,6 +181,13 @@ export function HomePage() {
 
   function onSubmitSearch(event: FormEvent) {
     event.preventDefault()
+    setAutocompleteOpen(false)
+    void loadCatalog()
+  }
+
+  function applyAutocomplete(query: string) {
+    setQ(query)
+    setAutocompleteOpen(false)
     void loadCatalog()
   }
 
@@ -171,7 +206,7 @@ export function HomePage() {
         </p>
 
         <form className="search-bar" onSubmit={onSubmitSearch}>
-          <div className="search-bar__field">
+          <div className="search-bar__field search-bar__field--autocomplete">
             <SearchIcon />
             <input
               className="search-bar__input"
@@ -179,7 +214,34 @@ export function HomePage() {
               placeholder="Что ищем? Дрель, мольберт, велосипед…"
               value={q}
               onChange={(event) => setQ(event.target.value)}
+              onFocus={() => {
+                if (autocompleteItems.length > 0) setAutocompleteOpen(true)
+              }}
+              onBlur={() => {
+                setTimeout(() => setAutocompleteOpen(false), 120)
+              }}
             />
+            {autocompleteOpen ? (
+              <div className="search-autocomplete" role="listbox" aria-label="Подсказки поиска">
+                {autocompleteLoading ? (
+                  <div className="search-autocomplete__empty">Подсказки…</div>
+                ) : autocompleteItems.length > 0 ? (
+                  autocompleteItems.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className="search-autocomplete__item"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => applyAutocomplete(item)}
+                    >
+                      {item}
+                    </button>
+                  ))
+                ) : (
+                  <div className="search-autocomplete__empty">Ничего не найдено</div>
+                )}
+              </div>
+            ) : null}
           </div>
 
           <button

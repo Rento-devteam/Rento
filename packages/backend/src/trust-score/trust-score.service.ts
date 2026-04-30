@@ -3,6 +3,11 @@ import { BookingSettlementStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { TrustScoreSnapshot } from '../users/user-profile.mapper';
 
+const VERIFICATION_WEIGHT = 0.2;
+const RATING_WEIGHT = 0.3;
+const RELIABILITY_WEIGHT = 0.5;
+const NEUTRAL_RATING_FACTOR = 0.5;
+
 @Injectable()
 export class TrustScoreService {
   constructor(private readonly prismaService: PrismaService) {}
@@ -60,6 +65,11 @@ export class TrustScoreService {
     }
 
     const now = new Date();
+    const identityVerification =
+      await this.prismaService.identityVerification.findUnique({
+        where: { userId: params.userId },
+        select: { status: true },
+      });
 
     const baseCompletedWhere: Prisma.BookingWhereInput = {
       status: 'COMPLETED' as const,
@@ -128,8 +138,15 @@ export class TrustScoreService {
 
     const reliabilityFactor = totalDeals > 0 ? successfulDeals / totalDeals : 0;
 
-    // Trust score is based only on booking reliability (identity/reviews are excluded).
-    const ars = reliabilityFactor;
+    const verificationFactor =
+      identityVerification?.status === 'VERIFIED' ? 1 : 0;
+    // Reviews entity is not implemented yet in schema, so we keep a neutral
+    // factor to avoid penalizing users for missing subsystem data.
+    const ratingFactor = NEUTRAL_RATING_FACTOR;
+    const ars =
+      verificationFactor * VERIFICATION_WEIGHT +
+      ratingFactor * RATING_WEIGHT +
+      reliabilityFactor * RELIABILITY_WEIGHT;
     const currentScore = this.clampInt(Math.round(ars * 100), 0, 100);
 
     const disputes = 0;
