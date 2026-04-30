@@ -50,7 +50,7 @@ Rento/
 
 - [Node.js](https://nodejs.org/) **22.x** (как в CI; требование цепочки Prisma 7) или новее
 - [npm](https://docs.npmjs.com/cli/v10/commands/npm) **9+**
-- для локального API: [Docker Engine](https://docs.docker.com/engine/) + Docker Compose (см. `packages/backend/docker-compose.yml`)
+- для локального API: [Docker Engine](https://docs.docker.com/engine/) + Docker Compose (см. `packages/backend/docker-compose.dev.yml`)
 
 ### Установка зависимостей
 
@@ -74,7 +74,7 @@ npm install
 Из каталога `packages/backend`:
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.dev.yml up -d
 npx prisma migrate deploy
 ```
 

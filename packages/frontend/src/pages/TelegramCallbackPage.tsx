@@ -10,11 +10,19 @@ type Status = 'loading' | 'ok' | 'err'
 export function TelegramCallbackPage() {
   const [params] = useSearchParams()
   const code = params.get('code')
+  const returnToRaw = params.get('returnTo')
   const { applyAuthSuccess } = useAuth()
   const [status, setStatus] = useState<Status>(code ? 'loading' : 'err')
   const [message, setMessage] = useState<string | null>(
     code ? null : 'В ссылке нет кода подтверждения.',
   )
+
+  const returnTo = (() => {
+    if (!returnToRaw) return '/'
+    // Accept only relative paths to avoid open redirects.
+    if (!returnToRaw.startsWith('/')) return '/'
+    return returnToRaw
+  })()
 
   useEffect(() => {
     if (!code) return
@@ -58,8 +66,8 @@ export function TelegramCallbackPage() {
             </div>
             <h1 className="confirm__title">Готово!</h1>
             <p className="confirm__msg">{message}</p>
-            <Link className="btn btn--primary btn--block" to="/">
-              На главную
+            <Link className="btn btn--primary btn--block" to={returnTo}>
+              Продолжить
             </Link>
           </>
         ) : null}

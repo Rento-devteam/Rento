@@ -11,6 +11,8 @@ export function periodSlashUnitRu(period: RentalPeriod): string {
       return ' / неделя'
     case 'MONTH':
       return ' / месяц'
+    default:
+      return ''
   }
 }
 
@@ -37,5 +39,7 @@ export function listingFormPriceHintRu(period: RentalPeriod): string {
       return 'Введите стоимость за одну неделю — при бронировании сумма умножается на число недель в интервале.'
     case 'MONTH':
       return 'Введите стоимость за один месяц (30 суток в расчёте) — при бронировании сумма умножается на число таких периодов в интервале.'
+    default:
+      return ''
   }
 }

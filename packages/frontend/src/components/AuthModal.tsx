@@ -407,7 +407,10 @@ function TelegramPanel({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
     setError(null)
     setPending(true)
     try {
-      const res = await authApi.telegramLoginStart({ redirectUrl: '/telegram/callback' })
+      const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`
+      const q = new URLSearchParams({ returnTo })
+      const redirectUrl = `/telegram/callback?${q.toString()}`
+      const res = await authApi.telegramLoginStart({ redirectUrl })
       window.open(res.deepLink, '_blank', 'noopener,noreferrer')
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Не удалось открыть Telegram')

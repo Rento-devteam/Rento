@@ -443,6 +443,8 @@ function periodLabel(period: RentalPeriod): string {
       return 'Понедельная'
     case 'MONTH':
       return 'Помесячная'
+    default:
+      return ''
   }
 }
 

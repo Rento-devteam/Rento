@@ -19,7 +19,12 @@ export class ApiError extends Error {
 }
 
 export function getApiBaseUrl(): string {
-  return import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
+  const configured = import.meta.env.VITE_API_BASE_URL
+  if (configured && configured.length > 0) {
+    return configured
+  }
+  // In production we prefer same-origin API behind the reverse proxy (/api -> backend:3000).
+  return import.meta.env.DEV ? 'http://localhost:3000' : '/api'
 }
 
 async function parseJson<T>(res: Response): Promise<T> {

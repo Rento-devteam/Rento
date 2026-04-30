@@ -8,6 +8,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    env_file:
+      - ./.env
     environment:
       DOMAIN: ${DOMAIN}
     volumes:
@@ -16,6 +18,7 @@ services:
       - rento_caddy_config:/config
     depends_on:
       - backend
+      - frontend
       - telegram-bot
     networks:
       - web
@@ -41,6 +44,29 @@ services:
         condition: service_healthy
     networks:
       - internal
+      - web
+    dns:
+      - 85.193.93.193
+      - 85.193.93.194
+
+    dns_opt:
+      - use-vc
+      - timeout:2
+      - attempts:2
+      - ndots:0
+
+  frontend:
+    build:
+      context: ../packages
+      dockerfile: frontend/Dockerfile
+    container_name: rento-frontend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
+    networks:
+      - internal
 
   telegram-bot:
     build:
@@ -52,6 +78,7 @@ services:
       - ./.env
     environment:
       NODE_ENV: production
+      NODE_OPTIONS: --dns-result-order=ipv6first
       PORT: ${TELEGRAM_BOT_PORT:-3010}
       WEBHOOK_PATH: ${TELEGRAM_BOT_WEBHOOK_PATH:-/telegram/webhook}
       PUBLIC_BOT_BASE_URL: ${TELEGRAM_BOT_PUBLIC_BASE_URL}
@@ -63,8 +90,14 @@ services:
     depends_on:
       - backend
     networks:
+      - web
       - internal
-
+    dns:
+      - 77.88.8.8
+      - 1.1.1.1
+      - 8.8.8.8
+  
+  
   postgres:
     image: postgres:16-alpine
     container_name: rento-postgres
@@ -89,6 +122,8 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.4
     container_name: rento-elasticsearch
     restart: unless-stopped
+    env_file:
+      - ./.env
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false

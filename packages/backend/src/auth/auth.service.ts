@@ -355,6 +355,7 @@ export class AuthService {
   }> {
     const state = dto.state.trim();
     const telegramId = dto.telegramId.trim();
+    const phone = dto.phone?.trim() ? dto.phone.trim() : undefined;
 
     const attempt = await this.prismaService.telegramLoginAttempt.findFirst({
       where: { state, usedAt: null },
@@ -375,7 +376,13 @@ export class AuthService {
           telegramId,
           status: AuthUserStatus.ACTIVE,
           fullName: dto.firstName?.trim() ? dto.firstName.trim() : undefined,
+          phone,
         },
+      });
+    } else if (phone && phone !== (user.phone ?? undefined)) {
+      user = await this.prismaService.user.update({
+        where: { id: user.id },
+        data: { phone },
       });
     }
 
