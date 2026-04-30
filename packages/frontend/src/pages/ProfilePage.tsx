@@ -7,6 +7,7 @@ import { apiRequest, ApiError } from '../lib/apiClient'
 import type { IListing, RentalPeriod } from '@rento/shared'
 import { formatListingRentalPriceRu } from '../lib/rentalPeriodRu'
 import { deleteListing } from '../catalog/catalogApi'
+import { userStatusLabelRu } from '../lib/statusRu'
 import {
   attachCard,
   listPaymentMethods,
@@ -235,23 +236,6 @@ function ProfileFullListModal({ title, open, onClose, children }: ProfileFullLis
       </div>
     </div>
   )
-}
-
-function accountStatusLabel(status: string): string {
-  switch (status) {
-    case 'PENDING_EMAIL_CONFIRMATION':
-      return 'Ожидает подтверждения email'
-    case 'PENDING_TELEGRAM_LINK':
-      return 'Привяжите Telegram'
-    case 'ACTIVE':
-      return 'Активен'
-    case 'SUSPENDED':
-      return 'Приостановлен'
-    case 'BANNED':
-      return 'Заблокирован'
-    default:
-      return status
-  }
 }
 
 function calculateOnTimeReturnsRate(totalDeals: number, lateReturns: number): number {
@@ -689,7 +673,7 @@ export function ProfilePage() {
                 </div>
                 <div className="profile-aside__row">
                   <ShieldGlyph />
-                  <span>{accountStatusLabel(user.status)}</span>
+                  <span>{userStatusLabelRu(user.status)}</span>
                 </div>
                 {user.role === 'ADMIN' ? (
                   <p className="profile-aside__role">Роль: администратор</p>

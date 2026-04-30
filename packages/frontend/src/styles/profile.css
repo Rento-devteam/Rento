@@ -288,6 +288,83 @@
   }
 }
 
+@media (max-width: 640px) {
+  .profile-page {
+    padding: var(--sp-4) 0 var(--sp-6);
+  }
+
+  .profile-page__surface {
+    padding: var(--sp-3) var(--sp-3) var(--sp-5);
+    border-radius: 14px;
+  }
+
+  .profile-page__masthead {
+    align-items: flex-start;
+    gap: var(--sp-3);
+  }
+
+  .profile-page__title {
+    font-size: 1.35rem;
+  }
+
+  .profile-page__masthead-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .profile-page__logout {
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+
+  .profile-hero__identity {
+    align-items: flex-start;
+  }
+
+  .profile-hero__avatar-wrap {
+    width: 84px;
+    height: 84px;
+  }
+
+  .profile-hero__avatar {
+    font-size: 1.6rem;
+  }
+
+  .profile-hero__name {
+    font-size: 1.08rem;
+  }
+
+  .profile-panel {
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  .profile-trust {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-trust__item {
+    padding: var(--sp-2) var(--sp-3);
+  }
+
+  .profile-listings-grid {
+    grid-template-columns: 1fr;
+    gap: var(--sp-3);
+  }
+
+  .profile-listing-card--tile .profile-listing-card__thumb {
+    height: 188px;
+  }
+
+  .profile-listing-card__actions {
+    width: 100%;
+  }
+
+  .profile-listing-card__actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
 .profile-aside {
   display: flex;
   flex-direction: column;

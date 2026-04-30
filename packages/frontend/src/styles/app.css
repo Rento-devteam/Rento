@@ -84,6 +84,9 @@ body,
 #root {
   margin: 0;
   padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 body {
@@ -141,6 +144,9 @@ a {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .shell__content {
@@ -155,12 +161,74 @@ a {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 var(--sp-5);
+  padding: 0 var(--sp-6);
 }
 
 @media (max-width: 640px) {
   .container {
-    padding: 0 var(--sp-4);
+    padding-left: var(--sp-7);
+    padding-right: var(--sp-7);
+    padding-left: max(var(--sp-7), env(safe-area-inset-left));
+    padding-right: max(var(--sp-7), env(safe-area-inset-right));
+  }
+
+  .app-header__inner {
+    padding-left: var(--sp-4);
+    padding-right: var(--sp-4);
+    align-items: flex-start;
+    gap: var(--sp-3);
+    flex-wrap: wrap;
+  }
+
+  .app-header__left {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .app-header__right {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-left: var(--sp-4);
+    padding-right: var(--sp-4);
+  }
+
+  .app-header__right > .btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .app-header__right > .icon-btn {
+    flex: 0 0 auto;
+  }
+
+  .app-header__compact {
+    padding: 7px 10px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .hero {
+    padding-left: var(--sp-4);
+    padding-right: var(--sp-4);
+  }
+
+  .hero__title,
+  .hero__subtitle {
+    padding-left: var(--sp-4);
+    padding-right: var(--sp-4);
   }
 }
 
@@ -550,6 +618,14 @@ a {
   padding: var(--sp-4);
   z-index: 30;
   animation: pop 0.18s ease-out;
+}
+
+@media (max-width: 640px) {
+  .city-popover__panel {
+    right: auto;
+    left: 0;
+    width: min(320px, calc(100vw - (max(var(--sp-4), env(safe-area-inset-left)) + max(var(--sp-4), env(safe-area-inset-right)))));
+  }
 }
 
 @keyframes pop {
@@ -1628,26 +1704,24 @@ a {
 .listing-page__layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  grid-template-areas:
+    'draft draft'
+    'gallery aside'
+    'about aside';
   gap: var(--sp-6);
   align-items: start;
 }
 
 .listing-page__draft-banner {
-  grid-column: 1 / -1;
+  grid-area: draft;
   margin: 0;
   border-color: rgba(59, 130, 246, 0.35);
   background: rgba(239, 246, 255, 0.95);
   color: var(--ink-800, #1e293b);
 }
 
-.listing-page__main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-6);
-}
-
 .listing-page__gallery {
+  grid-area: gallery;
   border-radius: var(--r-xl);
   border: 1px solid rgba(161, 186, 238, 0.45);
   background: var(--bg-surface);
@@ -1867,6 +1941,7 @@ a {
 }
 
 .listing-page__about {
+  grid-area: about;
   border-radius: var(--r-xl);
   border: 1px solid rgba(161, 186, 238, 0.45);
   background: var(--bg-surface);
@@ -1955,6 +2030,7 @@ a {
 }
 
 .listing-page__aside {
+  grid-area: aside;
   position: sticky;
   top: var(--sp-6);
   align-self: start;
@@ -2150,14 +2226,63 @@ a {
 @media (max-width: 920px) {
   .listing-page__layout {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      'draft'
+      'gallery'
+      'aside'
+      'about';
+    gap: var(--sp-4);
   }
 
   .listing-page__aside {
     position: static;
   }
+
+  .listing-page__card {
+    padding: var(--sp-5);
+  }
+
+  .listing-page__crumbs {
+    display: none;
+  }
+
+  .listing-page__actions .btn {
+    min-height: 44px;
+  }
 }
 
 @media (max-width: 520px) {
+  .listing-page {
+    padding: var(--sp-4) 0 var(--sp-6);
+  }
+
+  .listing-page__top {
+    margin-bottom: var(--sp-4);
+  }
+
+  .listing-page__gallery,
+  .listing-page__about,
+  .listing-page__card {
+    border-radius: var(--r-lg);
+  }
+
+  .listing-page__gallery {
+    padding: var(--sp-3);
+  }
+
+  .listing-page__about {
+    padding: var(--sp-4);
+  }
+
+  .listing-page__owner-fab {
+    max-width: 132px;
+    padding-right: 6px;
+  }
+
+  .listing-page__owner-name {
+    font-size: 0.68rem;
+  }
+
   .listing-page__thumb {
     flex-basis: 64px;
     width: 64px;
