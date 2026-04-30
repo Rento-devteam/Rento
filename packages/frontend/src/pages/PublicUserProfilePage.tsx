@@ -43,13 +43,14 @@ export function PublicUserProfilePage() {
   const [listings, setListings] = useState<IListing[]>([])
 
   useEffect(() => {
-    if (!userId) return
+    const profileUserId = userId
+    if (!profileUserId) return
     let cancelled = false
     async function load() {
       setLoading(true)
       setError(null)
       try {
-        const data = await getPublicUserProfile(userId)
+        const data = await getPublicUserProfile(profileUserId!)
         if (!cancelled) setProfile(data)
       } catch (err: unknown) {
         if (!cancelled) {
@@ -67,11 +68,12 @@ export function PublicUserProfilePage() {
   }, [userId])
 
   useEffect(() => {
-    if (!userId) return
+    const profileUserId = userId
+    if (!profileUserId) return
     let cancelled = false
     async function loadListings() {
       try {
-        const items = await getPublicListingsByOwner(userId)
+        const items = await getPublicListingsByOwner(profileUserId!)
         if (!cancelled) setListings(items)
       } catch {
         if (!cancelled) setListings([])

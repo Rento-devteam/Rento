@@ -408,11 +408,12 @@ export function ListingDetailsPage() {
   }, [id, accessToken])
 
   useEffect(() => {
-    if (!listing?.ownerId) return
+    const ownerId = listing?.ownerId
+    if (!ownerId) return
     let cancelled = false
     async function loadOwner() {
       try {
-        const data = await getPublicUserProfile(listing.ownerId)
+        const data = await getPublicUserProfile(ownerId!)
         if (!cancelled) setOwnerProfile(data)
       } catch {
         if (!cancelled) setOwnerProfile(null)
