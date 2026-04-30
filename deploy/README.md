@@ -18,6 +18,22 @@ From repo root:
 
 - `docker compose -f deploy/docker-compose.yml up -d --build`
 
+### GitHub Actions CD (production)
+
+On push to `deploy`, CI must succeed first; then the **Deploy (production)** job runs SSH commands on the server: `git pull` in the clone and `docker compose -f deploy/docker-compose.yml up -d --build`.
+
+Add repository secrets (GitHub → Settings → Secrets and variables → Actions):
+
+| Secret           | Description                                              |
+| ---------------- | -------------------------------------------------------- |
+| `DEPLOY_HOST`    | Server hostname or IP                                     |
+| `DEPLOY_USER`    | SSH user (must have access to the repo clone + Docker) |
+| `DEPLOY_SSH_KEY` | Private key (pem); matching public key on the server     |
+| `DEPLOY_PATH`    | Absolute path to this repo on the server               |
+
+On the server: clone the repo once into `DEPLOY_PATH`, create `deploy/.env`, and ensure the SSH user can run `docker compose`.
+Keep the server clone on the `deploy` branch (`git checkout deploy` once).
+
 ### Notes
 
 - The frontend is served by `caddy` on `https://$DOMAIN/`. The API is available on `https://$DOMAIN/api/*` (Caddy strips `/api` and proxies to `backend:3000`).

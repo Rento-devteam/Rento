@@ -1,8 +1,8 @@
-name: CI
+name: CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, deploy]
   pull_request:
     branches: [main, develop]
 
@@ -60,3 +60,27 @@ jobs:
       - name: Backend build
         working-directory: packages/backend
         run: npm run build
+
+  deploy:
+    name: Deploy (production)
+    needs: ci
+    if: github.ref == 'refs/heads/deploy' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git fetch origin deploy
+            git checkout deploy
+            git pull --ff-only origin deploy
+            docker compose -f deploy/docker-compose.yml up -d --build
