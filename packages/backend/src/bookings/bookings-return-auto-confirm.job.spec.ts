@@ -4,6 +4,7 @@ import { BookingsReturnAutoConfirmJob } from './bookings-return-auto-confirm.job
 describe('BookingsReturnAutoConfirmJob', () => {
   const prisma = {
     $transaction: jest.fn(),
+    userPaymentMethod: { findFirst: jest.fn() },
     booking: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -17,6 +18,7 @@ describe('BookingsReturnAutoConfirmJob', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.DISABLE_SCHEDULED_JOBS;
+    prisma.userPaymentMethod.findFirst.mockResolvedValue({ id: 'card_any' });
   });
 
   it('auto-confirms booking on deadline and triggers settlement', async () => {
@@ -139,6 +141,48 @@ describe('BookingsReturnAutoConfirmJob', () => {
       eventType: 'booking_completed',
     });
 
+    jest.useRealTimers();
+  });
+
+  it('does not auto-complete when one participant has no attached card', async () => {
+    const now = new Date('2026-04-24T12:00:00.000Z');
+    jest.useFakeTimers();
+    jest.setSystemTime(now.getTime());
+
+    prisma.$transaction.mockImplementation(async (fn: (tx: any) => any) => {
+      const tx = {
+        $queryRaw: jest.fn().mockResolvedValue([{ locked: true }]),
+        booking: prisma.booking,
+      };
+      return fn(tx);
+    });
+
+    prisma.booking.findMany
+      .mockResolvedValueOnce([
+        {
+          id: 'b3',
+          listing: { ownerId: 'o1' },
+          renterId: 'r1',
+          settlementStatus: BookingSettlementStatus.NONE,
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    prisma.userPaymentMethod.findFirst
+      .mockResolvedValueOnce({ id: 'renter_card_1' })
+      .mockResolvedValueOnce(null);
+
+    const job = new BookingsReturnAutoConfirmJob(
+      prisma as never,
+      settlement as never,
+      notifications as never,
+      trustScoreService as never,
+    );
+
+    await job.tick();
+
+    expect(prisma.booking.update).not.toHaveBeenCalled();
+    expect(settlement.attemptSettlement).not.toHaveBeenCalled();
     jest.useRealTimers();
   });
 });

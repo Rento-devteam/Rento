@@ -24,6 +24,32 @@ type ProfileEditModalProps = {
   refreshProfile: () => Promise<void>
 }
 
+function formatTelegramPhone(input: string): string {
+  const rawDigits = input.replace(/\D/g, '')
+  if (!rawDigits) return ''
+
+  let digits = rawDigits
+  if (digits[0] === '8') {
+    digits = `7${digits.slice(1)}`
+  } else if (digits[0] !== '7') {
+    digits = `7${digits}`
+  }
+  digits = digits.slice(0, 11)
+
+  const country = digits.slice(0, 1)
+  const part1 = digits.slice(1, 4)
+  const part2 = digits.slice(4, 7)
+  const part3 = digits.slice(7, 9)
+  const part4 = digits.slice(9, 11)
+
+  let formatted = `+${country}`
+  if (part1) formatted += ` ${part1}`
+  if (part2) formatted += ` ${part2}`
+  if (part3) formatted += `-${part3}`
+  if (part4) formatted += `-${part4}`
+  return formatted
+}
+
 function ProfileEditModal({
   open,
   onClose,
@@ -32,7 +58,7 @@ function ProfileEditModal({
   refreshProfile,
 }: ProfileEditModalProps) {
   const [draftFullName, setDraftFullName] = useState(() => user.fullName ?? '')
-  const [draftPhone, setDraftPhone] = useState(() => user.phone ?? '')
+  const [draftPhone, setDraftPhone] = useState(() => formatTelegramPhone(user.phone ?? ''))
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileMessage, setProfileMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(
     null,
@@ -42,15 +68,17 @@ function ProfileEditModal({
     if (!open) return
     queueMicrotask(() => {
       setDraftFullName(user.fullName ?? '')
-      setDraftPhone(user.phone ?? '')
+      setDraftPhone(formatTelegramPhone(user.phone ?? ''))
       setProfileMessage(null)
     })
   }, [open, user])
 
   const isProfileDirty = useMemo(() => {
+    const initialPhone = formatTelegramPhone(user.phone ?? '')
+    const currentPhone = formatTelegramPhone(draftPhone)
     return (
       draftFullName.trim() !== (user.fullName ?? '').trim() ||
-      draftPhone.trim() !== (user.phone ?? '').trim()
+      currentPhone !== initialPhone
     )
   }, [user, draftFullName, draftPhone])
 
@@ -61,8 +89,10 @@ function ProfileEditModal({
     if (draftFullName.trim() !== (user.fullName ?? '').trim()) {
       body.fullName = draftFullName.trim()
     }
-    if (draftPhone.trim() !== (user.phone ?? '').trim()) {
-      body.phone = draftPhone.trim()
+    const nextPhone = formatTelegramPhone(draftPhone)
+    const initialPhone = formatTelegramPhone(user.phone ?? '')
+    if (nextPhone !== initialPhone) {
+      body.phone = nextPhone
     }
     if (Object.keys(body).length === 0) return
 
@@ -130,12 +160,13 @@ function ProfileEditModal({
                 className="field__input"
                 type="tel"
                 autoComplete="tel"
-                maxLength={30}
-                placeholder="+7 …"
+                inputMode="numeric"
+                maxLength={16}
+                placeholder="+7 999 123-45-67"
                 value={draftPhone}
-                onChange={(e) => setDraftPhone(e.target.value)}
+                onChange={(e) => setDraftPhone(formatTelegramPhone(e.target.value))}
               />
-              <span className="field__hint">Не более 30 символов.</span>
+              <span className="field__hint">Формат: +7 999 123-45-67</span>
             </div>
           </div>
           {profileMessage ? (
@@ -160,7 +191,7 @@ function ProfileEditModal({
               disabled={!isProfileDirty || profileSaving || !accessToken}
               onClick={() => {
                 setDraftFullName(user.fullName ?? '')
-                setDraftPhone(user.phone ?? '')
+                setDraftPhone(formatTelegramPhone(user.phone ?? ''))
                 setProfileMessage(null)
               }}
             >

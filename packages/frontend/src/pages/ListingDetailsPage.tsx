@@ -8,6 +8,7 @@ import { getListingDetails, getOwnedListingForEdit } from '../catalog/catalogApi
 import { PhotoLightbox } from '../components/PhotoLightbox'
 import { ApiError } from '../lib/apiClient'
 import { listPaymentMethods, type BankCard } from '../payments/paymentMethodsApi'
+import { getPublicUserProfile, type PublicUserProfile } from '../users/publicProfileApi'
 import { listingConditionLabelRu } from '../lib/listingConditionRu'
 import { getListingDisplayParts } from '../lib/listingDescriptionParts'
 import { logListingDetails } from '../lib/listingDetailsDebugLog'
@@ -90,6 +91,9 @@ function bookingActionErrorMessage(err: unknown): string {
     return 'Не удалось создать бронирование'
   }
   if (err.status === 409) {
+    if (err.message?.trim()) {
+      return err.message
+    }
     return 'Выбранные даты больше недоступны. Измените период и нажмите «Пересчитать».'
   }
   if (err.status === 402) {
@@ -149,6 +153,7 @@ export function ListingDetailsPage() {
   const [bookingSubmitting, setBookingSubmitting] = useState(false)
   const [bookingActionError, setBookingActionError] = useState<string | null>(null)
   const [payFailedBookingId, setPayFailedBookingId] = useState<string | null>(null)
+  const [ownerProfile, setOwnerProfile] = useState<PublicUserProfile | null>(null)
 
   const persistStubBalance = useCallback((value: string) => {
     setStubCardBalance(value)
@@ -403,6 +408,24 @@ export function ListingDetailsPage() {
   }, [id, accessToken])
 
   useEffect(() => {
+    const ownerId = listing?.ownerId
+    if (!ownerId) return
+    let cancelled = false
+    async function loadOwner() {
+      try {
+        const data = await getPublicUserProfile(ownerId!)
+        if (!cancelled) setOwnerProfile(data)
+      } catch {
+        if (!cancelled) setOwnerProfile(null)
+      }
+    }
+    void loadOwner()
+    return () => {
+      cancelled = true
+    }
+  }, [listing?.ownerId])
+
+  useEffect(() => {
     logListingDetails('render-state', {
       id,
       loading,
@@ -474,6 +497,7 @@ export function ListingDetailsPage() {
   const showCharacteristics = Boolean(displayParts?.brand || displayParts?.year || conditionLabel)
   const needsGapBeforeDescription = Boolean(displayParts?.address || showCharacteristics)
   const isOwner = Boolean(user?.id && listing.ownerId === user.id)
+  const ownerDisplayName = ownerProfile?.fullName?.trim() || 'Пользователь'
 
   return (
     <main className="listing-page">
@@ -853,6 +877,24 @@ export function ListingDetailsPage() {
 
           <aside className="listing-page__aside" aria-label="Условия и действия">
             <div className="listing-page__card">
+              {!isOwner ? (
+                <Link
+                  to={`/users/${listing.ownerId}`}
+                  className="listing-page__owner-fab"
+                  aria-label={`Профиль автора: ${ownerDisplayName}`}
+                >
+                  <span className="listing-page__owner-avatar" aria-hidden>
+                    {ownerProfile?.avatarUrl ? (
+                      <img src={ownerProfile.avatarUrl} alt="" />
+                    ) : (
+                      ownerDisplayName[0]?.toUpperCase() ?? '?'
+                    )}
+                  </span>
+                  <span className="listing-page__owner-name" title={ownerDisplayName}>
+                    {ownerDisplayName}
+                  </span>
+                </Link>
+              ) : null}
               <div className="listing-page__card-head">
                 <span className="listing-page__category">{categoryName}</span>
                 {isDraft ? <span className="listing-page__pill listing-page__pill--draft">Не опубликовано</span> : null}

@@ -56,6 +56,21 @@ export class ListingsService {
     return listings.map(mapListingDetail);
   }
 
+  async getPublicListingsByOwner(ownerId: string) {
+    const listings = await this.prismaService.listing.findMany({
+      where: { ownerId, status: ListingStatus.ACTIVE },
+      include: {
+        category: true,
+        photos: {
+          orderBy: { order: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 24,
+    });
+    return listings.map(mapListingDetail);
+  }
+
   async getListingById(listingId: string) {
     const listing = await this.prismaService.listing.findUnique({
       where: { id: listingId },
