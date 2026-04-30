@@ -86,18 +86,17 @@ jobs:
           DEPLOY_SSH_PASSPHRASE: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
         run: ssh-keygen -lf /tmp/deploy_key -P "${DEPLOY_SSH_PASSPHRASE}"
 
+      - name: Decrypt deploy key for non-interactive SSH
+        env:
+          DEPLOY_SSH_PASSPHRASE: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
+        run: ssh-keygen -p -P "${DEPLOY_SSH_PASSPHRASE}" -N "" -f /tmp/deploy_key
+
       - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key_path: /tmp/deploy_key
-          passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
-          script_stop: true
-          script: |
-            set -e
-            cd "${{ secrets.DEPLOY_PATH }}"
-            git fetch origin deploy
-            git checkout deploy
-            git pull --ff-only origin deploy
-            docker compose -f deploy/docker-compose.yml up -d --build
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -e
+          ssh -o StrictHostKeyChecking=accept-new -i /tmp/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "set -e; cd '${DEPLOY_PATH}'; git fetch origin deploy; git checkout deploy; git pull --ff-only origin deploy; docker compose -f deploy/docker-compose.yml up -d --build"
