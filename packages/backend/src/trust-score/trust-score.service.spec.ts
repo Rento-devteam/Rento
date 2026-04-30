@@ -35,19 +35,30 @@ describe('TrustScoreService', () => {
     );
   });
 
-  it('returns base score when no stored snapshot exists', async () => {
+  it('recalculates score when no stored snapshot exists', async () => {
     prismaService.user.findUnique.mockResolvedValue({ id: 'u1' });
     prismaService.trustScore.findUnique.mockResolvedValue(null);
+    prismaService.booking.count.mockResolvedValueOnce(3);
+    prismaService.booking.findMany.mockResolvedValue([]);
+    prismaService.trustScore.upsert.mockResolvedValue({
+      currentScore: 88,
+      totalDeals: 3,
+      successfulDeals: 3,
+      lateReturns: 0,
+      disputes: 0,
+      calculatedAt: new Date('2026-01-02T00:00:00.000Z'),
+    });
 
     const result = await service.getTrustScoreForUser('u1');
 
     expect(result).toMatchObject({
-      currentScore: 50,
-      totalDeals: 0,
-      successfulDeals: 0,
+      currentScore: 88,
+      totalDeals: 3,
+      successfulDeals: 3,
       lateReturns: 0,
       disputes: 0,
     });
+    expect(prismaService.trustScore.upsert).toHaveBeenCalled();
   });
 
   it('returns stored snapshot when it exists', async () => {

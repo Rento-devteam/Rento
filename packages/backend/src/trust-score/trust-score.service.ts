@@ -29,15 +29,11 @@ export class TrustScoreService {
       throw new NotFoundException('User not found');
     }
     if (!stored) {
-      // Base/default snapshot when score hasn't been calculated/saved yet.
-      return {
-        currentScore: 50,
-        totalDeals: 0,
-        successfulDeals: 0,
-        lateReturns: 0,
-        disputes: 0,
-        calculatedAt: new Date().toISOString(),
-      };
+      // Backfill on first read so historic completed deals are reflected immediately.
+      return this.recalculateForUser({
+        userId,
+        eventType: 'profile_read_backfill',
+      });
     }
 
     return {

@@ -1,8 +1,8 @@
-name: CI
+name: CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, deploy]
   pull_request:
     branches: [main, develop]
 
@@ -60,3 +60,42 @@ jobs:
       - name: Backend build
         working-directory: packages/backend
         run: npm run build
+
+  deploy:
+    name: Deploy (production)
+    needs: ci
+    if: github.ref == 'refs/heads/deploy' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Prepare SSH key file
+        run: |
+          set -e
+          if [ -n "${{ secrets.DEPLOY_SSH_KEY_B64 }}" ]; then
+            echo "${{ secrets.DEPLOY_SSH_KEY_B64 }}" | base64 -d > /tmp/deploy_key
+          else
+            printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > /tmp/deploy_key
+          fi
+          chmod 600 /tmp/deploy_key
+
+      - name: Verify deploy key decrypts
+        env:
+          DEPLOY_SSH_PASSPHRASE: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
+        run: ssh-keygen -lf /tmp/deploy_key -P "${DEPLOY_SSH_PASSPHRASE}"
+
+      - name: Decrypt deploy key for non-interactive SSH
+        env:
+          DEPLOY_SSH_PASSPHRASE: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
+        run: ssh-keygen -p -P "${DEPLOY_SSH_PASSPHRASE}" -N "" -f /tmp/deploy_key
+
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -e
+          ssh -o StrictHostKeyChecking=accept-new -i /tmp/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "set -e; cd \"${DEPLOY_PATH}\"; git fetch origin deploy; git checkout deploy; git pull --ff-only origin deploy; docker compose -f deploy/docker-compose.yml up -d --build; docker compose -f deploy/docker-compose.yml run --rm backend npx prisma migrate deploy"
