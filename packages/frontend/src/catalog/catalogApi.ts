@@ -82,6 +82,11 @@ export async function searchCatalog(
   )
 }
 
+export async function autocompleteCatalog(q: string, limit = 8): Promise<string[]> {
+  const query = new URLSearchParams({ q, limit: String(limit) })
+  return apiRequest<string[]>(`/search/autocomplete?${query.toString()}`)
+}
+
 export async function getCreateMetadata(accessToken: string): Promise<CreateMetadataResponse> {
   return apiRequest<CreateMetadataResponse>('/listings/create', { accessToken })
 }

@@ -414,6 +414,10 @@ a {
   min-height: 52px;
 }
 
+.search-bar__field--autocomplete {
+  position: relative;
+}
+
 .search-bar__field svg {
   width: 18px;
   height: 18px;
@@ -435,6 +439,39 @@ a {
 
 .search-bar__input::placeholder {
   color: var(--ink-400);
+}
+
+.search-autocomplete {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: calc(100% + 6px);
+  z-index: 25;
+  border: 1px solid rgba(161, 186, 238, 0.6);
+  border-radius: var(--r-md);
+  background: #fff;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.search-autocomplete__item {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  color: var(--ink-800);
+}
+
+.search-autocomplete__item:hover {
+  background: var(--brand-100);
+}
+
+.search-autocomplete__empty {
+  padding: 10px 12px;
+  font-size: 0.86rem;
+  color: var(--ink-500);
 }
 
 .search-bar__chip {
