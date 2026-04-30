@@ -772,108 +772,54 @@ export function ListingDetailsPage() {
               <Link to={`/listings/${listing.id}/edit`}>редактирования</Link>, либо откройте её из профиля.
             </div>
           ) : null}
-          <div className="listing-page__main">
-            <div className="listing-page__gallery">
-              <div className="listing-page__hero">
-                {currentPhoto ? (
-                  <button
-                    type="button"
-                    className="listing-page__hero-trigger"
-                    onClick={() => setLightboxIndex(activePhoto)}
-                    aria-label="Открыть фото на весь экран"
-                  >
-                    <img src={currentPhoto.url} alt={listing.title} />
-                  </button>
-                ) : (
-                  <div className="listing-page__hero-empty">Нет фотографий</div>
-                )}
-                {isDraft ? (
-                  <span className="listing-page__hero-badge">Черновик</span>
-                ) : null}
-              </div>
-
-              {hasPhotos ? (
-                <div className="listing-page__thumbs" role="tablist" aria-label="Галерея фото">
-                  {photos.map((photo: IListingPhoto, index: number) => (
-                    <button
-                      type="button"
-                      key={photo.id}
-                      role="tab"
-                      aria-selected={index === activePhoto}
-                      title="Выбрать фото. Двойной щелчок — просмотр на весь экран."
-                      className={`listing-page__thumb${index === activePhoto ? ' is-active' : ''}`}
-                      onClick={() => setActivePhoto(index)}
-                      onDoubleClick={(e) => {
-                        e.preventDefault()
-                        setActivePhoto(index)
-                        setLightboxIndex(index)
-                      }}
-                    >
-                      <img src={photo.thumbnailUrl ?? photo.url} alt="" />
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              {hasPhotos && currentPhoto ? (
-                <p className="listing-page__gallery-hint">
-                  Нажмите на большое фото, чтобы открыть его на весь экран. В миниатюрах двойной щелчок тоже
-                  открывает просмотр.
-                </p>
+          <section className="listing-page__gallery" aria-label="Фотографии объявления">
+            <div className="listing-page__hero">
+              {currentPhoto ? (
+                <button
+                  type="button"
+                  className="listing-page__hero-trigger"
+                  onClick={() => setLightboxIndex(activePhoto)}
+                  aria-label="Открыть фото на весь экран"
+                >
+                  <img src={currentPhoto.url} alt={listing.title} />
+                </button>
+              ) : (
+                <div className="listing-page__hero-empty">Нет фотографий</div>
+              )}
+              {isDraft ? (
+                <span className="listing-page__hero-badge">Черновик</span>
               ) : null}
             </div>
 
-            <section className="listing-page__about" aria-label="Адрес, характеристики и описание">
-              {displayParts?.address ? (
-                <>
-                  <h2 id="listing-address-heading" className="listing-page__about-title">
-                    Адрес
-                  </h2>
-                  <p className="listing-page__address">{displayParts.address}</p>
-                </>
-              ) : null}
-
-              {showCharacteristics ? (
-                <>
-                  <h2
-                    id="listing-meta-heading"
-                    className={`listing-page__about-title${displayParts?.address ? ' listing-page__about-title--spaced' : ''}`}
+            {hasPhotos ? (
+              <div className="listing-page__thumbs" role="tablist" aria-label="Галерея фото">
+                {photos.map((photo, index) => (
+                  <button
+                    type="button"
+                    key={photo.id}
+                    role="tab"
+                    aria-selected={index === activePhoto}
+                    title="Выбрать фото. Двойной щелчок — просмотр на весь экран."
+                    className={`listing-page__thumb${index === activePhoto ? ' is-active' : ''}`}
+                    onClick={() => setActivePhoto(index)}
+                    onDoubleClick={(e) => {
+                      e.preventDefault()
+                      setActivePhoto(index)
+                      setLightboxIndex(index)
+                    }}
                   >
-                    Характеристики
-                  </h2>
-                  <dl className="listing-page__meta-dl">
-                    {displayParts?.brand ? (
-                      <div className="listing-page__meta-row">
-                        <dt className="listing-page__meta-dt">Бренд</dt>
-                        <dd className="listing-page__meta-dd">{displayParts.brand}</dd>
-                      </div>
-                    ) : null}
-                    {displayParts?.year ? (
-                      <div className="listing-page__meta-row">
-                        <dt className="listing-page__meta-dt">Год</dt>
-                        <dd className="listing-page__meta-dd">{displayParts.year}</dd>
-                      </div>
-                    ) : null}
-                    {conditionLabel ? (
-                      <div className="listing-page__meta-row">
-                        <dt className="listing-page__meta-dt">Состояние</dt>
-                        <dd className="listing-page__meta-dd">{conditionLabel}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                </>
-              ) : null}
-
-              <h2
-                id="listing-desc-heading"
-                className={`listing-page__about-title${needsGapBeforeDescription ? ' listing-page__about-title--spaced' : ''}`}
-              >
-                Описание
-              </h2>
-              <div className="listing-page__about-body">
-                {displayParts?.description ?? listing.description}
+                    <img src={photo.thumbnailUrl ?? photo.url} alt="" />
+                  </button>
+                ))}
               </div>
-            </section>
-          </div>
+            ) : null}
+            {hasPhotos && currentPhoto ? (
+              <p className="listing-page__gallery-hint">
+                Нажмите на большое фото, чтобы открыть его на весь экран. В миниатюрах двойной щелчок тоже
+                открывает просмотр.
+              </p>
+            ) : null}
+          </section>
 
           <aside className="listing-page__aside" aria-label="Условия и действия">
             <div className="listing-page__card">
@@ -971,6 +917,58 @@ export function ListingDetailsPage() {
               </p>
             </div>
           </aside>
+
+          <section className="listing-page__about" aria-label="Адрес, характеристики и описание">
+            {displayParts?.address ? (
+              <>
+                <h2 id="listing-address-heading" className="listing-page__about-title">
+                  Адрес
+                </h2>
+                <p className="listing-page__address">{displayParts.address}</p>
+              </>
+            ) : null}
+
+            {showCharacteristics ? (
+              <>
+                <h2
+                  id="listing-meta-heading"
+                  className={`listing-page__about-title${displayParts?.address ? ' listing-page__about-title--spaced' : ''}`}
+                >
+                  Характеристики
+                </h2>
+                <dl className="listing-page__meta-dl">
+                  {displayParts?.brand ? (
+                    <div className="listing-page__meta-row">
+                      <dt className="listing-page__meta-dt">Бренд</dt>
+                      <dd className="listing-page__meta-dd">{displayParts.brand}</dd>
+                    </div>
+                  ) : null}
+                  {displayParts?.year ? (
+                    <div className="listing-page__meta-row">
+                      <dt className="listing-page__meta-dt">Год</dt>
+                      <dd className="listing-page__meta-dd">{displayParts.year}</dd>
+                    </div>
+                  ) : null}
+                  {conditionLabel ? (
+                    <div className="listing-page__meta-row">
+                      <dt className="listing-page__meta-dt">Состояние</dt>
+                      <dd className="listing-page__meta-dd">{conditionLabel}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </>
+            ) : null}
+
+            <h2
+              id="listing-desc-heading"
+              className={`listing-page__about-title${needsGapBeforeDescription ? ' listing-page__about-title--spaced' : ''}`}
+            >
+              Описание
+            </h2>
+            <div className="listing-page__about-body">
+              {displayParts?.description ?? listing.description}
+            </div>
+          </section>
         </div>
       </div>
 

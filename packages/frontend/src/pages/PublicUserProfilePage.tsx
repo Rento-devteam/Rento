@@ -5,24 +5,8 @@ import { ApiError } from '../lib/apiClient'
 import { getPublicUserProfile, type PublicUserProfile } from '../users/publicProfileApi'
 import { getPublicListingsByOwner } from '../catalog/catalogApi'
 import { formatListingRentalPriceRu } from '../lib/rentalPeriodRu'
+import { userStatusLabelRu } from '../lib/statusRu'
 import '../styles/profile.css'
-
-function accountStatusLabel(status: string): string {
-  switch (status) {
-    case 'PENDING_EMAIL_CONFIRMATION':
-      return 'Ожидает подтверждения email'
-    case 'PENDING_TELEGRAM_LINK':
-      return 'Привяжите Telegram'
-    case 'ACTIVE':
-      return 'Активен'
-    case 'SUSPENDED':
-      return 'Приостановлен'
-    case 'BANNED':
-      return 'Заблокирован'
-    default:
-      return status
-  }
-}
 
 function formatAccountId(id: string): string {
   if (id.length <= 14) return id
@@ -271,7 +255,7 @@ export function PublicUserProfilePage() {
                 </div>
                 <div className="profile-aside__row">
                   <ShieldGlyph />
-                  <span>{accountStatusLabel(profile.status)}</span>
+                  <span>{userStatusLabelRu(profile.status)}</span>
                 </div>
                 {profile.role === 'ADMIN' ? <p className="profile-aside__role">Роль: администратор</p> : null}
               </section>

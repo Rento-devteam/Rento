@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { bookingStatusLabel } from '../bookings/bookingUi'
+import { bookingSettlementStatusLabelRu } from '../lib/statusRu'
 import {
   cancelBooking,
   confirmBookingReturn,
@@ -455,7 +456,7 @@ export function BookingDetailPage() {
               </div>
             ) : (
               <div className="alert alert--error">
-                Расчёт ещё не завершён (статус: {booking.settlementStatus}
+                Расчёт ещё не завершён (статус: {bookingSettlementStatusLabelRu(booking.settlementStatus)}
                 {booking.settlementError ? `: ${booking.settlementError}` : ''}).
                 {canRetrySettlement
                   ? ' Используйте кнопку «Повторить расчёт» выше.'
