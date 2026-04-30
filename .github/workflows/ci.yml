@@ -80,6 +80,7 @@ jobs:
           fi
           chmod 600 /tmp/deploy_key
 
+      # Fails fast if DEPLOY_SSH_PASSPHRASE does not match the encrypted key (no interactive prompt).
       - name: Verify deploy key decrypts
         env:
           DEPLOY_SSH_PASSPHRASE: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}

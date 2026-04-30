@@ -39,6 +39,7 @@ export async function confirmTelegramLogin(params: {
   botSecret: string;
   state: string;
   telegramId: string;
+  phone?: string;
   username?: string;
   firstName?: string;
 }): Promise<TelegramLoginConfirmResponse> {
@@ -51,6 +52,7 @@ export async function confirmTelegramLogin(params: {
     body: JSON.stringify({
       state: params.state,
       telegramId: params.telegramId,
+      phone: params.phone,
       username: params.username,
       firstName: params.firstName,
     }),

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { IListing, RentalPeriod } from '@rento/shared'
+import type { IListing, IListingPhoto, RentalPeriod } from '@rento/shared'
 import { useAuth } from '../auth/AuthContext'
 import { createBooking, retryBookingPayment } from '../bookings/bookingsApi'
 import { getBookingSummary, type BookingSummaryResponse } from '../bookings/bookingSummaryApi'
@@ -213,7 +213,7 @@ export function ListingDetailsPage() {
 
   const photoLightboxSlides = useMemo(() => {
     if (!listing?.photos || !Array.isArray(listing.photos)) return []
-    return listing.photos.map((p) => ({ url: p.url, alt: listing.title }))
+    return listing.photos.map((p: IListingPhoto) => ({ url: p.url, alt: listing.title }))
   }, [listing])
 
   useEffect(() => {
@@ -794,7 +794,7 @@ export function ListingDetailsPage() {
 
               {hasPhotos ? (
                 <div className="listing-page__thumbs" role="tablist" aria-label="Галерея фото">
-                  {photos.map((photo, index) => (
+                  {photos.map((photo: IListingPhoto, index: number) => (
                     <button
                       type="button"
                       key={photo.id}

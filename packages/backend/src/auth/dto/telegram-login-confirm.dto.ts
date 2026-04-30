@@ -12,6 +12,11 @@ export class TelegramLoginConfirmDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(30)
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(64)
   username?: string;
 
