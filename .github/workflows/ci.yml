@@ -86,6 +86,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key_path: /tmp/deploy_key
+          passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
           script_stop: true
           script: |
             set -e
