@@ -406,13 +406,23 @@ function TelegramPanel({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
   async function onTelegramStart() {
     setError(null)
     setPending(true)
+
+    // iOS/Safari often blocks `window.open` if it's called after an `await`.
+    // Open a blank window synchronously, then navigate it after we get the deep link.
+    const popup = window.open('about:blank', '_blank', 'noopener,noreferrer')
     try {
       const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`
       const q = new URLSearchParams({ returnTo })
       const redirectUrl = `/telegram/callback?${q.toString()}`
       const res = await authApi.telegramLoginStart({ redirectUrl })
-      window.open(res.deepLink, '_blank', 'noopener,noreferrer')
+
+      if (popup && !popup.closed) {
+        popup.location.href = res.deepLink
+      } else {
+        window.location.assign(res.deepLink)
+      }
     } catch (e) {
+      if (popup && !popup.closed) popup.close()
       setError(e instanceof ApiError ? e.message : 'Не удалось открыть Telegram')
     } finally {
       setPending(false)
