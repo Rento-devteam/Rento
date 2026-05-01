@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
-import { AppHeader } from './components/AppHeader'
+import { AppHeader, MobileDock } from './components/AppHeader'
 import { AuthModal, type AuthTab } from './components/AuthModal'
 import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
 import { CreateItemPage } from './pages/CreateItemPage'
@@ -67,6 +67,7 @@ function AppLayout() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+      {!hideChrome ? <MobileDock onAuthRequest={openAuth} /> : null}
       {isModalOpen && activeTab ? (
         <AuthModal
           key={activeTab}
