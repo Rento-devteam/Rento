@@ -233,7 +233,7 @@ export function PublicUserProfilePage() {
                     <p className="profile-stat-card__label">Объявления</p>
                     <p className="profile-stat-card__hint">Активные</p>
                   </div>
-                  <span className="profile-stat-card__value">—</span>
+                  <span className="profile-stat-card__value">{listings.length}</span>
                 </div>
               </div>
 
@@ -265,7 +265,7 @@ export function PublicUserProfilePage() {
               <section className="profile-listings" aria-labelledby="public-profile-listings-title">
                 <div className="profile-listings__head">
                   <h2 id="public-profile-listings-title" className="profile-listings__title">
-                    Мои объявления
+                    Активные объявления
                   </h2>
                 </div>
                 {listings.length === 0 ? (
