@@ -78,7 +78,7 @@ services:
       - ./.env
     environment:
       NODE_ENV: production
-      NODE_OPTIONS: --dns-result-order=ipv6first
+      NODE_OPTIONS: --dns-result-order=ipv4first
       PORT: ${TELEGRAM_BOT_PORT:-3010}
       WEBHOOK_PATH: ${TELEGRAM_BOT_WEBHOOK_PATH:-/telegram/webhook}
       PUBLIC_BOT_BASE_URL: ${TELEGRAM_BOT_PUBLIC_BASE_URL}
