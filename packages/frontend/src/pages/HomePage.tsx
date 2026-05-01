@@ -253,7 +253,7 @@ export function HomePage() {
           <button
             type="button"
             className={`search-bar__chip${filterOpen ? ' search-bar__chip--active' : ''}`}
-            onClick={() => setFilterOpen((open) => !open)}
+            onClick={() => setFilterOpen(true)}
             aria-expanded={filterOpen}
           >
             <FilterIcon />
@@ -287,8 +287,26 @@ export function HomePage() {
       </section>
 
       {filterOpen ? (
-        <section className="container" aria-label="Фильтры">
-          <div className="filters">
+        <div
+          className="filters-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Фильтры"
+          onClick={() => setFilterOpen(false)}
+        >
+          <section className="filters-modal__dialog" onClick={(event) => event.stopPropagation()}>
+            <div className="filters-modal__head">
+              <h2 className="filters-modal__title">Фильтры</h2>
+              <button
+                type="button"
+                className="filters-modal__close"
+                aria-label="Закрыть фильтры"
+                onClick={() => setFilterOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="filters">
             <div className="filters__row">
               <span className="filters__label">Цена</span>
               <div className="filters__range">
@@ -350,12 +368,16 @@ export function HomePage() {
             <button
               type="button"
               className="btn btn--brand filters__apply"
-              onClick={() => void loadCatalog()}
+              onClick={() => {
+                void loadCatalog()
+                setFilterOpen(false)
+              }}
             >
               Применить
             </button>
           </div>
-        </section>
+          </section>
+        </div>
       ) : null}
 
       <section className="container catalog" aria-live="polite">
