@@ -23,7 +23,10 @@ const YANDEX_GEOCODE_URL = 'https://geocode-maps.yandex.ru/v1/';
  * Parse Yandex `Point.pos` — два числа через пробел; в ответах HTTP Геокодера
  * задаётся как «долгота широта» (совпадает с порядком в GeoJSON-кольце Яндекса).
  */
-export function parseYandexPos(pos: string): { latitude: number; longitude: number } {
+export function parseYandexPos(pos: string): {
+  latitude: number;
+  longitude: number;
+} {
   const parts = pos.trim().split(/\s+/);
   if (parts.length < 2) {
     throw new BadGatewayException('Некорректный ответ геокодера (координаты)');
@@ -123,7 +126,8 @@ export class GeoService {
 
     if (!res.ok) {
       const err = json as YandexGeocoderResponseError;
-      const detail = typeof err.message === 'string' ? err.message : res.statusText;
+      const detail =
+        typeof err.message === 'string' ? err.message : res.statusText;
       throw new BadGatewayException(
         `Ответ геокодера ${res.status}${detail ? `: ${detail}` : ''}`,
       );

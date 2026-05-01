@@ -21,11 +21,7 @@ describe('extractYandexKeyFromDotenvFile', () => {
   });
 
   it('parses bare assignment', () => {
-    fs.writeFileSync(
-      filePath,
-      `YANDEX_GEOCODER_API_KEY=abc-def-012\n`,
-      'utf8',
-    );
+    fs.writeFileSync(filePath, `YANDEX_GEOCODER_API_KEY=abc-def-012\n`, 'utf8');
     expect(extractYandexKeyFromDotenvFile(filePath)).toBe('abc-def-012');
   });
 

@@ -67,8 +67,7 @@ function tryApplyYandexKeyFromFile(absPath: string): void {
   /** dotenv парсит кавычки/пробелы так же, как config({ path }). */
   const parsed = parse(buf);
   const raw = parsed.YANDEX_GEOCODER_API_KEY;
-  const v =
-    typeof raw === 'string' ? raw.replace(/^\uFEFF/, '').trim() : '';
+  const v = typeof raw === 'string' ? raw.replace(/^\uFEFF/, '').trim() : '';
   if (v) {
     process.env.YANDEX_GEOCODER_API_KEY = v;
   }

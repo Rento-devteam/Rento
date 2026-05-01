@@ -38,7 +38,10 @@ function readDotenvFileUtf8(absPath: string): string | null {
     return null;
   }
   if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
-    return buf.subarray(2).toString('utf16le').replace(/^\uFEFF/, '');
+    return buf
+      .subarray(2)
+      .toString('utf16le')
+      .replace(/^\uFEFF/, '');
   }
   return buf.toString('utf8').replace(/^\uFEFF/, '');
 }
@@ -60,9 +63,7 @@ export function extractYandexKeyFromDotenvFile(absPath: string): string | null {
 
   const text = withoutLeadingBom;
   for (const line of text.split(/\r?\n/)) {
-    const m = line.match(
-      /^\s*YANDEX_GEOCODER_API_KEY\s*=\s*(.*?)\s*(?:#.*)?$/,
-    );
+    const m = line.match(/^\s*YANDEX_GEOCODER_API_KEY\s*=\s*(.*?)\s*(?:#.*)?$/);
     if (m?.[1]) {
       const v = unquoteEnvValue(m[1]);
       if (v) return v.trim();
@@ -85,7 +86,9 @@ function uniquePaths(paths: string[]): string[] {
 }
 
 /** Все кандидаты .env, где логично искать геоключ (локально и в docker). */
-export function getYandexGeocoderDotenvCandidates(moduleDirname: string): string[] {
+export function getYandexGeocoderDotenvCandidates(
+  moduleDirname: string,
+): string[] {
   const cwd = process.cwd();
   const backendRoot = climbToBackendPackageRoot(moduleDirname);
   const list: string[] = [];
@@ -113,7 +116,9 @@ export function getYandexGeocoderDotenvCandidates(moduleDirname: string): string
  * Если в `process.env` ключа нет — ищет в `.env` на диске и подставляет в env.
  * Нужен из-за вложенного `dist/src`, shell-обёрток и т.п.
  */
-export function hydrateYandexGeocoderApiKeyFromDisk(moduleDirname: string): void {
+export function hydrateYandexGeocoderApiKeyFromDisk(
+  moduleDirname: string,
+): void {
   const cur = (process.env[YANDEX_GEOCODER_API_KEY_ENV] ?? '')
     .replace(/^\uFEFF/, '')
     .trim();

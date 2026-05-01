@@ -6,4 +6,3 @@ export class TelegramLoginExchangeDto {
   @MaxLength(256)
   code!: string;
 }
-

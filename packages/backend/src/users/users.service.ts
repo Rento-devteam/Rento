@@ -186,9 +186,7 @@ export class UsersService {
     const lat = dto.addressLatitude;
     const lon = dto.addressLongitude;
     if (typeof lat !== 'number' || typeof lon !== 'number') {
-      throw new BadRequestException(
-        'Некорректные координаты профиля',
-      );
+      throw new BadRequestException('Некорректные координаты профиля');
     }
     return {
       addressLatitude: lat,

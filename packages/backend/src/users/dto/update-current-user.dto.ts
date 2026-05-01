@@ -10,6 +10,16 @@ import {
   ValidateIf,
 } from 'class-validator';
 
+function optionalCoordTransform(value: unknown): number | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  return Number(value);
+}
+
 export class UpdateCurrentUserDto {
   @IsOptional()
   @IsString()
@@ -33,9 +43,7 @@ export class UpdateCurrentUserDto {
 
   @IsOptional()
   @ValidateIf((_, v) => v != null)
-  @Transform(({ value }) =>
-    value === null || value === undefined ? value : Number(value),
-  )
+  @Transform(({ value }: { value: unknown }) => optionalCoordTransform(value))
   @IsNumber()
   @Min(-90)
   @Max(90)
@@ -43,9 +51,7 @@ export class UpdateCurrentUserDto {
 
   @IsOptional()
   @ValidateIf((_, v) => v != null)
-  @Transform(({ value }) =>
-    value === null || value === undefined ? value : Number(value),
-  )
+  @Transform(({ value }: { value: unknown }) => optionalCoordTransform(value))
   @IsNumber()
   @Min(-180)
   @Max(180)
