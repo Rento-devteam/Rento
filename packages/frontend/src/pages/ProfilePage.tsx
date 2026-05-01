@@ -16,6 +16,7 @@ import {
   type BankCard,
 } from '../payments/paymentMethodsApi'
 import '../styles/profile.css'
+import { AddressPicker, type AddressPickerValue } from '../components/AddressPicker'
 
 type ProfileEditModalProps = {
   open: boolean
@@ -60,6 +61,11 @@ function ProfileEditModal({
 }: ProfileEditModalProps) {
   const [draftFullName, setDraftFullName] = useState(() => user.fullName ?? '')
   const [draftPhone, setDraftPhone] = useState(() => formatTelegramPhone(user.phone ?? ''))
+  const [draftAddress, setDraftAddress] = useState<AddressPickerValue>(() => ({
+    addressText: user.addressText ?? '',
+    latitude: user.addressLatitude ?? null,
+    longitude: user.addressLongitude ?? null,
+  }))
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileMessage, setProfileMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(
     null,
@@ -70,6 +76,11 @@ function ProfileEditModal({
     queueMicrotask(() => {
       setDraftFullName(user.fullName ?? '')
       setDraftPhone(formatTelegramPhone(user.phone ?? ''))
+      setDraftAddress({
+        addressText: user.addressText ?? '',
+        latitude: user.addressLatitude ?? null,
+        longitude: user.addressLongitude ?? null,
+      })
       setProfileMessage(null)
     })
   }, [open, user])
@@ -77,16 +88,21 @@ function ProfileEditModal({
   const isProfileDirty = useMemo(() => {
     const initialPhone = formatTelegramPhone(user.phone ?? '')
     const currentPhone = formatTelegramPhone(draftPhone)
+    const addrDirty =
+      draftAddress.addressText.trim() !== (user.addressText ?? '').trim() ||
+      (draftAddress.latitude ?? null) !== (user.addressLatitude ?? null) ||
+      (draftAddress.longitude ?? null) !== (user.addressLongitude ?? null)
     return (
       draftFullName.trim() !== (user.fullName ?? '').trim() ||
-      currentPhone !== initialPhone
+      currentPhone !== initialPhone ||
+      addrDirty
     )
-  }, [user, draftFullName, draftPhone])
+  }, [user, draftFullName, draftPhone, draftAddress])
 
   const handleSaveProfile = async (event: FormEvent) => {
     event.preventDefault()
     if (!accessToken || !isProfileDirty) return
-    const body: { fullName?: string; phone?: string } = {}
+    const body: Parameters<typeof authApi.updateCurrentUser>[0] = {}
     if (draftFullName.trim() !== (user.fullName ?? '').trim()) {
       body.fullName = draftFullName.trim()
     }
@@ -94,6 +110,24 @@ function ProfileEditModal({
     const initialPhone = formatTelegramPhone(user.phone ?? '')
     if (nextPhone !== initialPhone) {
       body.phone = nextPhone
+    }
+    const nextAddrText = draftAddress.addressText.trim()
+    const prevAddrText = (user.addressText ?? '').trim()
+    const nextLat = draftAddress.latitude ?? null
+    const nextLon = draftAddress.longitude ?? null
+    const prevLat = user.addressLatitude ?? null
+    const prevLon = user.addressLongitude ?? null
+    if (nextAddrText !== prevAddrText) {
+      body.addressText = nextAddrText === '' ? '' : draftAddress.addressText.trim()
+    }
+    if (nextLat !== prevLat || nextLon !== prevLon) {
+      if (nextLat == null && nextLon == null) {
+        body.addressLatitude = null
+        body.addressLongitude = null
+      } else if (nextLat != null && nextLon != null) {
+        body.addressLatitude = nextLat
+        body.addressLongitude = nextLon
+      }
     }
     if (Object.keys(body).length === 0) return
 
@@ -169,6 +203,13 @@ function ProfileEditModal({
               />
               <span className="field__hint">Формат: +7 999 123-45-67</span>
             </div>
+            <AddressPicker
+              idPrefix="profile-edit"
+              accessToken={accessToken}
+              value={draftAddress}
+              onChange={setDraftAddress}
+              label="Адрес (для встреч и выдачи)"
+            />
           </div>
           {profileMessage ? (
             <p
@@ -193,6 +234,11 @@ function ProfileEditModal({
               onClick={() => {
                 setDraftFullName(user.fullName ?? '')
                 setDraftPhone(formatTelegramPhone(user.phone ?? ''))
+                setDraftAddress({
+                  addressText: user.addressText ?? '',
+                  latitude: user.addressLatitude ?? null,
+                  longitude: user.addressLongitude ?? null,
+                })
                 setProfileMessage(null)
               }}
             >
@@ -527,6 +573,11 @@ export function ProfilePage() {
                 <p className="profile-hero__name">{user.fullName || 'Без имени'}</p>
                 <p className="profile-hero__since">На Rento — ваш личный кабинет</p>
                 <p className="profile-hero__account">Аккаунт: {formatAccountId(user.id)}</p>
+                {user.addressText?.trim() ? (
+                  <p className="profile-hero__address" style={{ marginTop: 'var(--sp-2)', opacity: 0.92 }}>
+                    {user.addressText.trim()}
+                  </p>
+                ) : null}
               </div>
             </div>
 

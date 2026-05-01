@@ -1608,6 +1608,13 @@ a {
   color: var(--danger-fg, #b91c1c);
 }
 
+.address-picker__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
 .alert {
   padding: 10px 14px;
   border-radius: var(--r-sm);

@@ -80,6 +80,25 @@ Active listings are indexed when published (`POST /listings/:id/publish`). Backf
 
 **E2E tests** stub `ListingSearchIndexService`, so they do not require a running Elasticsearch node. To exercise search against a real cluster, run ES locally and hit the HTTP endpoints manually with `ELASTICSEARCH_NODE` set.
 
+## Геокодирование (Yandex, только бэкенд)
+
+Ключ **не** отдаётся в браузер: фронт вызывает защищённые JWT-эндпоинты, бэкенд ходит в [HTTP Геокодер](https://yandex.ru/maps-api/docs/geocoder-api/index.html).
+
+**Регистрация ключа**
+
+1. [Кабинет разработчика Яндекс](https://developer.tech.yandex.ru/) (или облачная консоль для продуктов карт — актуальный раздел «JavaScript API и HTTP Геокодер» / API-ключи карт).
+2. Создайте ключ с доступом к **HTTP Геокодеру** (отдельно от ключа для JS API на фронте).
+3. В проде и локально задайте переменную **`YANDEX_GEOCODER_API_KEY`** (например в `deploy/.env`, файл подключается к сервису `backend` в `deploy/docker-compose.yml`).
+
+Без ключа методы возвращают `503 Service Unavailable` с пояснением.
+
+**HTTP (нужен `Authorization: Bearer …`)**
+
+- `POST /geo/geocode` — тело `{ "query": "Москва, Тверская 1" }` → `{ addressText, latitude, longitude }`.
+- `POST /geo/reverse-geocode` — тело `{ "latitude": …, "longitude": … }` → то же самое.
+
+Сохранение в профиль / объявление: поля приходят с фронта после ответа геокодера — `PATCH /users/me` (`addressText`, пара `addressLatitude` / `addressLongitude`, очистка координат — оба `null`) и создание/редактирование объявления (`addressText`, `latitude`, `longitude`).
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

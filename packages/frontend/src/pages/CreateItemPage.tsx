@@ -13,6 +13,7 @@ import {
   type CreateListingResponse,
 } from '../catalog/catalogApi'
 import { PhotoLightbox } from '../components/PhotoLightbox'
+import { AddressPicker } from '../components/AddressPicker'
 import { ApiError } from '../lib/apiClient'
 import {
   LISTING_FORM_PRICE_LABEL,
@@ -125,6 +126,9 @@ export function CreateItemPage() {
     rentalMethod: 'day' as RentalMethod,
     rentalPrice: '',
     deposit: '',
+    addressText: '',
+    addressLatitude: null as number | null,
+    addressLongitude: null as number | null,
   })
 
   const formLocked = false
@@ -212,6 +216,9 @@ export function CreateItemPage() {
                   : 'day',
           rentalPrice: String(Math.round(listing.rentalPrice)),
           deposit: String(Math.round(listing.depositAmount)),
+          addressText: listing.addressText ?? '',
+          addressLatitude: listing.latitude,
+          addressLongitude: listing.longitude,
         })
         setUploadedPhotos(
           (listing.photos ?? []).map((p: IListingPhoto) => ({ id: p.id, url: p.url })),
@@ -291,6 +298,8 @@ export function CreateItemPage() {
 
     setSubmitting(true)
     try {
+      const hasResolvedPoint =
+        formData.addressLatitude != null && formData.addressLongitude != null
       const payload = {
         title: formData.title.trim(),
         description: buildDescription(),
@@ -298,6 +307,9 @@ export function CreateItemPage() {
         rentalPrice,
         rentalPeriod,
         depositAmount: depositNum,
+        addressText: formData.addressText.trim() ? formData.addressText.trim() : null,
+        latitude: hasResolvedPoint ? formData.addressLatitude : null,
+        longitude: hasResolvedPoint ? formData.addressLongitude : null,
       }
 
       if (isEditMode && routeListingId) {
@@ -832,6 +844,27 @@ export function CreateItemPage() {
                 disabled={formLocked}
               />
             </div>
+
+            <AddressPicker
+              idPrefix="listing"
+              accessToken={accessToken}
+              disabled={formLocked}
+              value={{
+                addressText: formData.addressText,
+                latitude: formData.addressLatitude,
+                longitude: formData.addressLongitude,
+              }}
+              onChange={(next) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  addressText: next.addressText,
+                  addressLatitude: next.latitude,
+                  addressLongitude: next.longitude,
+                }))
+              }
+              label="Место выдачи"
+              hint="Укажите, где можно забрать вещь. Адрес уточняется через Яндекс на сервере — ключ API не нужен в браузере."
+            />
 
             <div className="field">
               <label className="field__label" htmlFor="item-deposit">

@@ -66,4 +66,11 @@ export class CreateListingDto {
   @Min(-180)
   @Max(180)
   longitude?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500, {
+    message: 'Текст адреса не длиннее 500 символов',
+  })
+  addressText?: string;
 }
