@@ -25,4 +25,3 @@ export class TelegramLoginConfirmDto {
   @MaxLength(128)
   firstName?: string;
 }
-

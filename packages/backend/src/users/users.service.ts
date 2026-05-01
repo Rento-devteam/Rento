@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -85,6 +86,8 @@ export class UsersService {
     userId: string,
     dto: UpdateCurrentUserDto,
   ): Promise<UserProfileResponse> {
+    const coordsUpdate = this.resolveAddressCoordinatesUpdate(dto);
+
     const user = await this.prismaService.user.update({
       where: { id: userId },
       data: {
@@ -97,6 +100,15 @@ export class UsersService {
         ...(dto.avatarUrl !== undefined
           ? { avatarUrl: this.normalizeOptionalString(dto.avatarUrl) }
           : {}),
+        ...(dto.addressText !== undefined
+          ? {
+              addressText:
+                dto.addressText.trim().length > 0
+                  ? dto.addressText.trim()
+                  : null,
+            }
+          : {}),
+        ...(coordsUpdate ? coordsUpdate : {}),
       },
     });
 
@@ -140,5 +152,45 @@ export class UsersService {
   private normalizeOptionalString(value: string): string | null {
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : null;
+  }
+
+  private resolveAddressCoordinatesUpdate(
+    dto: UpdateCurrentUserDto,
+  ):
+    | { addressLatitude: null; addressLongitude: null }
+    | { addressLatitude: number; addressLongitude: number }
+    | undefined {
+    const latDefined = dto.addressLatitude !== undefined;
+    const lonDefined = dto.addressLongitude !== undefined;
+    if (!latDefined && !lonDefined) {
+      return undefined;
+    }
+    if (latDefined !== lonDefined) {
+      throw new BadRequestException(
+        'Укажите пару координат: addressLatitude и addressLongitude вместе (или ни одной)',
+      );
+    }
+    const latNull = dto.addressLatitude === null;
+    const lonNull = dto.addressLongitude === null;
+    if (latNull || lonNull) {
+      if (!latNull || !lonNull) {
+        throw new BadRequestException(
+          'Очистка координат: отправьте null для latitude и longitude вместе',
+        );
+      }
+      return {
+        addressLatitude: null,
+        addressLongitude: null,
+      };
+    }
+    const lat = dto.addressLatitude;
+    const lon = dto.addressLongitude;
+    if (typeof lat !== 'number' || typeof lon !== 'number') {
+      throw new BadRequestException('Некорректные координаты профиля');
+    }
+    return {
+      addressLatitude: lat,
+      addressLongitude: lon,
+    };
   }
 }

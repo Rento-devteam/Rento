@@ -4,8 +4,9 @@
 
 1) Create `deploy/.env` from template:
 
-- Copy `deploy/.env.example` → `deploy/.env`
+- Copy `deploy/.env.example` → `deploy/.env` (если примера нет — создайте файл по вашему шаблону секретов)
 - Fill in secrets (JWT, BOT_SECRET, SMTP_PASS, S3 keys, etc.)
+- Для геокодирования объявлений и адреса в профиле: **`YANDEX_GEOCODER_API_KEY`** (HTTP Геокодер Яндекса; только серверный ключ, см. раздел «Геокодирование» в `packages/backend/README.md`)
 
 2) Set your DNS:
 

@@ -23,6 +23,9 @@ export interface UserProfileResponse {
   fullName: string | null;
   phone: string | null;
   avatarUrl: string | null;
+  addressText: string | null;
+  addressLatitude: number | null;
+  addressLongitude: number | null;
   role: UserRole;
   status: UserStatus;
   isVerified: boolean;
@@ -36,6 +39,9 @@ export interface UserProfileSource {
   fullName?: string | null;
   phone?: string | null;
   avatarUrl?: string | null;
+  addressText?: string | null;
+  addressLatitude?: number | null;
+  addressLongitude?: number | null;
   role?: UserRole | null;
   emailConfirmedAt?: Date | null;
 }
@@ -73,6 +79,9 @@ export function buildUserProfileResponse(
     fullName: user.fullName ?? null,
     phone: user.phone ?? null,
     avatarUrl: user.avatarUrl ?? null,
+    addressText: user.addressText ?? null,
+    addressLatitude: user.addressLatitude ?? null,
+    addressLongitude: user.addressLongitude ?? null,
     role: user.role ?? 'USER',
     status: user.status,
     isVerified: computeUserIsVerified({

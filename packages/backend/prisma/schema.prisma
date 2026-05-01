@@ -74,6 +74,10 @@ model User {
   fullName          String?
   phone             String?
   avatarUrl         String?
+  /** Человекочитаемый адрес (после геокодирования на бэкенде). */
+  addressText       String?
+  addressLatitude   Float?
+  addressLongitude  Float?
   role              UserRole                 @default(USER)
   status            UserStatus               @default(PENDING_EMAIL_CONFIRMATION)
   emailConfirmedAt  DateTime?
@@ -212,6 +216,8 @@ model Listing {
   rentalPeriod         RentalPeriod
   depositAmount        Float
   status               ListingStatus                @default(DRAFT)
+  /** Адрес выдачи / место (текст с геокодера). */
+  addressText          String?
   latitude             Float?
   longitude            Float?
   createdAt            DateTime                     @default(now())

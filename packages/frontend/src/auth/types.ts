@@ -6,6 +6,9 @@ export interface AuthUser {
   fullName: string | null
   phone: string | null
   avatarUrl: string | null
+  addressText?: string | null
+  addressLatitude?: number | null
+  addressLongitude?: number | null
   role: string
   status: string
   isVerified: boolean

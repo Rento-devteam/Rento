@@ -1608,6 +1608,43 @@ a {
   color: var(--danger-fg, #b91c1c);
 }
 
+.address-picker__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.address-picker .field__input[type='text'],
+.address-picker textarea.field__input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.address-picker textarea.field__input {
+  min-height: 88px;
+  resize: vertical;
+}
+
+@media (max-width: 640px), (max-device-width: 600px) {
+  .address-picker__actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-2);
+  }
+
+  .address-picker__actions .btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .address-picker .field__hint {
+    font-size: 0.8rem;
+  }
+}
+
 .alert {
   padding: 10px 14px;
   border-radius: var(--r-sm);
@@ -1795,22 +1832,33 @@ a {
 
 .create-item-footer {
   grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
   margin-top: var(--sp-6);
 }
 
-.create-item-submit {
-  min-width: 240px;
-  height: 52px;
-  font-size: 1.1rem;
-  border-radius: var(--r-pill);
-  background: var(--brand-300);
-  color: var(--ink-900);
+.create-item-footer__btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  width: 100%;
+  justify-content: flex-end;
+  align-items: stretch;
 }
 
-.create-item-submit:hover:not(:disabled) {
+.create-item-footer__save,
+.create-item-footer__publish {
+  min-width: min(100%, 220px);
+  min-height: 52px;
+  font-size: 1.05rem;
+  border-radius: var(--r-pill);
+}
+
+.create-item-footer__publish {
   background: var(--brand-400);
+  color: #fff;
+}
+
+.create-item-footer__publish:hover:not(:disabled) {
+  background: var(--brand-500);
 }
 
 .photo-upload {
@@ -1874,11 +1922,14 @@ a {
   .create-item-grid {
     grid-template-columns: 1fr;
   }
-  .create-item-footer {
+  .create-item-footer__btns {
+    flex-direction: column;
     justify-content: stretch;
   }
-  .create-item-submit {
+  .create-item-footer__save,
+  .create-item-footer__publish {
     width: 100%;
+    min-width: 0;
   }
   .create-item-row {
     flex-direction: column;
