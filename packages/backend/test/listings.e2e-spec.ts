@@ -56,6 +56,7 @@ type ListingRecord = {
   rentalPeriod: RentalPeriod;
   depositAmount: number;
   status: ListingStatus;
+  addressText: string | null;
   latitude: number | null;
   longitude: number | null;
   createdAt: Date;
@@ -158,6 +159,7 @@ class InMemoryPrismaService {
           rentalPeriod: RentalPeriod;
           depositAmount: number;
           status: ListingStatus;
+          addressText?: string | null;
           latitude: number | null;
           longitude: number | null;
         };
@@ -177,6 +179,10 @@ class InMemoryPrismaService {
           rentalPeriod: data.rentalPeriod,
           depositAmount: data.depositAmount,
           status: data.status,
+          addressText:
+            data.addressText !== undefined && data.addressText !== null
+              ? data.addressText
+              : null,
           latitude: data.latitude,
           longitude: data.longitude,
           createdAt: now,
@@ -651,6 +657,7 @@ describe('ListingsController (e2e)', () => {
       rentalPeriod: RentalPeriod.DAY,
       depositAmount: 1500,
       status: ListingStatus.DRAFT,
+      addressText: null,
       latitude: null,
       longitude: null,
       createdAt: new Date(),
@@ -691,6 +698,7 @@ describe('ListingsController (e2e)', () => {
       rentalPeriod: RentalPeriod.DAY,
       depositAmount: 1500,
       status: ListingStatus.DRAFT,
+      addressText: null,
       latitude: null,
       longitude: null,
       createdAt: new Date(),
@@ -726,6 +734,7 @@ describe('ListingsController (e2e)', () => {
       rentalPeriod: RentalPeriod.DAY,
       depositAmount: 1500,
       status: ListingStatus.DRAFT,
+      addressText: null,
       latitude: null,
       longitude: null,
       createdAt: new Date(),
@@ -753,6 +762,7 @@ describe('ListingsController (e2e)', () => {
       rentalPeriod: RentalPeriod.DAY,
       depositAmount: 1500,
       status: ListingStatus.DRAFT,
+      addressText: null,
       latitude: null,
       longitude: null,
       createdAt: new Date(),

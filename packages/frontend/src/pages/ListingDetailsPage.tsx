@@ -495,7 +495,9 @@ export function ListingDetailsPage() {
       ? listingConditionLabelRu(displayParts.condition) ?? displayParts.condition
       : null
   const showCharacteristics = Boolean(displayParts?.brand || displayParts?.year || conditionLabel)
-  const needsGapBeforeDescription = Boolean(displayParts?.address || showCharacteristics)
+  const listingAddressLine =
+    listing.addressText?.trim() || displayParts?.address?.trim() || null
+  const needsGapBeforeDescription = Boolean(listingAddressLine || showCharacteristics)
   const isOwner = Boolean(user?.id && listing.ownerId === user.id)
   const ownerDisplayName = ownerProfile?.fullName?.trim() || 'Пользователь'
 
@@ -919,12 +921,12 @@ export function ListingDetailsPage() {
           </aside>
 
           <section className="listing-page__about" aria-label="Адрес, характеристики и описание">
-            {displayParts?.address ? (
+            {listingAddressLine ? (
               <>
                 <h2 id="listing-address-heading" className="listing-page__about-title">
                   Адрес
                 </h2>
-                <p className="listing-page__address">{displayParts.address}</p>
+                <p className="listing-page__address">{listingAddressLine}</p>
               </>
             ) : null}
 
@@ -932,7 +934,7 @@ export function ListingDetailsPage() {
               <>
                 <h2
                   id="listing-meta-heading"
-                  className={`listing-page__about-title${displayParts?.address ? ' listing-page__about-title--spaced' : ''}`}
+                  className={`listing-page__about-title${listingAddressLine ? ' listing-page__about-title--spaced' : ''}`}
                 >
                   Характеристики
                 </h2>

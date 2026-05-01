@@ -34,6 +34,9 @@ export interface CreateListingDto {
   rentalPrice: number
   rentalPeriod: 'HOUR' | 'DAY' | 'WEEK' | 'MONTH'
   depositAmount: number
+  addressText?: string | null
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface CreateListingResponse {
