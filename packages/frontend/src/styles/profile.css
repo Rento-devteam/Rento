@@ -90,7 +90,7 @@
   margin-bottom: var(--sp-6);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px), (max-device-width: 600px) {
   .profile-hero {
     grid-template-columns: 1fr;
   }
@@ -277,7 +277,7 @@
   gap: var(--sp-5);
 }
 
-@media (max-width: 880px) {
+@media (max-width: 880px), (max-device-width: 600px) {
   .profile-layout {
     grid-template-columns: 1fr;
   }
@@ -288,7 +288,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-device-width: 600px) {
   .profile-page {
     padding: var(--sp-4) 0 var(--sp-6);
   }
@@ -765,7 +765,7 @@
   gap: var(--sp-2);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 640px), (max-device-width: 600px) {
   .profile-bank-cards__item {
     flex-direction: column;
     align-items: flex-start;
@@ -778,7 +778,7 @@
   gap: var(--sp-3);
 }
 
-@media (max-width: 520px) {
+@media (max-width: 520px), (max-device-width: 600px) {
   .profile-trust {
     grid-template-columns: 1fr;
   }

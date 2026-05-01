@@ -12,7 +12,7 @@
   }
 
   @telegramWebhook path /telegram/webhook*
-  reverse_proxy @telegramWebhook telegram-bot:3010
+  reverse_proxy @telegramWebhook {$TELEGRAM_BOT_PROXY}
 
   handle_path /api/* {
     reverse_proxy backend:3000

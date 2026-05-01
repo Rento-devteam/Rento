@@ -5,6 +5,8 @@ services:
     image: caddy:2.8-alpine
     container_name: rento-caddy
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "80:80"
       - "443:443"
@@ -12,6 +14,7 @@ services:
       - ./.env
     environment:
       DOMAIN: ${DOMAIN}
+      TELEGRAM_BOT_PROXY: host.docker.internal:${TELEGRAM_BOT_PORT:-3010}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - rento_caddy_data:/data
@@ -54,6 +57,8 @@ services:
       - timeout:2
       - attempts:2
       - ndots:0
+    ports:
+      - "127.0.0.1:3000:3000"
 
   frontend:
     build:
@@ -74,6 +79,7 @@ services:
       dockerfile: telegram-bot/Dockerfile
     container_name: rento-telegram-bot
     restart: unless-stopped
+    network_mode: host
     env_file:
       - ./.env
     environment:
@@ -85,16 +91,9 @@ services:
       USE_POLLING: ${TELEGRAM_BOT_USE_POLLING:-false}
       BOT_TOKEN: ${BOT_TOKEN}
       BOT_SECRET: ${BOT_SECRET}
-      BACKEND_BASE_URL: http://backend:3000
+      BACKEND_BASE_URL: ${TELEGRAM_BOT_BACKEND_LOCAL_URL:-http://127.0.0.1:3000}
     depends_on:
       - backend
-    networks:
-      - web
-      - internal
-    dns:
-      - 77.88.8.8
-      - 1.1.1.1
-      - 8.8.8.8
   
   
   postgres:
