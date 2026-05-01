@@ -718,10 +718,17 @@ export function ProfilePage() {
                     <span>{user.email}</span>
                   </div>
                 ) : null}
-                <div className="profile-aside__row">
-                  <HomeGlyph />
-                  <span className="profile-aside__muted">Адрес в профиле пока не хранится</span>
-                </div>
+                {user.addressText?.trim() ? (
+                  <div className="profile-aside__row">
+                    <HomeGlyph />
+                    <span className="profile-aside__address">{user.addressText.trim()}</span>
+                  </div>
+                ) : (
+                  <div className="profile-aside__row">
+                    <HomeGlyph />
+                    <span className="profile-aside__muted">Адрес не указан — добавьте в редактировании профиля</span>
+                  </div>
+                )}
                 <div className="profile-aside__row">
                   <ShieldGlyph />
                   <span>{userStatusLabelRu(user.status)}</span>

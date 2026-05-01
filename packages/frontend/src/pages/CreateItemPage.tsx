@@ -91,8 +91,16 @@ function validateListingForm(params: {
   if (params.brand.length > 100) {
     return 'Слишком длинное значение бренда'
   }
-  if (params.year.trim() && !/^\d{4}$/.test(params.year.trim())) {
-    return 'Год укажите четырьмя цифрами, например 2020'
+  const yTrim = params.year.trim()
+  if (yTrim) {
+    if (!/^\d{4}$/.test(yTrim)) {
+      return 'Год укажите четырьмя цифрами, например 2020'
+    }
+    const yNum = Number(yTrim)
+    const currentYear = new Date().getFullYear()
+    if (yNum > currentYear) {
+      return `Год не может быть больше ${currentYear}`
+    }
   }
   return null
 }
@@ -895,23 +903,25 @@ export function CreateItemPage() {
           </div>
 
           <div className="create-item-footer">
-            {showPublishBlock ? (
+            <div className="create-item-footer__btns">
               <button
-                type="button"
-                className="btn btn--brand create-item-submit"
-                disabled={publishing || uploadedPhotos.length === 0}
-                onClick={() => void handlePublish()}
+                type="submit"
+                className="btn btn--ghost-solid create-item-footer__save"
+                disabled={submitting}
               >
-                {publishing ? 'Публикация...' : 'Опубликовать'}
+                {submitLabel()}
               </button>
-            ) : null}
-            <button
-              type="submit"
-              className="btn btn--brand create-item-submit"
-              disabled={submitting}
-            >
-              {submitLabel()}
-            </button>
+              {showPublishBlock ? (
+                <button
+                  type="button"
+                  className="btn btn--brand create-item-footer__publish"
+                  disabled={publishing || uploadedPhotos.length === 0}
+                  onClick={() => void handlePublish()}
+                >
+                  {publishing ? 'Публикация...' : 'Опубликовать'}
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </form>

@@ -520,6 +520,12 @@
   color: var(--ink-400);
 }
 
+.profile-aside__address {
+  line-height: 1.45;
+  word-break: break-word;
+  color: var(--ink-800);
+}
+
 .profile-aside__role {
   margin: var(--sp-3) 0 0;
   font-size: 0.78rem;
