@@ -8,11 +8,24 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
+    "packages/frontend/**/*.{ts,tsx}": [
+      "eslint --fix --no-warn-ignored -c packages/frontend/eslint.config.js",
       "prettier --write"
     ],
-    "*.{json,md,yml,yaml}": [
+    "packages/backend/**/*.ts": [
+      "eslint --fix --no-warn-ignored -c packages/backend/eslint.config.mjs",
+      "prettier --write"
+    ],
+    "packages/shared/**/*.ts": [
+      "prettier --write"
+    ],
+    "packages/telegram-bot/**/*.ts": [
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,cjs,mjs}": [
+      "prettier --write"
+    ],
+    ".github/**/*.{md,yml,yaml}": [
       "prettier --write"
     ]
   },
@@ -26,6 +39,8 @@
   "devDependencies": {
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
-    "lint-staged": "16.4.0"
+    "eslint": "^9.39.4",
+    "lint-staged": "16.4.0",
+    "prettier": "^3.4.2"
   }
 }

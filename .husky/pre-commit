@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+# Смешанный индекс (часть файла в stage, часть только в рабочей копии) плюс --fix часто даёт «merge conflict» при восстановлении unstaged без этого флага.
+npx lint-staged --no-hide-partially-staged

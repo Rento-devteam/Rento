@@ -1,0 +1,10 @@
+# Параметры страницы «New issue» на GitHub.
+# Документация: https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository
+
+blank_issues_enabled: true
+
+# Внешние ссылки в блоке «Get started» (по желанию раскомментируйте).
+# contact_links:
+#   - name: Обсуждения
+#     url: https://github.com/OWNER/REPO/discussions
+#     about: Вопросы и идеи без оформления issue
