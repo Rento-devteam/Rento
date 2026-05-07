@@ -14,6 +14,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { VerificationModule } from './verification/verification.module';
 import { TrustScoreModule } from './trust-score/trust-score.module';
+import { GeoModule } from './geo/geo.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { TrustScoreModule } from './trust-score/trust-score.module';
     UsersModule,
     VerificationModule,
     TrustScoreModule,
+    GeoModule,
     ListingsModule,
     BookingsModule,
     CalendarModule,

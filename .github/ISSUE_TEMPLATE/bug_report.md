@@ -1,38 +1,64 @@
 ---
-name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
-assignees: ''
+name: Сообщение об ошибке
+about: Опишите дефект, чтобы мы могли его воспроизвести и исправить
+title: "[Баг] Кратко: что сломалось"
+# labels задаются именами меток из репозитория через запятую, например: bug
+# labels: bug
+# assignees: github-username
+---
+
+## Краткое описание
+
+<!-- В 1–2 предложениях: что не так и где это видно -->
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Как воспроизвести
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+<!-- Пошагово, как для коллеги, который первый раз в фиче -->
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+1.
+2.
+3.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Фактический результат:** что происходит сейчас
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+**Ожидаемый результат:** как должно быть по ТЗ / логике
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+---
 
-**Additional context**
-Add any other context about the problem here.
+## Окружение
+
+Заполните то, что относится к багу (лишнее можно удалить).
+
+| Поле                       | Значение                                                          |
+| -------------------------- | ----------------------------------------------------------------- |
+| **Окружение**              | прод / стейдж / локально / др.                                    |
+| **Версия / билд / коммит** | например `v1.2.3` или хеш                                         |
+| **ОС**                     | Windows / macOS / Linux + версия                                  |
+| **Браузер / клиент**       | Chrome, Safari, мобильное приложение и т.д.                       |
+| **Разрешение / масштаб**   | если важно для вёрстки                                            |
+| **Аккаунт / роль**         | если баг только у определённой роли (без паролей в открытом виде) |
+
+---
+
+## Вложения
+
+- **Скриншоты или скринкаст:** перетащите файлы сюда или дайте ссылку
+- **Логи из консоли (F12 → Console)** — если есть ошибки
+
+```
+Вставьте текст ошибки или стек здесь (если есть)
+```
+
+---
+
+## Дополнительно
+
+- **Частота:** всегда / иногда / один раз
+- **Регрессия:** работало раньше? Если да — примерно когда сломалось
+- **Связанные задачи:** #номер-issue или ссылка на ТЗ
+
+---
+
+<!-- Совет: заголовок issue лучше начинать с области — «Чекауат», «Личный кабинет», «API» и т.д., чтобы фильтровать список. -->

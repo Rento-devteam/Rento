@@ -251,7 +251,7 @@ export function PublicUserProfilePage() {
                 </div>
                 <div className="profile-aside__row">
                   <HomeGlyph />
-                  <span className="profile-aside__muted">Адрес в профиле пока не хранится</span>
+                  <span className="profile-aside__muted">Адрес в публичном профиле не показывается</span>
                 </div>
                 <div className="profile-aside__row">
                   <ShieldGlyph />

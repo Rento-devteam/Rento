@@ -63,7 +63,14 @@ export const authApi = {
   },
 
   updateCurrentUser(
-    body: { fullName?: string; phone?: string; avatarUrl?: string },
+    body: {
+      fullName?: string
+      phone?: string
+      avatarUrl?: string
+      addressText?: string
+      addressLatitude?: number | null
+      addressLongitude?: number | null
+    },
     accessToken: string,
   ): Promise<AuthUser> {
     return apiRequest<AuthUser>('/users/me', {

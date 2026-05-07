@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+# Не использовать `npx ... --edit`: npm подменяет --edit своим флагом; commitlint тогда без файла сообщения.
+commitlint --edit "$1"

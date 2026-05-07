@@ -28,6 +28,7 @@ type ListingRecord = {
   rentalPeriod: RentalPeriod;
   depositAmount: number;
   status: ListingStatus;
+  addressText: string | null;
   latitude: number | null;
   longitude: number | null;
   createdAt: Date;
@@ -59,6 +60,7 @@ export function mapListingDetail(listing: ListingRecord) {
     rentalPeriod: listing.rentalPeriod,
     depositAmount: listing.depositAmount,
     status: listing.status,
+    addressText: listing.addressText,
     latitude: listing.latitude,
     longitude: listing.longitude,
     photos: listing.photos.map((photo) => ({
