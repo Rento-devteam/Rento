@@ -85,31 +85,37 @@ function uniquePaths(paths: string[]): string[] {
   return out;
 }
 
-/** Все кандидаты .env, где логично искать геоключ (локально и в docker). */
+/**
+ * Кандидаты `.env` для геоключа: сначала `deploy/.env` (как в `load-env.ts`),
+ * затем `packages/backend/.env` и cwd-запасные — первый файл, где ключ есть, побеждает.
+ */
 export function getYandexGeocoderDotenvCandidates(
   moduleDirname: string,
 ): string[] {
   const cwd = process.cwd();
   const backendRoot = climbToBackendPackageRoot(moduleDirname);
-  const list: string[] = [];
+  const deployList: string[] = [];
+  const backendList: string[] = [];
 
   if (backendRoot) {
-    list.push(join(backendRoot, '.env'));
-    list.push(join(backendRoot, '..', '..', 'deploy', '.env'));
+    deployList.push(join(backendRoot, '..', '..', 'deploy', '.env'));
+    backendList.push(join(backendRoot, '.env'));
   }
-  list.push(join(cwd, 'deploy', '.env'));
-  list.push(join(cwd, 'packages', 'backend', '.env'));
-  list.push(join(cwd, '.env'));
+
+  deployList.push(join(cwd, 'deploy', '.env'));
 
   let d = resolve(cwd);
   for (let i = 0; i < 10; i++) {
-    list.push(join(d, 'deploy', '.env'));
+    deployList.push(join(d, 'deploy', '.env'));
     const parent = dirname(d);
     if (parent === d) break;
     d = parent;
   }
 
-  return uniquePaths(list);
+  backendList.push(join(cwd, 'packages', 'backend', '.env'));
+  backendList.push(join(cwd, '.env'));
+
+  return uniquePaths([...deployList, ...backendList]);
 }
 
 /**
