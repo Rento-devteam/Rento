@@ -27,32 +27,61 @@ const packageEnvPath = backendRoot
   : join(dirname(__dirname), '.env');
 
 /**
- * `Rento/deploy/.env` — общий для docker-compose; путь от корня монорепо (без буквы диска).
- * `backend` → `..` → `packages` → `..` → корень репозитория.
+ * `Rento/deploy/.env` — основной источник для Docker Compose и продакшена.
  */
-function resolveMonorepoDeployEnvPath(): string | null {
+function resolveMonorepoDeployEnvPath(): string {
   if (!backendRoot) {
     return join(cwd, 'deploy', '.env');
   }
   const repoRoot = resolve(backendRoot, '..', '..');
-  const p = join(repoRoot, 'deploy', '.env');
-  return p;
+  return join(repoRoot, 'deploy', '.env');
 }
 
 const deployEnvPath = resolveMonorepoDeployEnvPath();
 
-/**
- * Сначала полный `packages/backend/.env`, затем cwd-запасные, в конце `deploy/.env` с тем же ключом —
- * переопределит только переменные, присутствующие в `deploy/.env` (геоключ и др.), без удаления DATABASE_URL и пр.
- *
- * По очереди `override: true`: иначе пустые переменные из терминала мешают подставить значения из файла.
- */
-const envChain = [
+/** Кандидаты `packages/backend/.env` (локальная разработка; не перекрывают deploy). */
+const backendEnvCandidates = [
   packageEnvPath,
   join(cwd, 'packages', 'backend', '.env'),
   join(cwd, '.env'),
-  ...(deployEnvPath ? [deployEnvPath] : []),
 ];
+
+const uniqueBackendEnvPaths = [...new Set(backendEnvCandidates)];
+
+function loadEnvFile(absPath: string, override: boolean): void {
+  if (existsSync(absPath)) {
+    config({ path: absPath, override });
+  }
+}
+
+/**
+ * 1) Если есть `deploy/.env` — загружаем его с `override: true` (база для всех ключей).
+ * 2) Затем `packages/backend/.env` и cwd-запасные с `override: false` — только ключи, которых ещё нет в `process.env`.
+ *
+ * Если `deploy/.env` нет — как раньше: первый найденный backend-файл с `override: true`, остальные с `override: false`.
+ */
+const deployExists = existsSync(deployEnvPath);
+
+if (deployExists) {
+  loadEnvFile(deployEnvPath, true);
+  for (const p of uniqueBackendEnvPaths) {
+    loadEnvFile(p, false);
+  }
+} else {
+  let first = true;
+  for (const p of uniqueBackendEnvPaths) {
+    if (!existsSync(p)) {
+      continue;
+    }
+    loadEnvFile(p, first);
+    first = false;
+  }
+}
+
+/** Если ни deploy, ни backend `.env` не найдены — стандартное поведение dotenv для cwd. */
+if (!deployExists && !uniqueBackendEnvPaths.some((p) => existsSync(p))) {
+  config();
+}
 
 function tryApplyYandexKeyFromFile(absPath: string): void {
   if (!existsSync(absPath)) {
@@ -64,7 +93,6 @@ function tryApplyYandexKeyFromFile(absPath: string): void {
   } catch {
     return;
   }
-  /** dotenv парсит кавычки/пробелы так же, как config({ path }). */
   const parsed = parse(buf);
   const raw = parsed.YANDEX_GEOCODER_API_KEY;
   const v = typeof raw === 'string' ? raw.replace(/^\uFEFF/, '').trim() : '';
@@ -73,18 +101,12 @@ function tryApplyYandexKeyFromFile(absPath: string): void {
   }
 }
 
-for (const envPath of envChain) {
-  if (existsSync(envPath)) {
-    config({ path: envPath, override: true });
-  }
-}
+/** Сначала backend-файлы, в конце `deploy/.env` — значение из deploy побеждает при разном содержимом. */
+const yandexEnvScanOrder = [
+  ...uniqueBackendEnvPaths,
+  ...(deployExists ? [deployEnvPath] : []),
+];
 
-/** Если ни одного целевого файла не было — пробуем стандартное поведение dotenv для cwd. */
-if (!envChain.some((p) => existsSync(p))) {
-  config();
-}
-
-/** Явная подстановка геоключа по цепочке (последний файл с ключом побеждает). */
-for (const p of envChain) {
+for (const p of yandexEnvScanOrder) {
   tryApplyYandexKeyFromFile(p);
 }
