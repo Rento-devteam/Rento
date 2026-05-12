@@ -1,5 +1,5 @@
 import { ListingStatus, RentalPeriod } from '@prisma/client';
-import { SearchSort } from './dto/search-query.dto';
+import type { SearchSort } from './dto/search-query.dto';
 import { SearchService } from './search.service';
 
 describe('SearchService', () => {
@@ -96,7 +96,7 @@ describe('SearchService', () => {
       q: 'дрель',
       page: 1,
       limit: 20,
-      sort: SearchSort.relevance,
+      sort: 'relevance' as SearchSort,
     });
 
     expect(mockSearch).toHaveBeenCalled();
