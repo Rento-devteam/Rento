@@ -10,4 +10,3 @@ export class TelegramLoginStartDto {
   @MaxLength(2048)
   redirectUrl?: string;
 }
-

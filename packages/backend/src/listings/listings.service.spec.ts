@@ -127,6 +127,7 @@ describe('ListingsService', () => {
       rentalPeriod: RentalPeriod.DAY,
       depositAmount: 500,
       status: ListingStatus.DRAFT,
+      addressText: null,
       latitude: null,
       longitude: null,
       moderationStatus: ListingTextModerationStatus.ALLOW,

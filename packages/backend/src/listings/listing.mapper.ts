@@ -32,6 +32,7 @@ type ListingRecord = {
   rentalPeriod: RentalPeriod;
   depositAmount: number;
   status: ListingStatus;
+  addressText: string | null;
   latitude: number | null;
   longitude: number | null;
   moderationStatus: ListingTextModerationStatus;
@@ -74,6 +75,7 @@ export function mapListingDetail(listing: ListingRecord) {
     rentalPeriod: listing.rentalPeriod,
     depositAmount: listing.depositAmount,
     status: listing.status,
+    addressText: listing.addressText,
     latitude: listing.latitude,
     longitude: listing.longitude,
     moderationStatus: listing.moderationStatus,

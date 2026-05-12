@@ -187,6 +187,10 @@ export class ListingsService {
     if (dto.longitude !== undefined) {
       data.longitude = dto.longitude;
     }
+    if (dto.addressText !== undefined) {
+      const a = dto.addressText.trim();
+      data.addressText = a.length > 0 ? a : null;
+    }
 
     if (dto.title !== undefined || dto.description !== undefined) {
       const nextTitle =
@@ -327,6 +331,14 @@ export class ListingsService {
         rentalPeriod: dto.rentalPeriod,
         depositAmount: dto.depositAmount,
         status: ListingStatus.DRAFT,
+        ...(dto.addressText !== undefined
+          ? {
+              addressText:
+                dto.addressText.trim().length > 0
+                  ? dto.addressText.trim()
+                  : null,
+            }
+          : {}),
         latitude: dto.latitude ?? null,
         longitude: dto.longitude ?? null,
         ...this.buildModerationCreate(moderationDecision),

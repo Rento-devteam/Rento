@@ -134,3 +134,66 @@
   padding: var(--sp-5);
   animation: pop 0.2s ease-out;
 }
+
+.calendar-actions__title {
+  margin: 0 0 var(--sp-3);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.calendar-actions__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.calendar-actions__row--stretch {
+  width: 100%;
+}
+
+.calendar-actions__row > .btn {
+  flex: 1 1 auto;
+  min-width: min(100%, 160px);
+  min-height: 44px;
+  justify-content: center;
+}
+
+.calendar-actions__row .calendar-actions__reset {
+  margin-left: auto;
+}
+
+@media (max-width: 640px), (max-device-width: 600px) {
+  .calendar-legend {
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
+  .calendar-actions .alert {
+    overflow-wrap: anywhere;
+  }
+
+  .calendar-actions__row > .btn {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .calendar-actions__row .calendar-actions__reset {
+    margin-left: 0;
+  }
+
+  .calendar-actions__stack-btns {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    width: 100%;
+  }
+
+  .calendar-actions__stack-btns .btn {
+    width: 100%;
+    min-height: 48px;
+  }
+}

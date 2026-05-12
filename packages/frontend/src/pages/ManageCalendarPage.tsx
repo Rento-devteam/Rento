@@ -341,27 +341,30 @@ export function ManageCalendarPage() {
           </div>
         </div>
 
-        {isOwner && selectStart && (
+        {isOwner && selectStart ? (
           <div className="calendar-actions">
-            <h3 style={{ marginBottom: 'var(--sp-3)' }}>
-              Выбран диапазон: {parseISODate(selectStart).toLocaleDateString('ru-RU')} — {parseISODate(selectEnd ?? selectStart).toLocaleDateString('ru-RU')}
+            <h3 className="calendar-actions__title">
+              Выбран диапазон: {parseISODate(selectStart).toLocaleDateString('ru-RU')} —{' '}
+              {parseISODate(selectEnd ?? selectStart).toLocaleDateString('ru-RU')}
             </h3>
-            
-            {error && <div className="alert alert--error">{error}</div>}
-            
+
+            {error ? <div className="alert alert--error">{error}</div> : null}
+
             {conflictWarning ? (
-              <div className="alert alert--error" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-                <p>{conflictWarning}</p>
-                <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
-                  <button 
-                    className="btn btn--primary" 
-                    onClick={() => handleUnblock(true, true)}
+              <div className="alert alert--error" style={{ marginTop: 'var(--sp-3)' }}>
+                <p style={{ margin: '0 0 var(--sp-3)' }}>{conflictWarning}</p>
+                <div className="calendar-actions__stack-btns">
+                  <button
+                    type="button"
+                    className="btn btn--primary btn--block"
+                    onClick={() => void handleUnblock(true, true)}
                     disabled={actionPending}
                   >
                     Принудительно разблокировать (отменит сделки)
                   </button>
-                  <button 
-                    className="btn btn--ghost" 
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--block"
                     onClick={clearSelection}
                     disabled={actionPending}
                   >
@@ -370,33 +373,35 @@ export function ManageCalendarPage() {
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
-                <button 
-                  className="btn btn--brand" 
-                  onClick={handleBlock}
+              <div className="calendar-actions__row calendar-actions__row--stretch">
+                <button
+                  type="button"
+                  className="btn btn--brand"
+                  onClick={() => void handleBlock()}
                   disabled={actionPending}
                 >
                   Заблокировать
                 </button>
-                <button 
-                  className="btn btn--ghost" 
-                  onClick={() => handleUnblock(false, false)}
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={() => void handleUnblock(false, false)}
                   disabled={actionPending}
                 >
                   Разблокировать
                 </button>
-                <button 
-                  className="btn btn--ghost" 
+                <button
+                  type="button"
+                  className="btn btn--ghost calendar-actions__reset"
                   onClick={clearSelection}
                   disabled={actionPending}
-                  style={{ marginLeft: 'auto' }}
                 >
                   Сбросить
                 </button>
               </div>
             )}
           </div>
-        )}
+        ) : null}
       </div>
     </main>
   )

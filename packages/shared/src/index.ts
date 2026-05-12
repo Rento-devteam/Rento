@@ -73,6 +73,7 @@ export interface IListing {
   rentalPeriod: RentalPeriod;
   depositAmount: number;
   status: ListingStatus;
+  addressText: string | null;
   latitude: number | null;
   longitude: number | null;
   photos: IListingPhoto[];

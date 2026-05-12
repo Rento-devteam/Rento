@@ -87,13 +87,14 @@ export class BookingsWorkflowService {
       throw new ForbiddenException('You cannot book your own listing');
     }
 
-    const landlordHasAttachedCard = await this.prisma.userPaymentMethod.findFirst({
-      where: {
-        userId: listing.ownerId,
-        status: PaymentMethodStatus.ATTACHED,
-      },
-      select: { id: true },
-    });
+    const landlordHasAttachedCard =
+      await this.prisma.userPaymentMethod.findFirst({
+        where: {
+          userId: listing.ownerId,
+          status: PaymentMethodStatus.ATTACHED,
+        },
+        select: { id: true },
+      });
     if (!landlordHasAttachedCard) {
       throw new ConflictException(
         'Нельзя оформить аренду: у арендодателя не привязана карта',

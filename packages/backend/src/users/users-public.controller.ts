@@ -10,4 +10,3 @@ export class UsersPublicController {
     return this.usersService.getPublicUserProfile(userId);
   }
 }
-
