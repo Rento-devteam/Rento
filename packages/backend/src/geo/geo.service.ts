@@ -52,7 +52,7 @@ function addressTextFromGeoObject(go: YandexGeoObject): string {
 
 @Injectable()
 export class GeoService {
-  /** Сначала `process.env`, иначе чтение `.env` с диска (см. `yandex-geocoder-api-key`). */
+  /** Сначала `process.env` (при старте — `deploy/.env` в приоритете, см. `load-env`), иначе диск (см. `yandex-geocoder-api-key`). */
   private getApiKeyTrimmed(): string {
     return getYandexGeocoderApiKeyTrimmed(__dirname);
   }
@@ -60,7 +60,7 @@ export class GeoService {
   assertConfigured(): void {
     if (!this.getApiKeyTrimmed()) {
       throw new ServiceUnavailableException(
-        'Геокодирование не настроено: задайте YANDEX_GEOCODER_API_KEY в deploy/.env или packages/backend/.env и перезапустите процесс Nest',
+        'Геокодирование не настроено: задайте YANDEX_GEOCODER_API_KEY в deploy/.env (приоритет) или в packages/backend/.env и перезапустите процесс Nest',
       );
     }
   }
