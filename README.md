@@ -7,9 +7,10 @@
 | Ресурс | Ссылка |
 |--------|--------|
 | Документация (Google Docs) | [О-23-ИСП-2-СПО — документ](https://docs.google.com/document/d/1RW9IpYSdksEtEWKxD4l4UHHZKeqMb_QzlF8XSnzcMGQ/edit) |
+| Документация в репозитории | [docs/README.md](docs/README.md) |
 | Дизайн (Figma) | [Rento — макеты](https://www.figma.com/design/oBB3tKDgPnpHQt9vAnei7I/Rento) |
 | Задачи (Trello) | [Rento — доска](https://trello.com/b/FZHRKeAm/rento) |
-| OpenAPI (в репозитории) | [docs/openAPI.yaml](https://app.swaggerhub.com/apis-docs/rento-281/openAPI/1.0.0?view=elementsDocs) |
+| OpenAPI (в репозитории) | [docs/openAPI.yaml](docs/openAPI.yaml) |
 | Диаграммы и состояния | [docs/sequence/](docs/sequence/), [docs/state/](docs/state/) |
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
@@ -78,7 +79,7 @@ docker compose -f docker-compose.dev.yml up -d
 npx prisma migrate deploy
 ```
 
-Postgres будет доступен на хосте на порту **5434**, Elasticsearch — **http://localhost:9200** (как в `packages/backend/.env.example`).
+Postgres будет доступен на хосте на порту **5434**, Elasticsearch — **http://localhost:9200** (как в `packages/backend/.env.example`). Сервис **Ollama в Docker** для модерации — **http://localhost:11435** (чтобы не пересекаться с нативным Ollama на **11434**); см. [docs/moderation-draft-ai.md](docs/moderation-draft-ai.md).
 
 ### Разработка
 

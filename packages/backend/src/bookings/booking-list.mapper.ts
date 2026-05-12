@@ -3,7 +3,7 @@ import { Booking, Listing, User } from '@prisma/client';
 type BookingListRow = Booking & {
   completedAt?: Date | null;
   listing: Pick<Listing, 'id' | 'title'> & {
-    owner?: Pick<User, 'fullName' | 'email'> | null;
+    owner?: Pick<User, 'id' | 'fullName' | 'email'> | null;
   };
   renter?: Pick<User, 'id' | 'fullName' | 'email'> | null;
 };
