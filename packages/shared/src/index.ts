@@ -8,6 +8,8 @@ export type UserStatus =
   | 'BANNED'
   | 'DELETED';
 
+export type ListingTextModerationStatus = 'ALLOW' | 'WARN';
+
 /** MVP: publish sets ACTIVE; `PENDING_MODERATION` is reserved for a future moderation queue. */
 export type ListingStatus =
   | 'DRAFT'
@@ -74,6 +76,11 @@ export interface IListing {
   latitude: number | null;
   longitude: number | null;
   photos: IListingPhoto[];
+  /** Present when API returns listing detail / owned listing (draft text moderation). */
+  moderationStatus?: ListingTextModerationStatus;
+  moderationReasons?: string[];
+  moderationVersion?: number;
+  moderationConfidence?: number | null;
   createdAt: string;
   updatedAt: string;
 }

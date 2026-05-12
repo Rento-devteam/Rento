@@ -29,6 +29,12 @@ enum ListingStatus {
   BLOCKED
 }
 
+/** Result of automated text moderation on listing title/description (draft/publish). */
+enum ListingTextModerationStatus {
+  ALLOW
+  WARN
+}
+
 enum RentalPeriod {
   HOUR
   DAY
@@ -214,6 +220,10 @@ model Listing {
   status               ListingStatus                @default(DRAFT)
   latitude             Float?
   longitude            Float?
+  moderationStatus     ListingTextModerationStatus  @default(ALLOW)
+  moderationReasons    Json                         @default("[]")
+  moderationVersion    Int                          @default(1)
+  moderationConfidence Float?
   createdAt            DateTime                     @default(now())
   updatedAt            DateTime                     @updatedAt
   photos               ListingPhoto[]

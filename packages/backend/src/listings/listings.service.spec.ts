@@ -8,8 +8,17 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ListingStatus, RentalPeriod } from '@prisma/client';
+import { ListingStatus, ListingTextModerationStatus, RentalPeriod } from '@prisma/client';
 import { ListingsService } from './listings.service';
+
+const allowModeration = () => ({
+  status: 'allow' as const,
+  reasons: [] as string[],
+  confidence: 0,
+  flags: { profanity: false, gibberish: false, spamLike: false },
+  usedLlm: false,
+  usedRules: true,
+});
 
 describe('ListingsService', () => {
   const usersService = {
@@ -23,6 +32,14 @@ describe('ListingsService', () => {
   const listingSearchIndex = {
     indexListing: jest.fn(async () => undefined),
     removeListing: jest.fn(async () => undefined),
+  };
+
+  const listingTextModeration = {
+    evaluate: jest.fn(async () => allowModeration()),
+  };
+
+  const moderationConfig = {
+    moderationVersion: 1,
   };
 
   const prismaService = {
@@ -62,6 +79,8 @@ describe('ListingsService', () => {
       usersService as never,
       listingPhotoStorage,
       listingSearchIndex as never,
+      listingTextModeration as never,
+      moderationConfig as never,
     );
   });
 
@@ -110,6 +129,10 @@ describe('ListingsService', () => {
       status: ListingStatus.DRAFT,
       latitude: null,
       longitude: null,
+      moderationStatus: ListingTextModerationStatus.ALLOW,
+      moderationReasons: [],
+      moderationVersion: 1,
+      moderationConfidence: null,
       category: {
         id: 'category-1',
         name: 'Tools',
@@ -142,6 +165,9 @@ describe('ListingsService', () => {
           rentalPeriod: RentalPeriod.DAY,
           depositAmount: 500,
           status: ListingStatus.DRAFT,
+          moderationStatus: ListingTextModerationStatus.ALLOW,
+          moderationReasons: [],
+          moderationVersion: 1,
         }),
       }),
     );
@@ -150,6 +176,37 @@ describe('ListingsService', () => {
     expect(result.message).toBe(
       'Draft created. Upload at least one photo to continue.',
     );
+  });
+
+  it('rejects draft create when moderation returns warn', async () => {
+    prismaService.category.findFirst.mockResolvedValue({
+      id: 'category-1',
+      name: 'Tools',
+      slug: 'tools',
+      icon: null,
+      order: 1,
+      isActive: true,
+    });
+    listingTextModeration.evaluate.mockResolvedValueOnce({
+      status: 'warn',
+      reasons: ['rule:gibberish_heuristic(0.55)'],
+      confidence: 0.65,
+      flags: { profanity: false, gibberish: true, spamLike: false },
+      usedLlm: false,
+      usedRules: true,
+    });
+
+    await expect(
+      service.createListing('user-1', {
+        categoryId: 'category-1',
+        title: 'Test',
+        description: 'x',
+        rentalPrice: 150,
+        rentalPeriod: RentalPeriod.DAY,
+        depositAmount: 500,
+      }),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(prismaService.listing.create).not.toHaveBeenCalled();
   });
 
   it('rejects inactive or missing categories', async () => {
@@ -382,23 +439,44 @@ describe('ListingsService', () => {
       id: 'listing-1',
       ownerId: 'user-1',
       status: ListingStatus.DRAFT,
+      title: 'Drill',
+      description: 'Power drill',
       photos: [{ id: 'photo-1' }],
+      category: { name: 'Tools' },
     });
     prismaService.listing.update.mockResolvedValue({
       id: 'listing-1',
       status: ListingStatus.ACTIVE,
+      moderationStatus: ListingTextModerationStatus.ALLOW,
+      moderationReasons: [],
+      moderationVersion: 1,
+      moderationConfidence: null,
     });
 
     const result = await service.publishListing('user-1', 'listing-1');
 
     expect(prismaService.listing.update).toHaveBeenCalledWith({
       where: { id: 'listing-1' },
-      data: { status: ListingStatus.ACTIVE },
-      select: { id: true, status: true },
+      data: expect.objectContaining({
+        status: ListingStatus.ACTIVE,
+        moderationStatus: ListingTextModerationStatus.ALLOW,
+      }),
+      select: {
+        id: true,
+        status: true,
+        moderationStatus: true,
+        moderationReasons: true,
+        moderationVersion: true,
+        moderationConfidence: true,
+      },
     });
     expect(result).toEqual({
       id: 'listing-1',
       status: ListingStatus.ACTIVE,
+      moderationStatus: ListingTextModerationStatus.ALLOW,
+      moderationReasons: [],
+      moderationVersion: 1,
+      moderationConfidence: null,
       nextStep: null,
       message: 'Listing published successfully.',
     });

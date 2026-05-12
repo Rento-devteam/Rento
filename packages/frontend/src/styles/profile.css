@@ -881,6 +881,14 @@
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--ink-900);
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .profile-listing-card__meta {

@@ -1,4 +1,8 @@
-import { ListingStatus, RentalPeriod } from '@prisma/client';
+import {
+  ListingStatus,
+  ListingTextModerationStatus,
+  RentalPeriod,
+} from '@prisma/client';
 
 type CategoryRecord = {
   id: string;
@@ -30,6 +34,10 @@ type ListingRecord = {
   status: ListingStatus;
   latitude: number | null;
   longitude: number | null;
+  moderationStatus: ListingTextModerationStatus;
+  moderationReasons: unknown;
+  moderationVersion: number;
+  moderationConfidence: number | null;
   createdAt: Date;
   updatedAt: Date;
   category: CategoryRecord;
@@ -47,6 +55,13 @@ export function mapCategory(category: CategoryRecord) {
   };
 }
 
+function mapModerationReasons(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((x): x is string => typeof x === 'string');
+}
+
 export function mapListingDetail(listing: ListingRecord) {
   return {
     id: listing.id,
@@ -61,6 +76,10 @@ export function mapListingDetail(listing: ListingRecord) {
     status: listing.status,
     latitude: listing.latitude,
     longitude: listing.longitude,
+    moderationStatus: listing.moderationStatus,
+    moderationReasons: mapModerationReasons(listing.moderationReasons),
+    moderationVersion: listing.moderationVersion,
+    moderationConfidence: listing.moderationConfidence,
     photos: listing.photos.map((photo) => ({
       id: photo.id,
       url: photo.url,
@@ -112,11 +131,23 @@ export function mapListingPhotoUploadResponse(
 }
 
 export function mapListingPublishResponse(
-  listing: Pick<ListingRecord, 'id' | 'status'>,
+  listing: Pick<
+    ListingRecord,
+    | 'id'
+    | 'status'
+    | 'moderationStatus'
+    | 'moderationReasons'
+    | 'moderationVersion'
+    | 'moderationConfidence'
+  >,
 ) {
   return {
     id: listing.id,
     status: listing.status,
+    moderationStatus: listing.moderationStatus,
+    moderationReasons: mapModerationReasons(listing.moderationReasons),
+    moderationVersion: listing.moderationVersion,
+    moderationConfidence: listing.moderationConfidence,
     nextStep: null,
     message: 'Listing published successfully.',
   };
