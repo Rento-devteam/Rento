@@ -13,7 +13,10 @@ describe('RulesEngine', () => {
   });
 
   it('flags single-token keyboard mash', () => {
-    const r = engine.evaluate('Tool', 'asdfasdfasdfasdfasdfasdfasdfasdfasdfasdf');
+    const r = engine.evaluate(
+      'Tool',
+      'asdfasdfasdfasdfasdfasdfasdfasdfasdfasdf',
+    );
     expect(r.flags.gibberish).toBe(true);
   });
 

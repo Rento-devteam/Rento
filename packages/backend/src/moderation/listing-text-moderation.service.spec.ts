@@ -19,33 +19,30 @@ describe('ListingTextModerationService', () => {
       gibberishBlockConfidence: 0.8,
       ...overrides,
     });
+    const classifyListingText = jest.fn(async () =>
+      JSON.stringify({
+        status: 'allow',
+        confidence: 0.95,
+        reasons: [],
+        flags: {
+          profanity: false,
+          gibberish: false,
+          spamLike: false,
+        },
+      }),
+    );
     const llama = {
-      classifyListingText: jest.fn(async () =>
-        JSON.stringify({
-          status: 'allow',
-          confidence: 0.95,
-          reasons: [],
-          flags: {
-            profanity: false,
-            gibberish: false,
-            spamLike: false,
-          },
-        }),
-      ),
+      classifyListingText,
     } as unknown as LlamaModerationClient;
     return {
-      service: new ListingTextModerationService(
-        config,
-        rules,
-        llama,
-        metrics,
-      ),
+      service: new ListingTextModerationService(config, rules, llama, metrics),
       llama,
+      classifyListingText,
     };
   }
 
   it('short-circuits on rules profanity without calling LLM', async () => {
-    const { service, llama } = makeService();
+    const { service, classifyListingText } = makeService();
     const out = await service.evaluate({
       title: 'Инструмент',
       description: 'хуйня полная',
@@ -53,11 +50,11 @@ describe('ListingTextModerationService', () => {
       phase: 'draft',
     });
     expect(out.status).toBe('block');
-    expect(llama.classifyListingText).not.toHaveBeenCalled();
+    expect(classifyListingText).not.toHaveBeenCalled();
   });
 
   it('skips LLM when llmEnabled is false', async () => {
-    const { service, llama } = makeService({ llmEnabled: false });
+    const { service, classifyListingText } = makeService({ llmEnabled: false });
     const out = await service.evaluate({
       title: 'Drill',
       description: 'Good condition',
@@ -65,11 +62,11 @@ describe('ListingTextModerationService', () => {
       phase: 'draft',
     });
     expect(out.status).toBe('allow');
-    expect(llama.classifyListingText).not.toHaveBeenCalled();
+    expect(classifyListingText).not.toHaveBeenCalled();
   });
 
   it('blocks publish on heuristic gibberish when LLM is off', async () => {
-    const { service, llama } = makeService({ llmEnabled: false });
+    const { service, classifyListingText } = makeService({ llmEnabled: false });
     const out = await service.evaluate({
       title: 'Rent item',
       description:
@@ -78,12 +75,12 @@ describe('ListingTextModerationService', () => {
       phase: 'publish',
     });
     expect(out.status).toBe('block');
-    expect(llama.classifyListingText).not.toHaveBeenCalled();
+    expect(classifyListingText).not.toHaveBeenCalled();
   });
 
   it('blocks publish on rules gibberish when LLM wrongly allows', async () => {
-    const { service, llama } = makeService();
-    jest.mocked(llama.classifyListingText).mockResolvedValue(
+    const { service, classifyListingText } = makeService();
+    classifyListingText.mockResolvedValue(
       JSON.stringify({
         status: 'allow',
         confidence: 0.95,
@@ -99,6 +96,6 @@ describe('ListingTextModerationService', () => {
       phase: 'publish',
     });
     expect(out.status).toBe('block');
-    expect(llama.classifyListingText).toHaveBeenCalled();
+    expect(classifyListingText).toHaveBeenCalled();
   });
 });

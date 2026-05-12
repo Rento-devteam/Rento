@@ -8,12 +8,17 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ListingStatus, ListingTextModerationStatus, RentalPeriod } from '@prisma/client';
+import {
+  ListingStatus,
+  ListingTextModerationStatus,
+  RentalPeriod,
+} from '@prisma/client';
 import { ListingsService } from './listings.service';
+import type { FinalModerationDecision } from '../moderation/moderation.types';
 
-const allowModeration = () => ({
-  status: 'allow' as const,
-  reasons: [] as string[],
+const allowModeration = (): FinalModerationDecision => ({
+  status: 'allow',
+  reasons: [],
   confidence: 0,
   flags: { profanity: false, gibberish: false, spamLike: false },
   usedLlm: false,
@@ -35,7 +40,9 @@ describe('ListingsService', () => {
   };
 
   const listingTextModeration = {
-    evaluate: jest.fn(async () => allowModeration()),
+    evaluate: jest.fn(
+      async (): Promise<FinalModerationDecision> => allowModeration(),
+    ),
   };
 
   const moderationConfig = {

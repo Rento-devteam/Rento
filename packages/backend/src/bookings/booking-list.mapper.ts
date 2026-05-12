@@ -19,7 +19,9 @@ export function mapBookingListItem(
 
   const landlordLabel =
     perspective === 'renter'
-      ? row.listing.owner?.fullName?.trim() || row.listing.owner?.email?.trim() || 'Арендодатель'
+      ? row.listing.owner?.fullName?.trim() ||
+        row.listing.owner?.email?.trim() ||
+        'Арендодатель'
       : undefined;
 
   return {

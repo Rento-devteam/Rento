@@ -18,6 +18,8 @@ describe('parseLlmModerationJson', () => {
   });
 
   it('returns null when keys missing', () => {
-    expect(parseLlmModerationJson(JSON.stringify({ status: 'allow' }))).toBeNull();
+    expect(
+      parseLlmModerationJson(JSON.stringify({ status: 'allow' })),
+    ).toBeNull();
   });
 });

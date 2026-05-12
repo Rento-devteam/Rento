@@ -91,9 +91,7 @@ export class LlamaModerationClient {
         clearTimeout(timer);
       }
     }
-    this.logger.warn(
-      `LLM moderation failed after retries: ${String(lastErr)}`,
-    );
+    this.logger.warn(`LLM moderation failed after retries: ${String(lastErr)}`);
     return null;
   }
 

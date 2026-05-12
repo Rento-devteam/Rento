@@ -1,8 +1,4 @@
-import type {
-  LlmModerationVerdict,
-  ModerationDecisionStatus,
-  ModerationFlags,
-} from './moderation.types';
+import type { LlmModerationVerdict, ModerationFlags } from './moderation.types';
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -56,7 +52,9 @@ function parseFlags(v: unknown): ModerationFlags | null {
 /**
  * Validates LLM JSON payload. Returns null if invalid.
  */
-export function parseLlmModerationJson(raw: string): LlmModerationVerdict | null {
+export function parseLlmModerationJson(
+  raw: string,
+): LlmModerationVerdict | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw) as unknown;
@@ -83,7 +81,7 @@ export function parseLlmModerationJson(raw: string): LlmModerationVerdict | null
     return null;
   }
   return {
-    status: status as ModerationDecisionStatus,
+    status: status,
     confidence,
     reasons,
     flags,

@@ -3,7 +3,10 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class ModerationConfig {
   readonly enabled = this.boolEnv('MODERATION_ENABLED', true);
-  readonly hardBlockEnabled = this.boolEnv('MODERATION_HARD_BLOCK_ENABLED', true);
+  readonly hardBlockEnabled = this.boolEnv(
+    'MODERATION_HARD_BLOCK_ENABLED',
+    true,
+  );
   readonly llmEnabled = this.boolEnv('MODERATION_LLM_ENABLED', true);
   readonly llmBaseUrl = (
     process.env.MODERATION_LLM_BASE_URL ?? 'http://localhost:11435'
@@ -13,14 +16,8 @@ export class ModerationConfig {
    * Default matches Docker `rento-ollama` after `ollama pull llama3.1:8b`.
    */
   readonly llmModel = process.env.MODERATION_LLM_MODEL ?? 'llama3.1:8b';
-  readonly blockThreshold = this.floatEnv(
-    'MODERATION_BLOCK_THRESHOLD',
-    0.85,
-  );
-  readonly warnThreshold = this.floatEnv(
-    'MODERATION_WARN_THRESHOLD',
-    0.6,
-  );
+  readonly blockThreshold = this.floatEnv('MODERATION_BLOCK_THRESHOLD', 0.85);
+  readonly warnThreshold = this.floatEnv('MODERATION_WARN_THRESHOLD', 0.6);
   readonly gibberishBlockConfidence = this.floatEnv(
     'MODERATION_GIBBERISH_BLOCK_CONFIDENCE',
     0.8,

@@ -50,10 +50,14 @@ export class RulesEngine {
 
     const titleN = normalizeListingText(title);
     const gibCombined = this.gibberishScore(combined);
-    const gibTitle = titleN.length >= 10 ? this.gibberishScore(titleN) : { score: 0 };
+    const gibTitle =
+      titleN.length >= 10 ? this.gibberishScore(titleN) : { score: 0 };
     const gibScore = Math.min(
       1,
-      Math.max(gibCombined.score, gibTitle.score + (gibTitle.score >= 0.28 ? 0.14 : 0)),
+      Math.max(
+        gibCombined.score,
+        gibTitle.score + (gibTitle.score >= 0.28 ? 0.14 : 0),
+      ),
     );
     /** Catch noise without LLM when Ollama is slow/unavailable. */
     if (gibScore >= 0.42) {
@@ -140,7 +144,7 @@ export class RulesEngine {
       score += 0.2;
     }
 
-    const singleToken = tokens.length === 1 ? tokens[0] ?? '' : '';
+    const singleToken = tokens.length === 1 ? (tokens[0] ?? '') : '';
     const singleLen = singleToken.replace(/\s/g, '').length;
     if (singleLen >= 24) {
       score += 0.42;
@@ -184,7 +188,10 @@ export class RulesEngine {
   }
 
   /** Almost no word boundaries despite lots of letters → pasted mash / single blob. */
-  private sparseFewWordHeuristic(letterCount: number, tokenCount: number): number {
+  private sparseFewWordHeuristic(
+    letterCount: number,
+    tokenCount: number,
+  ): number {
     if (letterCount >= 32 && tokenCount <= 2) {
       return 0.48;
     }
@@ -279,7 +286,10 @@ export class RulesEngine {
    * Share of “words” (4+ letters) that contain **no** vowel letter — common in keyboard mash
    * across Latin and Cyrillic.
    */
-  private vowellessLongTokenRatio(text: string): { ratio: number; count: number } {
+  private vowellessLongTokenRatio(text: string): {
+    ratio: number;
+    count: number;
+  } {
     const tokens = text.split(/\s+/).filter(Boolean);
     const longLetters = tokens
       .map((t) => t.replace(/[^a-zA-Zа-яА-ЯёЁ]/g, ''))
@@ -287,7 +297,9 @@ export class RulesEngine {
     if (longLetters.length === 0) {
       return { ratio: 0, count: 0 };
     }
-    const bad = longLetters.filter((letters) => !VOWEL_ONE.test(letters)).length;
+    const bad = longLetters.filter(
+      (letters) => !VOWEL_ONE.test(letters),
+    ).length;
     return { ratio: bad / longLetters.length, count: longLetters.length };
   }
 

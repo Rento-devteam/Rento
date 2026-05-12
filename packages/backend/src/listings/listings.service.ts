@@ -8,7 +8,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ListingStatus, ListingTextModerationStatus, Prisma, RentalPeriod } from '@prisma/client';
+import {
+  ListingStatus,
+  ListingTextModerationStatus,
+  Prisma,
+  RentalPeriod,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { ModerationConfig } from '../moderation/moderation.config';
@@ -194,10 +199,10 @@ export class ListingsService {
 
     if (dto.title !== undefined || dto.description !== undefined) {
       const nextTitle =
-        dto.title !== undefined ? (dto.title as string).trim() : listing.title;
+        dto.title !== undefined ? dto.title.trim() : listing.title;
       const nextDescription =
         dto.description !== undefined
-          ? (dto.description as string).trim()
+          ? dto.description.trim()
           : listing.description;
 
       const decision = await this.listingTextModeration.evaluate({

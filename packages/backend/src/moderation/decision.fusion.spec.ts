@@ -1,5 +1,8 @@
 import { fuseModeration } from './decision.fusion';
-import type { LlmModerationVerdict, RuleEngineResult } from './moderation.types';
+import type {
+  LlmModerationVerdict,
+  RuleEngineResult,
+} from './moderation.types';
 
 describe('fuseModeration', () => {
   const thresholds = {
