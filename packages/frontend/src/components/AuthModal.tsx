@@ -406,12 +406,15 @@ function TelegramPanel({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
   async function onTelegramStart() {
     setError(null)
     setPending(true)
+
     try {
       const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`
       const q = new URLSearchParams({ returnTo })
       const redirectUrl = `/telegram/callback?${q.toString()}`
       const res = await authApi.telegramLoginStart({ redirectUrl })
-      window.open(res.deepLink, '_blank', 'noopener,noreferrer')
+      // Same-tab: avoids an intermediate `about:blank` tab from sync `window.open` + async API.
+      // After auth, Telegram / callback return the user to the app.
+      window.location.assign(res.deepLink)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Не удалось открыть Telegram')
     } finally {
