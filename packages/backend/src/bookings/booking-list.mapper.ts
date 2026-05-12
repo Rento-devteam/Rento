@@ -2,7 +2,9 @@ import { Booking, Listing, User } from '@prisma/client';
 
 type BookingListRow = Booking & {
   completedAt?: Date | null;
-  listing: Pick<Listing, 'id' | 'title'>;
+  listing: Pick<Listing, 'id' | 'title'> & {
+    owner?: Pick<User, 'id' | 'fullName' | 'email'> | null;
+  };
   renter?: Pick<User, 'id' | 'fullName' | 'email'> | null;
 };
 
@@ -13,6 +15,13 @@ export function mapBookingListItem(
   const renterLabel =
     perspective === 'landlord'
       ? row.renter?.fullName?.trim() || row.renter?.email?.trim() || 'Арендатор'
+      : undefined;
+
+  const landlordLabel =
+    perspective === 'renter'
+      ? row.listing.owner?.fullName?.trim() ||
+        row.listing.owner?.email?.trim() ||
+        'Арендодатель'
       : undefined;
 
   return {
@@ -32,6 +41,7 @@ export function mapBookingListItem(
     completedAt: row.completedAt ? row.completedAt.toISOString() : null,
     perspective,
     renterLabel,
+    landlordLabel,
   };
 }
 

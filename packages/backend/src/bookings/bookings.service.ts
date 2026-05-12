@@ -93,7 +93,13 @@ export class BookingsService {
       where: { renterId: userId, status: { not: BookingStatus.CANCELLED } },
       orderBy: { createdAt: 'desc' },
       include: {
-        listing: { select: { id: true, title: true } },
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            owner: { select: { id: true, fullName: true, email: true } },
+          },
+        },
         renter: { select: { id: true, fullName: true, email: true } },
       },
     });
@@ -119,7 +125,14 @@ export class BookingsService {
         OR: [{ renterId: userId }, { listing: { ownerId: userId } }],
       },
       include: {
-        listing: { select: { id: true, title: true, ownerId: true } },
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            ownerId: true,
+            owner: { select: { id: true, fullName: true, email: true } },
+          },
+        },
         renter: { select: { id: true, fullName: true, email: true } },
       },
     });

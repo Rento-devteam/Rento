@@ -39,7 +39,18 @@ services:
       retries: 10
       start_period: 40s
 
+  # Llama via Ollama — listing text moderation (see docs/moderation-draft-ai.md).
+  # Host 11435 avoids clashing with a native Ollama install on Windows/macOS (often :11434).
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rento-ollama
+    ports:
+      - '11435:11434'
+    volumes:
+      - rento_ollama_data:/root/.ollama
+
 volumes:
   rento_pg_data:
   rento_es_data:
+  rento_ollama_data:
 

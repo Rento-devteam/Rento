@@ -11,12 +11,15 @@ info:
     - authentication is modeled as Bearer token based, although the docs mention both sessions and tokens.
     - favorites are scoped to the authenticated user even where the UML uses `user_id` in query/body.
     - public, authenticated, moderation, and internal endpoints are separated by tags.
-    - **MVP (listings):** after `POST /listings/{listingId}/publish` the listing becomes `ACTIVE` immediately (no pre-publish moderation queue). The `PENDING_MODERATION` value and all `/moderation/*` operations are **reserved for a future stage** and are not required for MVP.
+    - **MVP (listings):** after `POST /listings/{listingId}/publish` the listing becomes `ACTIVE` immediately (no human pre-publish moderation queue). The `PENDING_MODERATION` value and all `/moderation/*` admin operations are **reserved for a future stage**.
+    - **Draft text moderation (implemented):** `POST /listings` and owned listing updates that change `title`/`description` run **rule-based + optional Llama (Ollama)** checks. High-confidence violations return **422 ModerationBlocked**; borderline cases persist as `WARN` with reasons on the listing. Stricter checks apply on **publish**.
 
     The file is intended as a practical baseline for backend/frontend development and can be tightened later.
 servers:
+  - url: http://localhost:3000
+    description: NestJS API (default `PORT`, no `/api/v1` prefix)
   - url: http://localhost:8080/api/v1
-    description: Local development
+    description: Legacy placeholder from docs (prefer port 3000)
 tags:
   - name: Auth
   - name: Verification
@@ -519,7 +522,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListingCreateResponse'
         '422':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/ModerationBlocked'
 
   /listings/{listingId}:
     get:
@@ -557,6 +560,8 @@ paths:
                 $ref: '#/components/schemas/ListingDetail'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ModerationBlocked'
     delete:
       tags: [Listings]
       summary: Archive or delete own listing
@@ -645,6 +650,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ModerationBlocked'
 
   /listings/{listingId}/calendar:
     get:
@@ -2636,6 +2643,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    ModerationBlocked:
+      description: Listing title/description rejected by automated moderation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ModerationBlockedError'
   schemas:
     Error:
       type: object
@@ -2730,6 +2743,40 @@ components:
         MVP: typical owner flow is `DRAFT` → `ACTIVE` after successful publish (with at least one photo).
         `PENDING_MODERATION` is reserved for a future pre-publish or async moderation queue and is not used in the MVP publish path.
       enum: [DRAFT, PENDING_MODERATION, ACTIVE, ARCHIVED, BLOCKED]
+    ListingTextModerationStatus:
+      type: string
+      description: Last automated text moderation outcome stored on the listing (`BLOCK` is only returned in 422 responses, not persisted).
+      enum: [ALLOW, WARN]
+    ModerationBlockedError:
+      type: object
+      required:
+        - statusCode
+        - error
+        - message
+        - moderationStatus
+        - moderationReasons
+        - moderationConfidence
+      properties:
+        statusCode:
+          type: integer
+          enum: [422]
+        error:
+          type: string
+          example: Moderation Blocked
+        message:
+          type: string
+        moderationStatus:
+          type: string
+          enum: [block]
+        moderationReasons:
+          type: array
+          items:
+            type: string
+        moderationConfidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
     RentalPeriod:
       type: string
       enum: [HOUR, DAY, WEEK, MONTH]
@@ -2939,6 +2986,11 @@ components:
       allOf:
         - $ref: '#/components/schemas/ListingSummary'
         - type: object
+          required:
+            - moderationStatus
+            - moderationReasons
+            - moderationVersion
+            - moderationConfidence
           properties:
             photos:
               type: array
@@ -2946,6 +2998,21 @@ components:
                 $ref: '#/components/schemas/ListingPhoto'
             category:
               $ref: '#/components/schemas/Category'
+            moderationStatus:
+              $ref: '#/components/schemas/ListingTextModerationStatus'
+            moderationReasons:
+              type: array
+              items:
+                type: string
+            moderationVersion:
+              type: integer
+              minimum: 1
+            moderationConfidence:
+              type: number
+              format: double
+              nullable: true
+              minimum: 0
+              maximum: 1
     ListingCreateMetadata:
       type: object
       required: [categories, priceRules, limits]
@@ -3004,13 +3071,33 @@ components:
           type: string
     ListingPublishResponse:
       type: object
-      required: [id, status, nextStep, message]
+      required:
+        - id
+        - status
+        - moderationStatus
+        - moderationReasons
+        - moderationVersion
+        - moderationConfidence
+        - nextStep
+        - message
       properties:
         id:
           type: string
           format: uuid
         status:
           $ref: '#/components/schemas/ListingStatus'
+        moderationStatus:
+          $ref: '#/components/schemas/ListingTextModerationStatus'
+        moderationReasons:
+          type: array
+          items:
+            type: string
+        moderationVersion:
+          type: integer
+        moderationConfidence:
+          type: number
+          format: double
+          nullable: true
         nextStep:
           type: string
           nullable: true

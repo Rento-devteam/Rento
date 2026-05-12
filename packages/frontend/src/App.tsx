@@ -1,5 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom'
 import { AuthProvider } from './auth/AuthContext'
 import { AppHeader, MobileDock } from './components/AppHeader'
 import { AuthModal, type AuthTab } from './components/AuthModal'
@@ -19,6 +26,14 @@ const AUTH_ROUTE_TO_TAB: Record<string, AuthTab> = {
   '/login': 'login',
   '/register': 'register',
   '/login/telegram': 'telegram',
+}
+
+/** Remount create/edit wizard when switching routes so stale draft/edit state never leaks. */
+function CreateListingRoute() {
+  const { id } = useParams<{ id?: string }>()
+  const { pathname } = useLocation()
+  const remountKey = pathname === '/create-item' ? 'create' : `edit:${id ?? ''}`
+  return <CreateItemPage key={remountKey} />
 }
 
 function AppLayout() {
@@ -55,8 +70,8 @@ function AppLayout() {
           <Route path="/login/telegram" element={<HomePage />} />
           <Route path="/confirm-email" element={<ConfirmEmailPage />} />
           <Route path="/telegram/callback" element={<TelegramCallbackPage />} />
-          <Route path="/create-item" element={<CreateItemPage />} />
-          <Route path="/listings/:id/edit" element={<CreateItemPage />} />
+          <Route path="/create-item" element={<CreateListingRoute />} />
+          <Route path="/listings/:id/edit" element={<CreateListingRoute />} />
           <Route path="/listings/:id/calendar" element={<ManageCalendarPage />} />
           <Route path="/listings/:id" element={<ListingDetailsPage />} />
           <Route path="/profile" element={<ProfilePage />} />

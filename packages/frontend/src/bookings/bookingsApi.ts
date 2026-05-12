@@ -22,6 +22,7 @@ export type BookingListItem = {
   paymentHoldId: string | null
   perspective: 'renter' | 'landlord'
   renterLabel?: string
+  landlordLabel?: string
 }
 
 export type BookingDetail = BookingListItem & {
