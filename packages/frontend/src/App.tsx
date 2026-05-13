@@ -5,6 +5,7 @@ import {
   Routes,
   useLocation,
   useNavigate,
+  useParams,
 } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import { AppHeader, MobileDock } from "./components/AppHeader";
@@ -72,8 +73,8 @@ function AppLayout() {
           <Route path="/login/telegram" element={<HomePage />} />
           <Route path="/confirm-email" element={<ConfirmEmailPage />} />
           <Route path="/telegram/callback" element={<TelegramCallbackPage />} />
-          <Route path="/create-item" element={<CreateItemPage />} />
-          <Route path="/listings/:id/edit" element={<CreateItemPage />} />
+          <Route path="/create-item" element={<CreateListingRoute />} />
+          <Route path="/listings/:id/edit" element={<CreateListingRoute />} />
           <Route
             path="/listings/:id/calendar"
             element={<ManageCalendarPage />}
