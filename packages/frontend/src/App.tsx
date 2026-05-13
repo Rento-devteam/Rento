@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { createElement, useMemo, useState } from "react";
 import {
   Navigate,
   Route,
@@ -33,10 +33,11 @@ const AUTH_ROUTE_TO_TAB: Record<string, AuthTab> = {
 
 /** Remount create/edit wizard when switching routes so stale draft/edit state never leaks. */
 function CreateListingRoute() {
-  const { id } = useParams<{ id?: string }>()
-  const { pathname } = useLocation()
-  const remountKey = pathname === '/create-item' ? 'create' : `edit:${id ?? ''}`
-  return <CreateItemPage key={remountKey} />
+  const { id } = useParams<{ id?: string }>();
+  const { pathname } = useLocation();
+  const remountKey =
+    pathname === "/create-item" ? "create" : `edit:${id ?? ""}`;
+  return <CreateItemPage key={remountKey} />;
 }
 
 function AppLayout() {
@@ -73,8 +74,14 @@ function AppLayout() {
           <Route path="/login/telegram" element={<HomePage />} />
           <Route path="/confirm-email" element={<ConfirmEmailPage />} />
           <Route path="/telegram/callback" element={<TelegramCallbackPage />} />
-          <Route path="/create-item" element={<CreateListingRoute />} />
-          <Route path="/listings/:id/edit" element={<CreateListingRoute />} />
+          <Route
+            path="/create-item"
+            element={createElement(CreateListingRoute)}
+          />
+          <Route
+            path="/listings/:id/edit"
+            element={createElement(CreateListingRoute)}
+          />
           <Route
             path="/listings/:id/calendar"
             element={<ManageCalendarPage />}
