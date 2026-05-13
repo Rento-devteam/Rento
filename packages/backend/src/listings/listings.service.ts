@@ -8,9 +8,17 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ListingStatus, Prisma, RentalPeriod } from '@prisma/client';
+import {
+  ListingStatus,
+  ListingTextModerationStatus,
+  Prisma,
+  RentalPeriod,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { ModerationConfig } from '../moderation/moderation.config';
+import { ListingTextModerationService } from '../moderation/listing-text-moderation.service';
+import type { FinalModerationDecision } from '../moderation/moderation.types';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { UploadListingPhotoDto } from './dto/upload-listing-photo.dto';
@@ -40,6 +48,8 @@ export class ListingsService {
     @Inject(ListingPhotoStorage)
     private readonly listingPhotoStorage: ListingPhotoStorage,
     private readonly listingSearchIndex: ListingSearchIndexService,
+    private readonly listingTextModeration: ListingTextModerationService,
+    private readonly moderationConfig: ModerationConfig,
   ) {}
 
   async getMyListings(userId: string) {
@@ -118,7 +128,9 @@ export class ListingsService {
   ) {
     const listing = await this.prismaService.listing.findFirst({
       where: { id: listingId, ownerId: userId },
-      select: { id: true, status: true },
+      include: {
+        category: true,
+      },
     });
 
     if (!listing) {
@@ -139,6 +151,8 @@ export class ListingsService {
       throw new BadRequestException('Нет данных для обновления');
     }
 
+    let targetCategoryName = listing.category.name;
+
     if (dto.categoryId !== undefined) {
       const category = await this.prismaService.category.findFirst({
         where: { id: dto.categoryId, isActive: true },
@@ -146,6 +160,7 @@ export class ListingsService {
       if (!category) {
         throw new UnprocessableEntityException('Категория недоступна');
       }
+      targetCategoryName = category.name;
     }
 
     const data: Prisma.ListingUpdateInput = {};
@@ -180,6 +195,24 @@ export class ListingsService {
     if (dto.addressText !== undefined) {
       const a = dto.addressText.trim();
       data.addressText = a.length > 0 ? a : null;
+    }
+
+    if (dto.title !== undefined || dto.description !== undefined) {
+      const nextTitle =
+        dto.title !== undefined ? dto.title.trim() : listing.title;
+      const nextDescription =
+        dto.description !== undefined
+          ? dto.description.trim()
+          : listing.description;
+
+      const decision = await this.listingTextModeration.evaluate({
+        title: nextTitle,
+        description: nextDescription,
+        categoryName: targetCategoryName,
+        phase: 'draft',
+      });
+      this.throwIfModerationRejects(decision);
+      Object.assign(data, this.buildModerationUpdate(decision));
     }
 
     const updated = await this.prismaService.listing.update({
@@ -285,6 +318,14 @@ export class ListingsService {
       throw new UnprocessableEntityException('Title is required');
     }
 
+    const moderationDecision = await this.listingTextModeration.evaluate({
+      title,
+      description,
+      categoryName: category.name,
+      phase: 'draft',
+    });
+    this.throwIfModerationRejects(moderationDecision);
+
     const listing = await this.prismaService.listing.create({
       data: {
         ownerId: userId,
@@ -305,6 +346,7 @@ export class ListingsService {
           : {}),
         latitude: dto.latitude ?? null,
         longitude: dto.longitude ?? null,
+        ...this.buildModerationCreate(moderationDecision),
       },
       include: {
         category: true,
@@ -506,9 +548,12 @@ export class ListingsService {
         id: true,
         ownerId: true,
         status: true,
+        title: true,
+        description: true,
         photos: {
           select: { id: true },
         },
+        category: { select: { name: true } },
       },
     });
 
@@ -530,14 +575,27 @@ export class ListingsService {
       );
     }
 
+    const publishDecision = await this.listingTextModeration.evaluate({
+      title: listing.title,
+      description: listing.description,
+      categoryName: listing.category.name,
+      phase: 'publish',
+    });
+    this.throwIfModerationRejects(publishDecision);
+
     const updatedListing = await this.prismaService.listing.update({
       where: { id: listingId },
       data: {
         status: ListingStatus.ACTIVE,
+        ...this.buildModerationUpdate(publishDecision),
       },
       select: {
         id: true,
         status: true,
+        moderationStatus: true,
+        moderationReasons: true,
+        moderationVersion: true,
+        moderationConfidence: true,
       },
     });
 
@@ -550,6 +608,40 @@ export class ListingsService {
     }
 
     return mapListingPublishResponse(updatedListing);
+  }
+
+  private buildModerationCreate(decision: FinalModerationDecision) {
+    return {
+      moderationStatus:
+        decision.status === 'warn'
+          ? ListingTextModerationStatus.WARN
+          : ListingTextModerationStatus.ALLOW,
+      moderationReasons: decision.reasons,
+      moderationVersion: this.moderationConfig.moderationVersion,
+      moderationConfidence: decision.usedLlm ? decision.confidence : null,
+    };
+  }
+
+  private buildModerationUpdate(decision: FinalModerationDecision) {
+    return this.buildModerationCreate(decision);
+  }
+
+  /** Any non-`allow` decision stops save/publish so rules-only moderation is enforceable without LLM. */
+  private throwIfModerationRejects(decision: FinalModerationDecision): void {
+    if (decision.status === 'allow') {
+      return;
+    }
+    const isBlock = decision.status === 'block';
+    throw new UnprocessableEntityException({
+      statusCode: 422,
+      error: isBlock ? 'Moderation Blocked' : 'Moderation Rejected',
+      message: isBlock
+        ? 'Текст объявления не прошёл автоматическую модерацию. Исправьте формулировки.'
+        : 'Текст похож на спам или нечитаемый набор символов. Напишите нормальное название и описание.',
+      moderationStatus: decision.status,
+      moderationReasons: decision.reasons,
+      moderationConfidence: decision.confidence,
+    });
   }
 
   private assertListingPhotoFile(

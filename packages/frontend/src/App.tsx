@@ -30,6 +30,14 @@ const AUTH_ROUTE_TO_TAB: Record<string, AuthTab> = {
   "/login/telegram": "telegram",
 };
 
+/** Remount create/edit wizard when switching routes so stale draft/edit state never leaks. */
+function CreateListingRoute() {
+  const { id } = useParams<{ id?: string }>()
+  const { pathname } = useLocation()
+  const remountKey = pathname === '/create-item' ? 'create' : `edit:${id ?? ''}`
+  return <CreateItemPage key={remountKey} />
+}
+
 function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
