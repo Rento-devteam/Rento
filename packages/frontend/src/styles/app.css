@@ -3444,6 +3444,7 @@ a {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
 }
 
+.guide-body {
   display: flex;
   flex-direction: column;
   gap: clamp(var(--sp-6), 5vw, var(--sp-8));
