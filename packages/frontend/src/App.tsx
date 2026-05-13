@@ -1,48 +1,57 @@
-import { useMemo, useState } from 'react'
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { AuthProvider } from './auth/AuthContext'
-import { AppHeader, MobileDock } from './components/AppHeader'
-import { AuthModal, type AuthTab } from './components/AuthModal'
-import { ConfirmEmailPage } from './pages/ConfirmEmailPage'
-import { CreateItemPage } from './pages/CreateItemPage'
-import { HomePage } from './pages/HomePage'
-import { ListingDetailsPage } from './pages/ListingDetailsPage'
-import { ManageCalendarPage } from './pages/ManageCalendarPage'
-import { ProfilePage } from './pages/ProfilePage'
-import { RenterBookingsPage } from './pages/RenterBookingsPage'
-import { LandlordBookingsPage } from './pages/LandlordBookingsPage'
-import { BookingDetailPage } from './pages/BookingDetailPage'
-import { PublicUserProfilePage } from './pages/PublicUserProfilePage'
-import { TelegramCallbackPage } from './pages/TelegramCallbackPage'
+import { useMemo, useState } from "react";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import { AuthProvider } from "./auth/AuthContext";
+import { AppHeader, MobileDock } from "./components/AppHeader";
+import { AuthModal, type AuthTab } from "./components/AuthModal";
+import { ConfirmEmailPage } from "./pages/ConfirmEmailPage";
+import { CreateItemPage } from "./pages/CreateItemPage";
+import { HomePage } from "./pages/HomePage";
+import { ListingDetailsPage } from "./pages/ListingDetailsPage";
+import { ManageCalendarPage } from "./pages/ManageCalendarPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { RenterBookingsPage } from "./pages/RenterBookingsPage";
+import { LandlordBookingsPage } from "./pages/LandlordBookingsPage";
+import { BookingDetailPage } from "./pages/BookingDetailPage";
+import { PublicUserProfilePage } from "./pages/PublicUserProfilePage";
+import { TelegramCallbackPage } from "./pages/TelegramCallbackPage";
+import { GuidePage } from "./pages/GuidePage";
+import { TermsPage } from "./pages/TermsPage";
+import { AppFooter } from "./components/AppFooter";
 
 const AUTH_ROUTE_TO_TAB: Record<string, AuthTab> = {
-  '/login': 'login',
-  '/register': 'register',
-  '/login/telegram': 'telegram',
-}
+  "/login": "login",
+  "/register": "register",
+  "/login/telegram": "telegram",
+};
 
 function AppLayout() {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const [manualTab, setManualTab] = useState<AuthTab | null>(null)
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [manualTab, setManualTab] = useState<AuthTab | null>(null);
 
-  const routeTab = AUTH_ROUTE_TO_TAB[location.pathname] ?? null
-  const activeTab: AuthTab | null = manualTab ?? routeTab
+  const routeTab = AUTH_ROUTE_TO_TAB[location.pathname] ?? null;
+  const activeTab: AuthTab | null = manualTab ?? routeTab;
 
-  const hideChrome = location.pathname === '/confirm-email'
+  const hideChrome = location.pathname === "/confirm-email";
 
   const openAuth = (tab: AuthTab) => {
-    setManualTab(tab)
-  }
+    setManualTab(tab);
+  };
 
   const closeAuth = () => {
-    setManualTab(null)
+    setManualTab(null);
     if (routeTab) {
-      navigate('/', { replace: true })
+      navigate("/", { replace: true });
     }
-  }
+  };
 
-  const isModalOpen = useMemo(() => activeTab != null, [activeTab])
+  const isModalOpen = useMemo(() => activeTab != null, [activeTab]);
 
   return (
     <div className="shell">
@@ -57,16 +66,22 @@ function AppLayout() {
           <Route path="/telegram/callback" element={<TelegramCallbackPage />} />
           <Route path="/create-item" element={<CreateItemPage />} />
           <Route path="/listings/:id/edit" element={<CreateItemPage />} />
-          <Route path="/listings/:id/calendar" element={<ManageCalendarPage />} />
+          <Route
+            path="/listings/:id/calendar"
+            element={<ManageCalendarPage />}
+          />
           <Route path="/listings/:id" element={<ListingDetailsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/users/:userId" element={<PublicUserProfilePage />} />
           <Route path="/bookings/hosting" element={<LandlordBookingsPage />} />
           <Route path="/bookings/:bookingId" element={<BookingDetailPage />} />
           <Route path="/bookings" element={<RenterBookingsPage />} />
+          <Route path="/guide" element={<GuidePage />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+      {!hideChrome ? <AppFooter /> : null}
       {!hideChrome ? <MobileDock onAuthRequest={openAuth} /> : null}
       {isModalOpen && activeTab ? (
         <AuthModal
@@ -77,7 +92,7 @@ function AppLayout() {
         />
       ) : null}
     </div>
-  )
+  );
 }
 
 export default function App() {
@@ -85,5 +100,5 @@ export default function App() {
     <AuthProvider>
       <AppLayout />
     </AuthProvider>
-  )
+  );
 }

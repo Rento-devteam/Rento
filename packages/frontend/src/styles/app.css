@@ -879,7 +879,7 @@ a {
   inset: 0;
   z-index: 95;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   padding: var(--sp-4);
   background: rgba(15, 23, 42, 0.38);
@@ -1728,6 +1728,25 @@ a {
 
 .modal__footnote button:hover {
   text-decoration: underline;
+}
+
+.modal__legal-hint {
+  margin: var(--sp-4) 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink-500);
+  text-align: center;
+}
+
+.modal__legal-link {
+  color: var(--brand-600);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.modal__legal-link:hover {
+  color: var(--brand-700);
 }
 
 /* ----------------------------------------------------------------
@@ -3086,5 +3105,343 @@ a {
   margin: 0;
   color: var(--ink-900);
   text-align: right;
+}
+
+/* ----------------------------------------------------------------
+ * Site footer
+ * ---------------------------------------------------------------- */
+
+.app-footer {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding: var(--sp-5) 0 calc(var(--sp-6) + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(161, 186, 238, 0.35);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(246, 248, 255, 0.9));
+}
+
+.app-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.app-footer__brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink-800);
+}
+
+.app-footer__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4) var(--sp-6);
+}
+
+.app-footer__link {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--brand-700);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.app-footer__link:hover {
+  color: var(--ink-900);
+}
+
+@media (max-width: 640px), (max-device-width: 600px) {
+  .app-footer__inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ----------------------------------------------------------------
+ * Static guide / legal pages
+ * ---------------------------------------------------------------- */
+
+.static-doc {
+  flex: 1;
+  padding: var(--sp-7) 0 var(--sp-8);
+}
+
+.static-doc__inner {
+  max-width: 720px;
+}
+
+.static-doc__back {
+  display: inline-block;
+  margin-bottom: var(--sp-5);
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--brand-700);
+}
+
+.static-doc__back:hover {
+  text-decoration: underline;
+}
+
+.static-doc__header {
+  margin-bottom: var(--sp-7);
+  padding-bottom: var(--sp-5);
+  border-bottom: 1px solid rgba(161, 186, 238, 0.4);
+}
+
+.static-doc__title {
+  margin: 0 0 var(--sp-3);
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 700;
+  color: var(--ink-900);
+  letter-spacing: -0.02em;
+}
+
+.static-doc__lead {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--ink-600);
+}
+
+.static-doc__article {
+  background: var(--bg-surface);
+  border: 1px solid rgba(161, 186, 238, 0.45);
+  border-radius: var(--r-xl);
+  padding: var(--sp-7);
+  box-shadow: var(--shadow-sm);
+}
+
+.static-doc__article h2 {
+  margin: var(--sp-6) 0 var(--sp-3);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.static-doc__article h2:first-child {
+  margin-top: 0;
+}
+
+.static-doc__article p {
+  margin: 0 0 var(--sp-4);
+  line-height: 1.65;
+  color: var(--ink-700);
+}
+
+.static-doc__article a {
+  color: var(--brand-700);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.static-doc__note {
+  margin-top: var(--sp-6);
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--bg-surface-strong);
+  font-size: 0.92rem;
+}
+
+/* ----------------------------------------------------------------
+ * Page toasts (create listing, etc.)
+ * ---------------------------------------------------------------- */
+
+.page-toast-stack {
+  position: fixed;
+  right: max(var(--sp-4), env(safe-area-inset-right));
+  bottom: max(var(--sp-5), env(safe-area-inset-bottom));
+  left: max(var(--sp-4), env(safe-area-inset-left));
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.page-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  max-width: min(420px, 100%);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-5);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(161, 186, 238, 0.4);
+  animation: toast-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.page-toast--error {
+  background: var(--danger-bg);
+  border-color: rgba(180, 37, 49, 0.25);
+}
+
+.page-toast--success {
+  background: var(--success-bg);
+  border-color: rgba(21, 128, 61, 0.22);
+}
+
+.page-toast__text {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--ink-800);
+}
+
+.page-toast--error .page-toast__text {
+  color: var(--danger-fg);
+}
+
+.page-toast--success .page-toast__text {
+  color: var(--success-fg);
+}
+
+.page-toast__close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  margin: -4px -4px -4px 0;
+  border: none;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink-600);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.page-toast__close:hover {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink-900);
+}
+
+@media (max-width: 640px), (max-device-width: 600px) {
+  .page-toast-stack {
+    align-items: stretch;
+  }
+
+  .page-toast {
+    max-width: none;
+  }
+}
+
+/* ----------------------------------------------------------------
+ * Rental contract modal + typography
+ * ---------------------------------------------------------------- */
+
+.modal__dialog--wide {
+  max-width: min(920px, 100%);
+  width: 100%;
+  max-height: min(92vh, 900px);
+  padding: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.booking-contract__dialog {
+  gap: var(--sp-4);
+}
+
+.booking-contract__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0 calc(var(--sp-2) * -1);
+  padding: 0 var(--sp-2) var(--sp-2);
+  -webkit-overflow-scrolling: touch;
+}
+
+.booking-contract__modal-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  padding-top: var(--sp-4);
+  margin-top: auto;
+  border-top: 1px solid rgba(161, 186, 238, 0.35);
+}
+
+.booking-contract__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.rental-contract {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--ink-800);
+}
+
+.rental-contract__title {
+  margin: 0 0 var(--sp-2);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.rental-contract__meta {
+  margin: 0 0 var(--sp-5);
+  font-size: 0.88rem;
+  color: var(--ink-500);
+}
+
+.rental-contract__section {
+  margin-bottom: var(--sp-5);
+}
+
+.rental-contract__h2 {
+  margin: 0 0 var(--sp-3);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.rental-contract__p {
+  margin: 0 0 var(--sp-3);
+}
+
+.rental-contract__avoid-break {
+  break-inside: avoid;
+}
+
+.rental-contract__sig-grid {
+  display: grid;
+  gap: var(--sp-5);
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 560px) {
+  .rental-contract__sig-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rental-contract__sig-line {
+  margin-top: var(--sp-6);
+  border-bottom: 1px solid var(--ink-300);
+  min-height: 1.5rem;
 }
 
