@@ -1,39 +1,44 @@
-import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
-import { useAuth } from '../auth/AuthContext'
-import { reloadHomeAfterLogin } from '../auth/reloadAfterLogin'
-import { authApi } from '../auth/authApi'
-import { isStrongPassword, PASSWORD_HINT } from '../auth/passwordPolicy'
-import { ApiError } from '../lib/apiClient'
-import { LOGO_SRC } from './BrandLogo'
-import { IconTelegram } from './oauthIcons'
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import type { FormEvent } from "react";
+import { useAuth } from "../auth/AuthContext";
+import { reloadHomeAfterLogin } from "../auth/reloadAfterLogin";
+import { authApi } from "../auth/authApi";
+import { isStrongPassword, PASSWORD_HINT } from "../auth/passwordPolicy";
+import { ApiError } from "../lib/apiClient";
+import { LOGO_SRC } from "./BrandLogo";
+import { IconTelegram } from "./oauthIcons";
 
-export type AuthTab = 'login' | 'register' | 'telegram'
+export type AuthTab = "login" | "register" | "telegram";
 
 interface AuthModalProps {
-  initialTab: AuthTab
-  onClose: () => void
-  onTabChange: (tab: AuthTab) => void
+  initialTab: AuthTab;
+  onClose: () => void;
+  onTabChange: (tab: AuthTab) => void;
 }
 
-export function AuthModal({ initialTab, onClose, onTabChange }: AuthModalProps) {
-  const [tab, setTab] = useState<AuthTab>(initialTab)
+export function AuthModal({
+  initialTab,
+  onClose,
+  onTabChange,
+}: AuthModalProps) {
+  const [tab, setTab] = useState<AuthTab>(initialTab);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
+      if (event.key === "Escape") onClose();
     }
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [onClose])
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
 
   function switchTab(next: AuthTab) {
-    setTab(next)
-    onTabChange(next)
+    setTab(next);
+    onTabChange(next);
   }
 
   return (
@@ -43,58 +48,95 @@ export function AuthModal({ initialTab, onClose, onTabChange }: AuthModalProps) 
       aria-modal="true"
       aria-label="Вход или регистрация"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose()
+        if (event.target === event.currentTarget) onClose();
       }}
     >
       <div className="modal__dialog">
-        <button type="button" className="modal__close" onClick={onClose} aria-label="Закрыть">
+        <button
+          type="button"
+          className="modal__close"
+          onClick={onClose}
+          aria-label="Закрыть"
+        >
           <CloseIcon />
         </button>
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 'var(--sp-5)' }}>
-          <img src={LOGO_SRC} alt="Rento" style={{ width: 80, height: 80, marginBottom: 'var(--sp-4)', borderRadius: '16px', boxShadow: 'var(--shadow-sm)' }} />
-          <h2 className="modal__title" style={{ margin: 0, textAlign: 'center', fontSize: '1.8rem' }}>
-            {tab === 'login' ? 'Вход' : tab === 'register' ? 'Регистрация' : 'Вход через Telegram'}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            marginBottom: "var(--sp-5)",
+          }}
+        >
+          <img
+            src={LOGO_SRC}
+            alt="Rento"
+            style={{
+              width: 80,
+              height: 80,
+              marginBottom: "var(--sp-4)",
+              borderRadius: "16px",
+              boxShadow: "var(--shadow-sm)",
+            }}
+          />
+          <h2
+            className="modal__title"
+            style={{ margin: 0, textAlign: "center", fontSize: "1.8rem" }}
+          >
+            {tab === "login"
+              ? "Вход"
+              : tab === "register"
+                ? "Регистрация"
+                : "Вход через Telegram"}
           </h2>
         </div>
 
-        {tab === 'login' ? <LoginForm onSwitch={switchTab} /> : null}
-        {tab === 'register' ? <RegisterForm onSwitch={switchTab} /> : null}
-        {tab === 'telegram' ? <TelegramPanel onSwitch={switchTab} /> : null}
-
+        {tab === "login" ? <LoginForm onSwitch={switchTab} /> : null}
+        {tab === "register" ? (
+          <RegisterForm onSwitch={switchTab} onAfterLegalLink={onClose} />
+        ) : null}
+        {tab === "telegram" ? (
+          <TelegramPanel onSwitch={switchTab} onAfterLegalLink={onClose} />
+        ) : null}
       </div>
     </div>
-  )
+  );
 }
 
 function LoginForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
-  const { login } = useAuth()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
-  const [pending, setPending] = useState(false)
+  const { login } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
+  const [pending, setPending] = useState(false);
 
   async function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    setError(null)
-    setFieldErrors({})
-    setPending(true)
+    event.preventDefault();
+    setError(null);
+    setFieldErrors({});
+    setPending(true);
     try {
-      await login(email, password)
-      reloadHomeAfterLogin()
+      await login(email, password);
+      reloadHomeAfterLogin();
     } catch (err) {
       if (err instanceof ApiError && err.fields) {
         setFieldErrors({
           email: err.fields.email,
           password: err.fields.password,
-        })
-        setError(err.message)
+        });
+        setError(err.message);
       } else {
-        setError(err instanceof ApiError ? err.message : 'Не удалось выполнить вход')
+        setError(
+          err instanceof ApiError ? err.message : "Не удалось выполнить вход",
+        );
       }
     } finally {
-      setPending(false)
+      setPending(false);
     }
   }
 
@@ -113,8 +155,8 @@ function LoginForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           required
           value={email}
           onChange={(event) => {
-            setEmail(event.target.value)
-            setFieldErrors((f) => ({ ...f, email: undefined }))
+            setEmail(event.target.value);
+            setFieldErrors((f) => ({ ...f, email: undefined }));
           }}
           aria-invalid={Boolean(fieldErrors.email)}
         />
@@ -136,8 +178,8 @@ function LoginForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           required
           value={password}
           onChange={(event) => {
-            setPassword(event.target.value)
-            setFieldErrors((f) => ({ ...f, password: undefined }))
+            setPassword(event.target.value);
+            setFieldErrors((f) => ({ ...f, password: undefined }));
           }}
           aria-invalid={Boolean(fieldErrors.password)}
         />
@@ -147,9 +189,13 @@ function LoginForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           </p>
         ) : null}
       </div>
-      <div className="stack" style={{ marginTop: 'var(--sp-5)' }}>
-        <button type="submit" className="btn btn--brand btn--block" disabled={pending}>
-          {pending ? 'Входим…' : 'Войти'}
+      <div className="stack" style={{ marginTop: "var(--sp-5)" }}>
+        <button
+          type="submit"
+          className="btn btn--brand btn--block"
+          disabled={pending}
+        >
+          {pending ? "Входим…" : "Войти"}
         </button>
       </div>
 
@@ -157,65 +203,82 @@ function LoginForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
       <button
         type="button"
         className="oauth-btn"
-        style={{ width: '100%' }}
-        onClick={() => onSwitch('telegram')}
+        style={{ width: "100%" }}
+        onClick={() => onSwitch("telegram")}
       >
         <IconTelegram />
         Telegram
       </button>
 
-      <div className="modal__footnote" style={{ marginTop: 'var(--sp-5)' }}>
-        Нет аккаунта? <button type="button" onClick={() => onSwitch('register')}>Зарегистрироваться</button>
+      <div className="modal__footnote" style={{ marginTop: "var(--sp-5)" }}>
+        Нет аккаунта?{" "}
+        <button type="button" onClick={() => onSwitch("register")}>
+          Зарегистрироваться
+        </button>
       </div>
     </form>
-  )
+  );
 }
 
-function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
-  const { register } = useAuth()
-  const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
+function RegisterForm({
+  onSwitch,
+  onAfterLegalLink,
+}: {
+  onSwitch: (tab: AuthTab) => void;
+  onAfterLegalLink: () => void;
+}) {
+  const { register } = useAuth();
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
-    fullName?: string
-    email?: string
-    password?: string
-    confirmPassword?: string
-  }>({})
-  const [success, setSuccess] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
+    fullName?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
+  const [success, setSuccess] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-  const [resendEmail, setResendEmail] = useState('')
-  const [resendFeedback, setResendFeedback] = useState<string | null>(null)
-  const [resendPending, setResendPending] = useState(false)
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendFeedback, setResendFeedback] = useState<string | null>(null);
+  const [resendPending, setResendPending] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   async function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    setError(null)
-    setFieldErrors({})
-    setSuccess(null)
+    event.preventDefault();
+    setError(null);
+    setFieldErrors({});
+    setSuccess(null);
+
+    if (!acceptedTerms) {
+      setError(
+        "Чтобы зарегистрироваться, примите пользовательское соглашение.",
+      );
+      return;
+    }
 
     if (password !== confirmPassword) {
-      setFieldErrors({ confirmPassword: 'Пароли не совпадают' })
-      return
+      setFieldErrors({ confirmPassword: "Пароли не совпадают" });
+      return;
     }
     if (!isStrongPassword(password)) {
-      setFieldErrors({ password: PASSWORD_HINT })
-      return
+      setFieldErrors({ password: PASSWORD_HINT });
+      return;
     }
 
-    setPending(true)
+    setPending(true);
     try {
       await register(
         email,
         password,
         confirmPassword,
         fullName.trim() ? fullName.trim() : undefined,
-      )
-      setSuccess('Аккаунт создан. Подтвердите email по ссылке из письма.')
-      setResendEmail(email)
+      );
+      setSuccess("Аккаунт создан. Подтвердите email по ссылке из письма.");
+      setResendEmail(email);
     } catch (err) {
       if (err instanceof ApiError && err.fields) {
         setFieldErrors({
@@ -223,27 +286,33 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           email: err.fields.email,
           password: err.fields.password,
           confirmPassword: err.fields.confirmPassword,
-        })
-        setError(err.message)
+        });
+        setError(err.message);
       } else {
-        setError(err instanceof ApiError ? err.message : 'Не удалось зарегистрироваться')
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : "Не удалось зарегистрироваться",
+        );
       }
     } finally {
-      setPending(false)
+      setPending(false);
     }
   }
 
   async function onResend(event: FormEvent) {
-    event.preventDefault()
-    setResendFeedback(null)
-    setResendPending(true)
+    event.preventDefault();
+    setResendFeedback(null);
+    setResendPending(true);
     try {
-      const result = await authApi.resendConfirmation(resendEmail)
-      setResendFeedback(result.message)
+      const result = await authApi.resendConfirmation(resendEmail);
+      setResendFeedback(result.message);
     } catch (err) {
-      setResendFeedback(err instanceof ApiError ? err.message : 'Не удалось отправить письмо')
+      setResendFeedback(
+        err instanceof ApiError ? err.message : "Не удалось отправить письмо",
+      );
     } finally {
-      setResendPending(false)
+      setResendPending(false);
     }
   }
 
@@ -264,21 +333,27 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
             onChange={(event) => setResendEmail(event.target.value)}
           />
         </div>
-        {resendFeedback ? <div className="alert alert--success">{resendFeedback}</div> : null}
+        {resendFeedback ? (
+          <div className="alert alert--success">{resendFeedback}</div>
+        ) : null}
         <div className="stack">
-          <button type="submit" className="btn btn--primary btn--block" disabled={resendPending}>
-            {resendPending ? 'Отправляем…' : 'Отправить письмо ещё раз'}
+          <button
+            type="submit"
+            className="btn btn--primary btn--block"
+            disabled={resendPending}
+          >
+            {resendPending ? "Отправляем…" : "Отправить письмо ещё раз"}
           </button>
           <button
             type="button"
             className="btn btn--ghost btn--block"
-            onClick={() => onSwitch('login')}
+            onClick={() => onSwitch("login")}
           >
             Перейти ко входу
           </button>
         </div>
       </form>
-    )
+    );
   }
 
   return (
@@ -295,8 +370,8 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           autoComplete="nickname"
           value={fullName}
           onChange={(event) => {
-            setFullName(event.target.value)
-            setFieldErrors((f) => ({ ...f, fullName: undefined }))
+            setFullName(event.target.value);
+            setFieldErrors((f) => ({ ...f, fullName: undefined }));
           }}
           aria-invalid={Boolean(fieldErrors.fullName)}
         />
@@ -318,8 +393,8 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           required
           value={email}
           onChange={(event) => {
-            setEmail(event.target.value)
-            setFieldErrors((f) => ({ ...f, email: undefined }))
+            setEmail(event.target.value);
+            setFieldErrors((f) => ({ ...f, email: undefined }));
           }}
           aria-invalid={Boolean(fieldErrors.email)}
         />
@@ -341,8 +416,8 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           required
           value={password}
           onChange={(event) => {
-            setPassword(event.target.value)
-            setFieldErrors((f) => ({ ...f, password: undefined }))
+            setPassword(event.target.value);
+            setFieldErrors((f) => ({ ...f, password: undefined }));
           }}
           aria-invalid={Boolean(fieldErrors.password)}
         />
@@ -364,8 +439,8 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           required
           value={confirmPassword}
           onChange={(event) => {
-            setConfirmPassword(event.target.value)
-            setFieldErrors((f) => ({ ...f, confirmPassword: undefined }))
+            setConfirmPassword(event.target.value);
+            setFieldErrors((f) => ({ ...f, confirmPassword: undefined }));
           }}
           aria-invalid={Boolean(fieldErrors.confirmPassword)}
         />
@@ -375,9 +450,36 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
           </p>
         ) : null}
       </div>
-      <div className="stack" style={{ marginTop: 'var(--sp-5)' }}>
-        <button type="submit" className="btn btn--brand btn--block" disabled={pending}>
-          {pending ? 'Создаём…' : 'Зарегистрироваться'}
+      <div className="modal__consent">
+        <input
+          id="reg-accept-terms"
+          className="modal__consent-input"
+          type="checkbox"
+          checked={acceptedTerms}
+          onChange={(event) => {
+            setAcceptedTerms(event.target.checked);
+            if (event.target.checked) setError(null);
+          }}
+        />
+        <label htmlFor="reg-accept-terms" className="modal__consent-label">
+          Я прочитал(а) и принимаю{" "}
+          <Link
+            to="/terms"
+            className="modal__legal-link"
+            onClick={() => onAfterLegalLink()}
+          >
+            пользовательское соглашение
+          </Link>
+          .
+        </label>
+      </div>
+      <div className="stack" style={{ marginTop: "var(--sp-5)" }}>
+        <button
+          type="submit"
+          className="btn btn--brand btn--block"
+          disabled={pending || !acceptedTerms}
+        >
+          {pending ? "Создаём…" : "Зарегистрироваться"}
         </button>
       </div>
 
@@ -385,64 +487,93 @@ function RegisterForm({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
       <button
         type="button"
         className="oauth-btn"
-        style={{ width: '100%' }}
-        onClick={() => onSwitch('telegram')}
+        style={{ width: "100%" }}
+        onClick={() => onSwitch("telegram")}
       >
         <IconTelegram />
         Telegram
       </button>
 
-      <div className="modal__footnote" style={{ marginTop: 'var(--sp-5)' }}>
-        Уже есть аккаунт? <button type="button" onClick={() => onSwitch('login')}>Войти</button>
+      <div className="modal__footnote" style={{ marginTop: "var(--sp-5)" }}>
+        Уже есть аккаунт?{" "}
+        <button type="button" onClick={() => onSwitch("login")}>
+          Войти
+        </button>
       </div>
     </form>
-  )
+  );
 }
 
-function TelegramPanel({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
-  const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+function TelegramPanel({
+  onSwitch,
+  onAfterLegalLink,
+}: {
+  onSwitch: (tab: AuthTab) => void;
+  onAfterLegalLink: () => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onTelegramStart() {
-    setError(null)
-    setPending(true)
-
+    setError(null);
+    setPending(true);
     try {
-      const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`
-      const q = new URLSearchParams({ returnTo })
-      const redirectUrl = `/telegram/callback?${q.toString()}`
-      const res = await authApi.telegramLoginStart({ redirectUrl })
-      // Same-tab: avoids an intermediate `about:blank` tab from sync `window.open` + async API.
-      // After auth, Telegram / callback return the user to the app.
-      window.location.assign(res.deepLink)
+      const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      const q = new URLSearchParams({ returnTo });
+      const redirectUrl = `/telegram/callback?${q.toString()}`;
+      const res = await authApi.telegramLoginStart({ redirectUrl });
+      window.open(res.deepLink, "_blank", "noopener,noreferrer");
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Не удалось открыть Telegram')
+      setError(
+        e instanceof ApiError ? e.message : "Не удалось открыть Telegram",
+      );
     } finally {
-      setPending(false)
+      setPending(false);
     }
   }
 
   return (
     <div>
-      <p className="field__hint" style={{ marginBottom: 16, textAlign: 'center' }}>
-        Откройте Telegram-бота — он подтвердит вашу личность и вернёт вас в приложение.
+      <p
+        className="field__hint"
+        style={{ marginBottom: 16, textAlign: "center" }}
+      >
+        Откройте Telegram-бота — он подтвердит вашу личность и вернёт вас в
+        приложение.
       </p>
       {error ? <div className="alert alert--error">{error}</div> : null}
-      <button type="button" className="oauth-btn" style={{ width: '100%' }} onClick={onTelegramStart} disabled={pending}>
+      <button
+        type="button"
+        className="oauth-btn"
+        style={{ width: "100%" }}
+        onClick={onTelegramStart}
+        disabled={pending}
+      >
         <IconTelegram />
-        {pending ? 'Открываем…' : 'Открыть Telegram-бота'}
+        {pending ? "Открываем…" : "Открыть Telegram-бота"}
       </button>
+      <p className="modal__legal-hint" style={{ marginTop: "var(--sp-4)" }}>
+        Продолжая, вы подтверждаете ознакомление с{" "}
+        <Link
+          to="/terms"
+          className="modal__legal-link"
+          onClick={() => onAfterLegalLink()}
+        >
+          пользовательским соглашением
+        </Link>
+        .
+      </p>
       <div className="stack">
         <button
           type="button"
           className="btn btn--ghost btn--block"
-          onClick={() => onSwitch('login')}
+          onClick={() => onSwitch("login")}
         >
           Войти по email
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 function CloseIcon() {
@@ -456,5 +587,5 @@ function CloseIcon() {
         fill="none"
       />
     </svg>
-  )
+  );
 }
