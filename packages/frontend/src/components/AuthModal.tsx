@@ -96,7 +96,9 @@ export function AuthModal({
         {tab === "register" ? (
           <RegisterForm onSwitch={switchTab} onAfterLegalLink={onClose} />
         ) : null}
-        {tab === "telegram" ? <TelegramPanel onSwitch={switchTab} /> : null}
+        {tab === "telegram" ? (
+          <TelegramPanel onSwitch={switchTab} onAfterLegalLink={onClose} />
+        ) : null}
       </div>
     </div>
   );
@@ -243,12 +245,20 @@ function RegisterForm({
   const [resendEmail, setResendEmail] = useState("");
   const [resendFeedback, setResendFeedback] = useState<string | null>(null);
   const [resendPending, setResendPending] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     setFieldErrors({});
     setSuccess(null);
+
+    if (!acceptedTerms) {
+      setError(
+        "Чтобы зарегистрироваться, примите пользовательское соглашение.",
+      );
+      return;
+    }
 
     if (password !== confirmPassword) {
       setFieldErrors({ confirmPassword: "Пароли не совпадают" });
@@ -440,22 +450,34 @@ function RegisterForm({
           </p>
         ) : null}
       </div>
-      <p className="modal__legal-hint">
-        Нажимая «Зарегистрироваться», вы принимаете{" "}
-        <Link
-          to="/terms"
-          className="modal__legal-link"
-          onClick={() => onAfterLegalLink()}
-        >
-          пользовательское соглашение
-        </Link>
-        .
-      </p>
+      <div className="modal__consent">
+        <input
+          id="reg-accept-terms"
+          className="modal__consent-input"
+          type="checkbox"
+          checked={acceptedTerms}
+          onChange={(event) => {
+            setAcceptedTerms(event.target.checked);
+            if (event.target.checked) setError(null);
+          }}
+        />
+        <label htmlFor="reg-accept-terms" className="modal__consent-label">
+          Я прочитал(а) и принимаю{" "}
+          <Link
+            to="/terms"
+            className="modal__legal-link"
+            onClick={() => onAfterLegalLink()}
+          >
+            пользовательское соглашение
+          </Link>
+          .
+        </label>
+      </div>
       <div className="stack" style={{ marginTop: "var(--sp-5)" }}>
         <button
           type="submit"
           className="btn btn--brand btn--block"
-          disabled={pending}
+          disabled={pending || !acceptedTerms}
         >
           {pending ? "Создаём…" : "Зарегистрироваться"}
         </button>
@@ -482,7 +504,13 @@ function RegisterForm({
   );
 }
 
-function TelegramPanel({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
+function TelegramPanel({
+  onSwitch,
+  onAfterLegalLink,
+}: {
+  onSwitch: (tab: AuthTab) => void;
+  onAfterLegalLink: () => void;
+}) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -524,6 +552,17 @@ function TelegramPanel({ onSwitch }: { onSwitch: (tab: AuthTab) => void }) {
         <IconTelegram />
         {pending ? "Открываем…" : "Открыть Telegram-бота"}
       </button>
+      <p className="modal__legal-hint" style={{ marginTop: "var(--sp-4)" }}>
+        Продолжая, вы подтверждаете ознакомление с{" "}
+        <Link
+          to="/terms"
+          className="modal__legal-link"
+          onClick={() => onAfterLegalLink()}
+        >
+          пользовательским соглашением
+        </Link>
+        .
+      </p>
       <div className="stack">
         <button
           type="button"

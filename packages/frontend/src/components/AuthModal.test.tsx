@@ -83,6 +83,17 @@ describe("AuthModal", () => {
       screen.getByRole("heading", { name: /^регистрация$/i }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/подтвердите пароль/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^зарегистрироваться$/i }),
+    ).toBeDisabled();
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /принимаю.*пользовательское соглашение/i,
+      }),
+    );
+    expect(
+      screen.getByRole("button", { name: /^зарегистрироваться$/i }),
+    ).not.toBeDisabled();
   });
 
   it("closes on Escape", async () => {
