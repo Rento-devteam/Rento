@@ -45,7 +45,7 @@ services:
       elasticsearch:
         condition: service_healthy
       ollama:
-        condition: service_started
+        condition: service_healthy
     networks:
       - internal
       - web
