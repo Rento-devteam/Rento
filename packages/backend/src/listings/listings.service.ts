@@ -168,14 +168,14 @@ export class ListingsService {
       data.category = { connect: { id: dto.categoryId } };
     }
     if (dto.title !== undefined) {
-      const t = dto.title.trim();
+      const t = (dto.title ?? '').trim();
       if (!t) {
         throw new UnprocessableEntityException('Укажите название');
       }
       data.title = t;
     }
     if (dto.description !== undefined) {
-      data.description = dto.description.trim();
+      data.description = (dto.description ?? '').trim();
     }
     if (dto.rentalPrice !== undefined) {
       data.rentalPrice = dto.rentalPrice;
@@ -193,16 +193,16 @@ export class ListingsService {
       data.longitude = dto.longitude;
     }
     if (dto.addressText !== undefined) {
-      const a = dto.addressText.trim();
+      const a = (dto.addressText ?? '').trim();
       data.addressText = a.length > 0 ? a : null;
     }
 
     if (dto.title !== undefined || dto.description !== undefined) {
       const nextTitle =
-        dto.title !== undefined ? dto.title.trim() : listing.title;
+        dto.title !== undefined ? (dto.title ?? '').trim() : listing.title;
       const nextDescription =
         dto.description !== undefined
-          ? dto.description.trim()
+          ? (dto.description ?? '').trim()
           : listing.description;
 
       const decision = await this.listingTextModeration.evaluate({
@@ -312,8 +312,8 @@ export class ListingsService {
       throw new UnprocessableEntityException('Category is invalid or inactive');
     }
 
-    const title = dto.title.trim();
-    const description = dto.description?.trim() ?? '';
+    const title = (dto.title ?? '').trim();
+    const description = (dto.description ?? '').trim();
     if (!title) {
       throw new UnprocessableEntityException('Title is required');
     }
@@ -326,6 +326,12 @@ export class ListingsService {
     });
     this.throwIfModerationRejects(moderationDecision);
 
+    let addressTextForCreate: string | null | undefined;
+    if (dto.addressText !== undefined) {
+      const a = (dto.addressText ?? '').trim();
+      addressTextForCreate = a.length > 0 ? a : null;
+    }
+
     const listing = await this.prismaService.listing.create({
       data: {
         ownerId: userId,
@@ -336,13 +342,8 @@ export class ListingsService {
         rentalPeriod: dto.rentalPeriod,
         depositAmount: dto.depositAmount,
         status: ListingStatus.DRAFT,
-        ...(dto.addressText !== undefined
-          ? {
-              addressText:
-                dto.addressText.trim().length > 0
-                  ? dto.addressText.trim()
-                  : null,
-            }
+        ...(addressTextForCreate !== undefined
+          ? { addressText: addressTextForCreate }
           : {}),
         latitude: dto.latitude ?? null,
         longitude: dto.longitude ?? null,
