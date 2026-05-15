@@ -23,7 +23,6 @@ import {
 
 type RentalMethod = "hour" | "day" | "week" | "month";
 
-type CreateStep = "form" | "upload";
 type PendingPhoto = { tempId: string; file: File };
 
 const TITLE_MIN = 3;
@@ -121,7 +120,6 @@ export function CreateItemPage() {
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [step, setStep] = useState<CreateStep>("form");
   const [createdListing, setCreatedListing] =
     useState<CreateListingResponse | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<
@@ -246,10 +244,6 @@ export function CreateItemPage() {
             url: p.url,
           })),
         );
-        const isActive = listing.status === "ACTIVE";
-        setStep(
-          !isActive && (listing.photos?.length ?? 0) > 0 ? "upload" : "form",
-        );
         setCreatedListing({
           id: listing.id,
           status: listing.status,
@@ -349,35 +343,19 @@ export function CreateItemPage() {
         setSuccess("Изменения сохранены");
       } else {
         const created = await createListing(payload, accessToken);
-        setCreatedListing(created);
-        setStep("upload");
         if (pendingPhotos.length > 0) {
           setSuccess("Черновик создан. Загружаем добавленные фото...");
           setUploadingPhoto(true);
           try {
             for (const pending of pendingPhotos) {
-              const uploaded = await uploadListingPhoto(
-                created.id,
-                pending.file,
-                accessToken,
-              );
-              setUploadedPhotos((prev) => [
-                ...prev,
-                { id: uploaded.photo.id, url: uploaded.photo.url },
-              ]);
+              await uploadListingPhoto(created.id, pending.file, accessToken);
             }
             setPendingPhotos([]);
-            setSuccess(
-              "Черновик создан, фото загружены. Можно продолжать редактирование.",
-            );
           } finally {
             setUploadingPhoto(false);
           }
-        } else {
-          setSuccess(
-            "Черновик создан. Можно сразу добавить фото или продолжить редактирование.",
-          );
         }
+        navigate(`/listings/${created.id}`, { replace: true });
       }
     } catch (err: unknown) {
       setError(
@@ -488,8 +466,7 @@ export function CreateItemPage() {
     setPublishing(true);
     try {
       await publishListing(effectiveListingId, accessToken);
-      setSuccess("Объявление опубликовано и появится в каталоге на главной.");
-      setTimeout(() => navigate("/"), 700);
+      navigate(`/listings/${effectiveListingId}`, { replace: true });
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Не удалось опубликовать объявление"));
     } finally {
@@ -979,20 +956,6 @@ export function CreateItemPage() {
                 disabled={formLocked}
               />
             </div>
-
-            {step === "upload" && !isEditMode ? (
-              <div className="alert alert--success">
-                Черновик создан. Добавляйте фото и редактируйте объявление в
-                удобном порядке. Перейти в{" "}
-                <button
-                  type="button"
-                  className="btn btn--ghost"
-                  onClick={() => navigate("/profile")}
-                >
-                  Профиль
-                </button>
-              </div>
-            ) : null}
           </div>
 
           <div className="create-item-footer">
