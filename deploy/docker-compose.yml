@@ -151,6 +151,10 @@ services:
     image: ollama/ollama:latest
     container_name: rento-ollama
     restart: unless-stopped
+    dns:
+      - 85.193.93.193
+      - 85.193.93.194
+      - 8.8.8.8
     volumes:
       - rento_ollama_data:/root/.ollama
     networks:
