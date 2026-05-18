@@ -1,18 +1,130 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ModerationConfig } from './moderation.config';
 import type { ModerationPhase } from './moderation.types';
 import { parseLlmModerationJson } from './moderation-result.schema';
 import { normalizeListingText } from './text-normalize';
+import type { ModerationLlmHealthReport } from './moderation-llm-health.types';
 
 type OllamaChatResponse = {
   message?: { content?: string };
 };
 
+type OllamaTagsResponse = {
+  models?: Array<{ name?: string }>;
+};
+
 @Injectable()
-export class LlamaModerationClient {
+export class LlamaModerationClient implements OnModuleInit {
   private readonly logger = new Logger(LlamaModerationClient.name);
 
   constructor(private readonly config: ModerationConfig) {}
+
+  async onModuleInit(): Promise<void> {
+    if (!this.config.llmEnabled) {
+      this.logger.log('LLM moderation disabled (MODERATION_LLM_ENABLED=false)');
+      return;
+    }
+    const report = await this.probeHealth({ runInference: false });
+    if (report.ok) {
+      this.logger.log(
+        `LLM moderation ready: ${report.baseUrl} model=${report.model} (${report.installedModels.length} model(s) in Ollama)`,
+      );
+      return;
+    }
+    this.logger.error(
+      `LLM moderation NOT ready: ${report.error ?? 'unknown'} — ${report.hint ?? 'see GET /health/moderation-llm'}`,
+    );
+  }
+
+  /** Definitive readiness probe (same network path as real moderation). */
+  async probeHealth(options?: {
+    runInference?: boolean;
+  }): Promise<ModerationLlmHealthReport> {
+    const baseUrl = this.config.llmBaseUrl;
+    const model = this.config.llmModel;
+    const runInference = options?.runInference === true;
+
+    if (!this.config.llmEnabled) {
+      return {
+        ok: true,
+        llmEnabled: false,
+        baseUrl,
+        model,
+        ollamaReachable: false,
+        modelInstalled: false,
+        installedModels: [],
+        inferenceOk: false,
+        inferenceSkipped: true,
+        hint: 'LLM выключен (MODERATION_LLM_ENABLED=false). В логах модерации будет usedLlm:false.',
+      };
+    }
+
+    let ollamaReachable = false;
+    let installedModels: string[] = [];
+    let modelInstalled = false;
+    let error: string | undefined;
+
+    try {
+      const tags = await this.fetchOllamaTags(10_000);
+      ollamaReachable = true;
+      installedModels = tags;
+      modelInstalled = this.isModelInstalled(tags, model);
+      if (!modelInstalled) {
+        error = `model "${model}" not found in Ollama`;
+      }
+    } catch (e) {
+      error = this.formatOllamaFetchError(e, 10_000, `${baseUrl}/api/tags`);
+    }
+
+    let inferenceOk = false;
+    let inferenceSkipped = !runInference;
+
+    if (ollamaReachable && modelInstalled && runInference) {
+      inferenceSkipped = false;
+      try {
+        const raw = await this.runInferenceProbe();
+        inferenceOk = raw != null;
+        if (!inferenceOk) {
+          error = error ?? 'inference probe returned empty or invalid JSON';
+        }
+      } catch (e) {
+        error = this.formatOllamaFetchError(
+          e,
+          Math.min(this.config.draftTimeoutMs, 30_000),
+          `${baseUrl}/api/chat`,
+        );
+      }
+    }
+
+    const ok =
+      ollamaReachable && modelInstalled && (inferenceSkipped || inferenceOk);
+
+    const hint = this.buildHealthHint({
+      ok,
+      baseUrl,
+      model,
+      ollamaReachable,
+      modelInstalled,
+      installedModels,
+      inferenceSkipped,
+      inferenceOk,
+      runInference,
+    });
+
+    return {
+      ok,
+      llmEnabled: true,
+      baseUrl,
+      model,
+      ollamaReachable,
+      modelInstalled,
+      installedModels,
+      inferenceOk,
+      inferenceSkipped,
+      error: ok ? undefined : error,
+      hint: ok ? undefined : hint,
+    };
+  }
 
   async classifyListingText(input: {
     title: string;
@@ -86,25 +198,176 @@ export class LlamaModerationClient {
         }
         return raw;
       } catch (e) {
-        lastErr = new Error(this.formatOllamaFetchError(e, timeoutMs));
+        lastErr = new Error(this.formatOllamaFetchError(e, timeoutMs, url));
       } finally {
         clearTimeout(timer);
       }
     }
-    this.logger.warn(`LLM moderation failed after retries: ${String(lastErr)}`);
+    this.logger.warn(
+      `LLM moderation failed after retries (${this.config.llmBaseUrl}): ${String(lastErr)}`,
+    );
     return null;
   }
 
-  private formatOllamaFetchError(err: unknown, timeoutMs: number): string {
+  private async fetchOllamaTags(timeoutMs: number): Promise<string[]> {
+    const url = `${this.config.llmBaseUrl}/api/tags`;
+    const res = await this.fetchWithTimeout(url, { method: 'GET' }, timeoutMs);
+    if (!res.ok) {
+      throw new Error(`Ollama HTTP ${res.status} GET ${url}`);
+    }
+    const json = (await res.json()) as OllamaTagsResponse;
+    return (json.models ?? [])
+      .map((m) => m.name)
+      .filter((n): n is string => typeof n === 'string' && n.length > 0);
+  }
+
+  private async runInferenceProbe(): Promise<string | null> {
+    const url = `${this.config.llmBaseUrl}/api/chat`;
+    const res = await this.fetchWithTimeout(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.config.llmModel,
+          format: 'json',
+          stream: false,
+          options: { temperature: 0 },
+          messages: [
+            {
+              role: 'user',
+              content:
+                'Respond with JSON only: {"status":"allow","confidence":0.99,"reasons":[],"flags":{"profanity":false,"gibberish":false,"spamLike":false}}',
+            },
+          ],
+        }),
+      },
+      Math.min(this.config.draftTimeoutMs, 60_000),
+    );
+    if (!res.ok) {
+      throw new Error(`Ollama HTTP ${res.status} POST ${url}`);
+    }
+    const json = (await res.json()) as OllamaChatResponse;
+    const raw = json.message?.content;
+    if (typeof raw !== 'string' || !raw.trim()) {
+      return null;
+    }
+    return parseLlmModerationJson(raw) ? raw : null;
+  }
+
+  private fetchWithTimeout(
+    url: string,
+    init: RequestInit,
+    timeoutMs: number,
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...init, signal: controller.signal }).finally(() =>
+      clearTimeout(timer),
+    );
+  }
+
+  private isModelInstalled(installed: string[], wanted: string): boolean {
+    if (installed.includes(wanted)) {
+      return true;
+    }
+    const base = wanted.split(':')[0];
+    return installed.some(
+      (name) => name === base || name.startsWith(`${base}:`),
+    );
+  }
+
+  private buildHealthHint(input: {
+    ok: boolean;
+    baseUrl: string;
+    model: string;
+    ollamaReachable: boolean;
+    modelInstalled: boolean;
+    installedModels: string[];
+    inferenceSkipped: boolean;
+    inferenceOk: boolean;
+    runInference: boolean;
+  }): string | undefined {
+    if (input.ok) {
+      if (!input.runInference) {
+        return 'Для полной проверки инференса: GET /health/moderation-llm?inference=1';
+      }
+      return undefined;
+    }
+    if (!input.ollamaReachable) {
+      if (
+        input.baseUrl.includes('localhost') ||
+        input.baseUrl.includes('127.0.0.1')
+      ) {
+        return (
+          'Backend в Docker не достучится до localhost — укажите MODERATION_LLM_BASE_URL=http://ollama:11434 ' +
+          '(или удалите переменную из deploy/.env, чтобы сработал default compose). ' +
+          'Убедитесь, что в docker-compose у backend первым DNS стоит 127.0.0.11.'
+        );
+      }
+      return `Проверьте контейнер rento-ollama и сеть: docker exec rento-backend wget -qO- ${input.baseUrl}/api/tags`;
+    }
+    if (!input.modelInstalled) {
+      return (
+        `На Ollama нет модели "${input.model}". Установите: docker exec rento-ollama ollama pull ${input.model}` +
+        (input.installedModels.length
+          ? ` (сейчас: ${input.installedModels.join(', ')})`
+          : '')
+      );
+    }
+    if (!input.inferenceSkipped && !input.inferenceOk) {
+      return 'Модель есть, но ответ невалиден — проверьте RAM/CPU и таймауты MODERATION_LLM_*_TIMEOUT_MS.';
+    }
+    return undefined;
+  }
+
+  private formatOllamaFetchError(
+    err: unknown,
+    timeoutMs: number,
+    url?: string,
+  ): string {
     const isAbort =
       (err instanceof Error && err.name === 'AbortError') ||
       (typeof DOMException !== 'undefined' &&
         err instanceof DOMException &&
         err.name === 'AbortError');
     if (isAbort) {
-      return `Ollama request timed out after ${timeoutMs}ms (first inference often loads the model into RAM — increase MODERATION_LLM_TIMEOUT_MS / MODERATION_LLM_PUBLISH_TIMEOUT_MS or run \`ollama run <model> "hi"\` once to warm up)`;
+      return `Ollama request timed out after ${timeoutMs}ms${url ? ` (${url})` : ''} (first inference often loads the model into RAM — increase MODERATION_LLM_TIMEOUT_MS or run \`docker exec rento-ollama ollama run <model> "hi"\` once)`;
+    }
+    if (err instanceof Error) {
+      const cause = this.formatFetchErrorCause(err.cause);
+      const parts = [err.message];
+      if (cause) {
+        parts.push(`cause: ${cause}`);
+      }
+      if (url) {
+        parts.push(`url: ${url}`);
+      }
+      return parts.join('; ');
     }
     return String(err);
+  }
+
+  private formatFetchErrorCause(cause: unknown): string {
+    if (cause == null) {
+      return '';
+    }
+    if (cause instanceof Error) {
+      return cause.message;
+    }
+    if (
+      typeof cause === 'string' ||
+      typeof cause === 'number' ||
+      typeof cause === 'boolean' ||
+      typeof cause === 'bigint'
+    ) {
+      return String(cause);
+    }
+    try {
+      return JSON.stringify(cause);
+    } catch {
+      return 'unknown cause';
+    }
   }
 
   private buildPrompt(input: {
