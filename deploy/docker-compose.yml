@@ -37,8 +37,9 @@ services:
       PORT: "3000"
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       ELASTICSEARCH_NODE: http://elasticsearch:9200
-      # Listing text moderation (Ollama): same Docker network — service name `ollama`, port 11434 inside the mesh.
+      # Listing text moderation (Ollama). Do NOT set localhost in deploy/.env — use http://ollama:11434 inside Docker.
       MODERATION_LLM_BASE_URL: ${MODERATION_LLM_BASE_URL:-http://ollama:11434}
+      MODERATION_LLM_MODEL: ${MODERATION_LLM_MODEL:-llama3.1:8b}
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,7 +50,9 @@ services:
     networks:
       - internal
       - web
+    # 127.0.0.11 — встроенный DNS Docker (имена сервисов: ollama, postgres, …). Без него fetch к ollama падает.
     dns:
+      - 127.0.0.11
       - 85.193.93.193
       - 85.193.93.194
 

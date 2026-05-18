@@ -33,17 +33,20 @@ export function AppHeader({ onAuthRequest }: AppHeaderProps) {
           <BrandLogo />
           <Link
             to="/guide"
-            className="app-header__guide"
-            aria-label="Руководство пользователя Rento"
+            className="app-header__guide app-header__guide--text"
           >
-            <span className="app-header__guide-icon" aria-hidden>
-              <GuideInfoIcon />
-            </span>
-            <span className="app-header__guide-text">Руководство</span>
+            Руководство
           </Link>
         </div>
 
         <div className="app-header__right">
+          <Link
+            to="/guide"
+            className="icon-btn app-header__guide app-header__guide--icon"
+            aria-label="Руководство пользователя Rento"
+          >
+            <GuideInfoIcon />
+          </Link>
           <button
             type="button"
             className="icon-btn app-header__icon-btn app-header__icon-btn--create"

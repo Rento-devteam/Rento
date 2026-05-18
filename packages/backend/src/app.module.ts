@@ -15,11 +15,13 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { VerificationModule } from './verification/verification.module';
 import { TrustScoreModule } from './trust-score/trust-score.module';
 import { GeoModule } from './geo/geo.module';
+import { ModerationModule } from './moderation/moderation.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     PrismaModule,
+    ModerationModule,
     AuthModule,
     UsersModule,
     VerificationModule,
