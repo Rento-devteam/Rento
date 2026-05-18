@@ -23,7 +23,6 @@ import { PublicUserProfilePage } from "./pages/PublicUserProfilePage";
 import { TelegramCallbackPage } from "./pages/TelegramCallbackPage";
 import { GuidePage } from "./pages/GuidePage";
 import { TermsPage } from "./pages/TermsPage";
-import { AppFooter } from "./components/AppFooter";
 
 const AUTH_ROUTE_TO_TAB: Record<string, AuthTab> = {
   "/login": "login",
@@ -97,7 +96,6 @@ function AppLayout() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
-      {!hideChrome ? <AppFooter /> : null}
       {!hideChrome ? <MobileDock onAuthRequest={openAuth} /> : null}
       {isModalOpen && activeTab ? (
         <AuthModal
