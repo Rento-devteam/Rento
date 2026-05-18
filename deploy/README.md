@@ -2,13 +2,13 @@
 
 ### Setup
 
-1) Create `deploy/.env` from template:
+1. Create `deploy/.env` from template:
 
 - Copy `deploy/.env.example` → `deploy/.env` (если примера нет — создайте файл по вашему шаблону секретов)
 - Fill in secrets (JWT, BOT_SECRET, SMTP_PASS, S3 keys, etc.)
 - Для геокодирования объявлений и адреса в профиле: **`YANDEX_GEOCODER_API_KEY`** (HTTP Геокодер Яндекса; только серверный ключ, см. раздел «Геокодирование» в `packages/backend/README.md`)
 
-2) Set your DNS:
+2. Set your DNS:
 
 - Point `DOMAIN` (A/AAAA record) to your server IP
 - Ensure ports `80` and `443` are open
@@ -43,23 +43,36 @@ On push to `deploy`, CI must succeed first; then the **Deploy (production)** job
 
 Add repository secrets (GitHub → Settings → Secrets and variables → Actions):
 
-| Secret           | Description                                              |
-| ---------------- | -------------------------------------------------------- |
-| `DEPLOY_HOST`    | Server hostname or IP                                     |
-| `DEPLOY_USER`    | SSH user (must have access to the repo clone + Docker) |
-| `DEPLOY_SSH_KEY` | Private key (pem); matching public key on the server     |
-| `DEPLOY_SSH_KEY_B64` | Optional: base64 of private key (more robust for multiline secrets) |
+| Secret                  | Description                                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEPLOY_HOST`           | Server hostname or IP                                                                                                                 |
+| `DEPLOY_USER`           | SSH user (must have access to the repo clone + Docker)                                                                                |
+| `DEPLOY_SSH_KEY`        | Private key (pem); matching public key on the server                                                                                  |
+| `DEPLOY_SSH_KEY_B64`    | Optional: base64 of private key (more robust for multiline secrets)                                                                   |
 | `DEPLOY_SSH_PASSPHRASE` | Passphrase for the private key, **exactly** as set at `ssh-keygen`. If the key has no passphrase, leave this secret empty or omit it. |
-| `DEPLOY_PATH`    | Absolute path to this repo on the server               |
+| `DEPLOY_PATH`           | Absolute path to this repo on the server                                                                                              |
 
 For GitHub Actions it is easiest to use a **deploy-only key with no passphrase** (then `DEPLOY_SSH_PASSPHRASE` is empty). If the key is encrypted, `DEPLOY_SSH_PASSPHRASE` must match byte-for-byte (no extra spaces or newlines).
 
 On the server: clone the repo once into `DEPLOY_PATH`, create `deploy/.env`, and ensure the SSH user can run `docker compose`.
 Keep the server clone on the `deploy` branch (`git checkout deploy` once).
 
+### Ollama (`rento-ollama`)
+
+Продакшен-стек задаёт `container_name: rento-ollama`. Если на сервере уже был контейнер с этим именем **вне** `deploy/docker-compose.yml` (например, старый dev compose), `docker compose up` падает с `container name is already in use`.
+
+CD перед `up` удаляет такой «чужой» контейнер (том `rento_ollama_data` сохраняется). Вручную:
+
+```bash
+docker rm -f rento-ollama
+docker compose -f deploy/docker-compose.yml up -d --build
+docker exec rento-ollama ollama pull llama3.1:8b
+```
+
+Локальный dev compose использует имя **`rento-ollama-dev`**, чтобы не конфликтовать с продом на одной машине.
+
 ### Notes
 
 - The frontend is served by `caddy` on `https://$DOMAIN/`. The API is available on `https://$DOMAIN/api/*` (Caddy strips `/api` and proxies to `backend:3000`).
 - Only `caddy` publishes ports publicly (`80/443`). `postgres` and `elasticsearch` are internal-only.
 - `DATABASE_URL` is built inside compose from `POSTGRES_*` and points to the `postgres` container.
-
