@@ -2,6 +2,8 @@ import { ListingStatus, RentalPeriod } from '@prisma/client';
 import type { SearchSort } from './dto/search-query.dto';
 import { SearchService } from './search.service';
 
+const catalogSeedEnvKey = 'CATALOG_DEFAULT_SEED_ENABLED';
+
 describe('SearchService', () => {
   const prismaService = {
     listing: {
@@ -29,6 +31,7 @@ describe('SearchService', () => {
   let service: SearchService;
 
   beforeEach(() => {
+    delete process.env[catalogSeedEnvKey];
     mockSearch.mockReset();
     prismaService.listing.count.mockReset();
     prismaService.listing.findMany.mockReset();
@@ -43,6 +46,21 @@ describe('SearchService', () => {
       prismaService as never,
       listingSearchIndex as never,
     );
+  });
+
+  it('does not seed demo listings when CATALOG_DEFAULT_SEED_ENABLED is off', async () => {
+    process.env[catalogSeedEnvKey] = 'false';
+    mockSearch.mockResolvedValueOnce({
+      hits: { total: { value: 0 }, hits: [] },
+    });
+    prismaService.listing.count.mockResolvedValue(0);
+    prismaService.category.findMany.mockResolvedValue([]);
+
+    await service.search({ page: 1, limit: 10 });
+
+    expect(prismaService.listing.createMany).not.toHaveBeenCalled();
+    expect(prismaService.category.upsert).not.toHaveBeenCalled();
+    expect(prismaService.user.upsert).not.toHaveBeenCalled();
   });
 
   it('normalizeQuery strips stop words and lowercases', () => {
@@ -129,10 +147,8 @@ describe('SearchService', () => {
         isActive: true,
       },
     ]);
-    prismaService.listing.count
-      .mockResolvedValueOnce(1)
-      .mockResolvedValueOnce(0);
-    prismaService.listing.findMany.mockResolvedValueOnce([]);
+    prismaService.listing.count.mockResolvedValue(0);
+    prismaService.listing.findMany.mockResolvedValue([]);
 
     const result = await service.search({ q: 'zzz', page: 1, limit: 10 });
 

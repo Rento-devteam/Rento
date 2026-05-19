@@ -8,6 +8,14 @@ export function getListingsIndexName(): string {
   );
 }
 
+/** Demo listings (Ninebot / Makita / GoPro) when the catalog has no ACTIVE items. Off by default. */
+export function isDefaultCatalogSeedEnabled(): boolean {
+  return (
+    (process.env.CATALOG_DEFAULT_SEED_ENABLED ?? '').trim().toLowerCase() ===
+    'true'
+  );
+}
+
 /** Minimal RU stop words for query normalization (optional, UC-09). */
 export const RU_STOP_WORDS = new Set([
   'и',

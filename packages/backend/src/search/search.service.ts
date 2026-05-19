@@ -19,6 +19,7 @@ import {
   ELASTICSEARCH_CLIENT,
   RU_STOP_WORDS,
   getListingsIndexName,
+  isDefaultCatalogSeedEnabled,
 } from './search.constants';
 import { ListingSearchIndexService } from './listing-search-index.service';
 
@@ -544,6 +545,10 @@ export class SearchService {
   }
 
   private async ensureDefaultCatalogSeeded(): Promise<void> {
+    if (!isDefaultCatalogSeedEnabled()) {
+      return;
+    }
+
     const activeCount = await this.prisma.listing.count({
       where: { status: ListingStatus.ACTIVE },
     });

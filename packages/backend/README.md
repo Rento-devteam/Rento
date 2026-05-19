@@ -78,6 +78,8 @@ Local stack includes Elasticsearch on port **9200** (`docker compose -f docker-c
 
 Active listings are indexed when published (`POST /listings/:id/publish`). Backfill: `npm run search:reindex`.
 
+Optional demo catalog when there are no ACTIVE listings: set `CATALOG_DEFAULT_SEED_ENABLED=true` (disabled by default in production). For local data use `npm run seed:demo-listing` instead.
+
 **E2E tests** stub `ListingSearchIndexService`, so they do not require a running Elasticsearch node. To exercise search against a real cluster, run ES locally and hit the HTTP endpoints manually with `ELASTICSEARCH_NODE` set.
 
 ## Геокодирование (Yandex, только бэкенд)
