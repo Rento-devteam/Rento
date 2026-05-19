@@ -1,42 +1,24 @@
+# Платёж / холд по бронированию
+
+Отдельной таблицы `Transaction` в Prisma **нет**. Финансовое состояние хранится в **`Booking`**: `amountHeld`, `paymentHoldId`, `paymentGateway`, `settlementStatus`.
+
 ```mermaid
-    stateDiagram-v2
-    [*] --> Created: Booking.confirm()
+stateDiagram-v2
+    [*] --> NoHold: до POST /bookings
 
-    Created --> ProcessingHold: Запрос в платёжный шлюз
-   
-    state ProcessingHold {
-        [*] --> Authorizing
-        Authorizing --> Holding: FR-401: Блокировка средств
-        Authorizing --> Failed: Недостаточно средств
-    }
-   
-    ProcessingHold --> Held: Средства заблокированы
-    ProcessingHold --> Failed: Ошибка блокировки
-   
-    state Held {
-        [*] --> RentHeld
-        [*] --> DepositHeld
-        RentHeld --> WaitingCompletion
-        DepositHeld --> WaitingCompletion
-    }
-   
-    Held --> PartialRelease: Частичное освобождение
-   
-    Held --> FullRelease: FR-402/FR-404:<br/>Взаимное подтверждение + 24ч
-   
-    state FullRelease {
-        [*] --> CaptureRent: Аренда → владельцу
-        [*] --> ReleaseDeposit: Залог → арендатору
-        CaptureRent --> AllDone
-        ReleaseDeposit --> AllDone
-    }
-   
-    FullRelease --> Completed
-   
-    Held --> Refunded: Спор → возврат арендатору
-   
-    Failed --> [*]
-    Completed --> [*]
-    Refunded --> [*]
+    NoHold --> HoldPending: создание брони PENDING_PAYMENT
+    HoldPending --> HoldActive: CONFIRMED<br/>(paymentHoldId сохранён)
+    HoldPending --> HoldFailed: PAYMENT_FAILED
 
+    HoldFailed --> HoldActive: retry-payment OK
+
+    HoldActive --> Settling: return confirm → settlement PENDING
+    Settling --> Settled: settlement SETTLED
+    Settling --> SettleFailed: settlement FAILED
+    SettleFailed --> Settling: cron retry
+
+    Settled --> [*]
+    HoldFailed --> [*]: cancel
 ```
+
+**Запланировано (ТЗ):** отдельная сущность escrow-транзакций, частичные release, спор → refund — в текущем коде упрощено до полей брони и settlement job.

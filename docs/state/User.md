@@ -1,26 +1,40 @@
+# User — статусы аккаунта
+
+**Источник:** `UserStatus` в `packages/backend/prisma/schema.prisma`  
+**Реализованные переходы:** регистрация по email, подтверждение email, вход, привязка Telegram, прямой вход через бота.
+
 ```mermaid
-    stateDiagram-v2
-    [*] --> Guest: Заход на сайт
+stateDiagram-v2
+    [*] --> PENDING_EMAIL_CONFIRMATION: POST /register
 
-    Guest --> Registered: FR-101: Регистрация<br/>Email/Telegram
-    Guest --> [*]: Уход с сайта
-   
-    Registered --> Verified: FR-102: Верификация ЕСИА
-    Registered --> Active: Пропуск верификации
-   
-    Verified --> Active: Получен бейдж<br/>"Проверенный"
-   
-    state Active {
-        [*] --> Normal
-        Normal --> LowTrust: FR-503: Падение ARS<br/>ниже критической отметки
-        Normal --> Suspicious: Подозрительная активность
-        LowTrust --> Normal: Повышение ARS
+    PENDING_EMAIL_CONFIRMATION --> ACTIVE: GET /confirm-email?token=
+    PENDING_EMAIL_CONFIRMATION --> PENDING_EMAIL_CONFIRMATION: POST /resend-confirmation
+
+    ACTIVE --> ACTIVE: POST /telegram/link + verify<br/>или POST /telegram/auth
+
+    note right of PENDING_TELEGRAM_LINK
+        Enum в схеме;
+        явных переходов в коде нет
+    end note
+
+    note right of SUSPENDED
+        Enum в схеме;
+        проверка при login/Telegram
+    end note
+
+    ACTIVE --> [*]: DELETED (enum, админ-API нет)
+
+    state TrustScore <<optional>> {
+        [*] --> Stored: TrustScore в БД
+        Stored --> Stored: POST /internal/trust-score/recalculate
     }
-   
-    Active --> Suspended: FR-503/FR-504:<br/>Решение модератора
-    Suspended --> Active: Восстановление<br/>модератором
-    Suspended --> Banned: Повторное нарушение
-   
-    Banned --> [*]: Аккаунт удалён
-
 ```
+
+| Статус                           | Когда                                                         |
+| -------------------------------- | ------------------------------------------------------------- |
+| `PENDING_EMAIL_CONFIRMATION`     | После `POST /register`                                        |
+| `ACTIVE`                         | После подтверждения email, Telegram-auth или verify           |
+| `PENDING_TELEGRAM_LINK`          | Зарезервирован в схеме                                        |
+| `SUSPENDED`, `BANNED`, `DELETED` | Зарезервированы; `BANNED`/`SUSPENDED` блокируют Telegram-auth |
+
+**Верификация личности** — отдельная сущность `IdentityVerification` (см. [Verification.md](Verification.md)), не путать со статусом `User`.

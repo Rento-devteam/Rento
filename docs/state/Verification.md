@@ -1,22 +1,26 @@
+# IdentityVerification — верификация (ЕСИА)
+
+**Источник:** модель `IdentityVerification`, enum `IdentityVerificationStatus`  
+**Реализовано:** `POST /verify/esia/initiate`, `GET /verify/esia/callback`, stub для dev.
+
 ```mermaid
-    stateDiagram-v2
-    [*] --> Draft: Начало написания
+stateDiagram-v2
+    [*] --> PENDING: POST /verify/esia/initiate
 
-    Draft --> Published: Опубликован
-   
-    state Published {
-        [*] --> Visible
-        Visible --> Reported: Получена жалоба
-        Reported --> Hidden: FR-504: Скрыт модератором
-        Reported --> Visible: Жалоба отклонена
-    }
-   
-    Edited --> Published: Сохранено
-   
-    Published --> DeletedByAuthor: Удалён автором
-    Hidden --> DeletedByModerator: FR-504: Удалён модератором
-   
-    DeletedByAuthor --> [*]
-    DeletedByModerator --> [*]
+    PENDING --> VERIFIED: callback OK
+    PENDING --> REJECTED: callback отказ
+    PENDING --> EXPIRED: истёк срок
 
+    VERIFIED --> EXPIRED: expiresAt прошёл
+    VERIFIED --> PENDING: повторная initiate
+
+    REJECTED --> PENDING: повторная попытка
+    EXPIRED --> PENDING: повторная initiate
+
+    VERIFIED --> [*]
+    REJECTED --> [*]
 ```
+
+Связь с пользователем: `User.identityVerification` (1:1). Бейдж «проверенный» на фронте зависит от `status === VERIFIED`.
+
+Дополнительно: `POST /verify/esia/escalate` — эскалация сценария (см. контроллер).
