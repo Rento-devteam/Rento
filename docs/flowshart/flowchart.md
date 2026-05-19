@@ -1,89 +1,81 @@
+# Архитектура системы (production)
+
+Соответствует `deploy/docker-compose.yml` и модулям NestJS.
+
 ```mermaid
-    flowchart LR
-    %% Пользователи
-    User[Арендатор / Владелец]
-    Admin[Администратор / Модератор]
-    
-    subgraph Frontend [Frontend Layer]
-     Web[Web-приложение Mobile-first]
-     PWA[PWA Offline-mode]
-     end
-    
-    subgraph Backend [Backend Services]
-     direction TB
-     API[REST API Gateway]
-    
-     subgraph Core [Core Modules]
-      Auth[Модуль авторизации<br/>FR-101..104]
-      Listing[Модуль объявлений<br/>FR-201..203]
-      Search[Модуль поиска<br/>FR-301..302]
-      Booking[Модуль бронирования<br/>FR-401..405]
-      Chat[Модуль чата<br/>FR-501]
-      Dispute[Модуль споров<br/>FR-502]
-      Moderation[Модуль модерации FR-503..504<br/>пост-MVP]
-     end
-    
-     subgraph AI [AI Services]
-      Recommender[ИИ-рекомендации<br/>FR-303]
-       TrustScore[Расчёт ARS<br/>FR-103]
-       FraudDetection[Антифрод чата<br/>FR-503]
-      end
-     end
+flowchart LR
+    User[Пользователь]
+    TG[Telegram]
 
-    subgraph External [External Services]
-      ESIA[ЕСИА<br/>Верификация]
-      Telegram[Telegram API<br/>Подтверждение]
-         MapsAPI[Maps API<br/>Геолокация]
-         Payment[Платежный шлюз<br/>Escrow]
-     end
-    
-    subgraph Storage [Data Layer]
-      PostgreSQL[(PostgreSQL<br/>Основные данные)]
-      Redis[(Redis<br/>Кэш / Сессии)]
-      S3[(S3-хранилище<br/>Фотографии)]
-      Elastic[(Elasticsearch<br/>Полнотекстовый поиск)]
-     end
-    
-    %% Соединения
-     User --> Web
-     User --> PWA
-     Admin --> Web
-    Admin --> PWA
+    subgraph Edge [Публичный вход]
+        Caddy[Caddy HTTPS<br/>:80 / :443]
+    end
 
-     Web --> API
-     PWA --> API
-    
-     API --> Auth
-     API --> Listing
-     API --> Search
-     API --> Booking
-     API --> Chat
-     API --> Dispute
-     API --> Moderation
-    
-     Search --> Recommender
-     Auth --> TrustScore
-     Chat --> FraudDetection
-     Booking --> TrustScore
-    
-     Auth --> ESIA
-     Auth --> Telegram
-     Search --> MapsAPI
-     Booking --> Payment
-    
-     Auth --> PostgreSQL
-     Auth --> Redis
-     Listing --> PostgreSQL
-     Listing --> S3
-     Search --> Elastic
-     Booking --> PostgreSQL
-     Booking --> Redis
-     Chat --> PostgreSQL
-     Dispute --> PostgreSQL
-     Moderation --> PostgreSQL
-    
-     Recommender --> Elastic
-     Recommender --> PostgreSQL
-     TrustScore --> PostgreSQL
-     FraudDetection --> Redis
+    subgraph Apps [Приложения Docker]
+        FE[frontend<br/>React SPA]
+        API[backend<br/>NestJS :3000]
+        Bot[telegram-bot<br/>:3010]
+    end
+
+    subgraph Data [Данные]
+        PG[(PostgreSQL)]
+        ES[(Elasticsearch)]
+        S3[(S3 фото)]
+        Ollama[Ollama LLM]
+    end
+
+    subgraph External [Внешние API]
+        ESIA[ЕСИА verify]
+        YGeo[Yandex Geocoder]
+        SMTP[Email SMTP]
+        Pay[Платёжный шлюз]
+    end
+
+    User --> Caddy
+    TG --> Caddy
+    Caddy -->|/| FE
+    Caddy -->|/api/*| API
+    Caddy -->|/telegram/webhook*| Bot
+
+    FE -.->|JWT| Caddy
+    Bot --> API
+
+    API --> PG
+    API --> ES
+    API --> S3
+    API --> Ollama
+    API --> ESIA
+    API --> YGeo
+    API --> SMTP
+    API --> Pay
+
+    subgraph API_Modules [Модули backend — реализовано]
+        direction TB
+        M1[Auth + Telegram login]
+        M2[Listings + Calendar]
+        M3[Search]
+        M4[Bookings + Payments hold]
+        M5[Moderation rules+LLM]
+        M6[Geo + Verification + TrustScore]
+    end
+
+    API --> API_Modules
 ```
+
+## Не в текущем production-стеке
+
+| Компонент                                | Статус                                     |
+| ---------------------------------------- | ------------------------------------------ |
+| Redis (сессии/кэш)                       | Не используется — JWT + refresh в Postgres |
+| Chat / WebSocket                         | Запланировано                              |
+| Dispute / Report admin                   | Запланировано                              |
+| ИИ-рекомендации (`GET /recommendations`) | Запланировано                              |
+| PWA offline                              | Запланировано                              |
+
+## Переменные окружения (ключевые)
+
+| Сервис       | Примеры                                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------------- |
+| backend      | `DATABASE_URL`, `ELASTICSEARCH_NODE`, `MODERATION_LLM_*`, `S3_*`, `JWT_*`, `YANDEX_GEOCODER_API_KEY` |
+| telegram-bot | `BOT_TOKEN`, `BOT_SECRET`, `PUBLIC_BOT_BASE_URL`, `BACKEND_BASE_URL`                                 |
+| compose      | `CATALOG_DEFAULT_SEED_ENABLED=false` (демо-каталог выключен)                                         |

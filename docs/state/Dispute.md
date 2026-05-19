@@ -1,42 +1,24 @@
+# Dispute — спор по бронированию
+
+**Статус в коде:** `BookingStatus.DISPUTED` объявлен в Prisma и учитывается при блокировке дат календаря, но **переход в `DISPUTED` в workflow не реализован**.
+
 ```mermaid
-    stateDiagram-v2
-    [*] --> Created: Booking.confirm()
+stateDiagram-v2
+    [*] --> NotDisputed: обычное бронирование
 
-    Created --> ProcessingHold: Запрос в платёжный шлюз
-   
-    state ProcessingHold {
-        [*] --> Authorizing
-        Authorizing --> Holding: FR-401: Блокировка средств
-        Authorizing --> Failed: Недостаточно средств
-    }
-   
-    ProcessingHold --> Held: Средства заблокированы
-    ProcessingHold --> Failed: Ошибка блокировки
-   
-    state Held {
-        [*] --> RentHeld
-        [*] --> DepositHeld
-        RentHeld --> WaitingCompletion
-        DepositHeld --> WaitingCompletion
-    }
-   
-    Held --> PartialRelease: Частичное освобождение
-   
-    Held --> FullRelease: FR-402/FR-404:<br/>Взаимное подтверждение + 24ч
-   
-    state FullRelease {
-        [*] --> CaptureRent: Аренда → владельцу
-        [*] --> ReleaseDeposit: Залог → арендатору
-        CaptureRent --> AllDone
-        ReleaseDeposit --> AllDone
-    }
-   
-    FullRelease --> Completed
-   
-    Held --> Refunded: Спор → возврат арендатору
-   
-    Failed --> [*]
-    Completed --> [*]
-    Refunded --> [*]
+    NotDisputed --> DISPUTED: Запланировано<br/>(FR-502, UC-19)
 
+    state DISPUTED {
+        [*] --> Open
+        Open --> ResolvedRenter: Запланировано
+        Open --> ResolvedOwner: Запланировано
+        Open --> ResolvedSplit: Запланировано
+    }
+
+    DISPUTED --> COMPLETED: Запланировано
+    DISPUTED --> CANCELLED: Запланировано
 ```
+
+**Реализовано сейчас:** взаимное подтверждение возврата без спора — `POST /bookings/:bookingId/return/confirm` → `COMPLETED` (см. [Booking.md](Booking.md), UC-15).
+
+**Legacy в OpenAPI:** пути `/deals/{dealId}/...` — в NestJS используйте `/bookings/{bookingId}/...`.
