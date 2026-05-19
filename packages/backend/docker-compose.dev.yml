@@ -43,7 +43,7 @@ services:
   # Host 11435 avoids clashing with a native Ollama install on Windows/macOS (often :11434).
   ollama:
     image: ollama/ollama:latest
-    container_name: rento-ollama
+    container_name: rento-ollama-dev
     ports:
       - '11435:11434'
     volumes:
@@ -53,4 +53,3 @@ volumes:
   rento_pg_data:
   rento_es_data:
   rento_ollama_data:
-
