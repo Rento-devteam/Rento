@@ -57,7 +57,8 @@ describe('ListingTextModerationService', () => {
     const { service, classifyListingText } = makeService({ llmEnabled: false });
     const out = await service.evaluate({
       title: 'Drill',
-      description: 'Good condition',
+      description:
+        'Cordless drill in good condition. Pickup near the metro on weekdays.',
       categoryName: 'Tools',
       phase: 'draft',
     });

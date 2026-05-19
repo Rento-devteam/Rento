@@ -20,6 +20,21 @@ describe('RulesEngine', () => {
     expect(r.flags.gibberish).toBe(true);
   });
 
+  it('warns on greeting-only description', () => {
+    const r = engine.evaluate('Дрель', 'привет');
+    expect(r.severity).toBe('warn');
+    expect(r.reasons.some((x) => x.startsWith('rule:insufficient'))).toBe(true);
+  });
+
+  it('warns when only structured fields without real description', () => {
+    const r = engine.evaluate(
+      'Палатка',
+      'Бренд: Quechua. Год: 2020. Состояние: good.',
+    );
+    expect(r.severity).toBe('warn');
+    expect(r.reasons.some((x) => x.startsWith('rule:insufficient'))).toBe(true);
+  });
+
   it('allows normal Russian description', () => {
     const r = engine.evaluate(
       'Дрель Bosch',
