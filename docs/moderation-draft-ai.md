@@ -123,9 +123,13 @@ Backend на хосте по умолчанию: `MODERATION_LLM_BASE_URL=http:/
 - У backend переопределён DNS без `127.0.0.11` — имя `ollama` не резолвится. В `deploy/docker-compose.yml` первым DNS должен быть `127.0.0.11`.
 
 ```bash
+# Не `docker exec rento-ollama pull …` — нужен бинарник ollama внутри контейнера:
 docker exec rento-ollama ollama pull llama3.1:8b
+docker exec rento-ollama ollama list
 docker compose -f deploy/docker-compose.yml up -d --force-recreate backend
 ```
+
+Или из корня репозитория: `sh deploy/scripts/ensure-ollama-model.sh`
 
 ## Калибровка качества (без «обучения» Llama)
 
