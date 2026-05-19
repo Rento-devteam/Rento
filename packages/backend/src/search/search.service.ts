@@ -3,9 +3,11 @@ import {
   Inject,
   Injectable,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { Client } from '@elastic/elasticsearch';
 import type { estypes } from '@elastic/elasticsearch';
+import { createHash } from 'crypto';
 import {
   ListingStatus,
   Prisma,
@@ -22,6 +24,7 @@ import {
   isDefaultCatalogSeedEnabled,
 } from './search.constants';
 import { ListingSearchIndexService } from './listing-search-index.service';
+import { RedisService } from '../redis/redis.service';
 
 export type SearchListingResult = ReturnType<typeof mapListingDetail>;
 
@@ -40,11 +43,15 @@ export interface SearchResponse {
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
   private readonly indexName = getListingsIndexName();
+  private readonly searchCacheTtlSeconds = Number(
+    process.env.REDIS_SEARCH_CACHE_TTL_SECONDS ?? 60,
+  );
 
   constructor(
     @Inject(ELASTICSEARCH_CLIENT) private readonly client: Client,
     @Inject(PrismaService) private readonly prisma: PrismaService,
     private readonly listingSearchIndex: ListingSearchIndexService,
+    @Optional() private readonly redisService?: RedisService,
   ) {}
 
   normalizeQuery(q: string | undefined): string {
@@ -97,17 +104,32 @@ export class SearchService {
     const normalizedQ = this.normalizeQuery(dto.q);
     const normalizedCity = this.normalizeQuery(dto.city);
     const sort = dto.sort ?? SearchSort.relevance;
+    const cacheKey = this.buildSearchCacheKey({
+      dto,
+      excludeOwnerId,
+      normalizedQ,
+      normalizedCity,
+      page,
+      limit,
+      sort,
+    });
+    const cached = await this.redisService?.get<SearchResponse>(cacheKey);
+    if (cached) {
+      return cached;
+    }
 
     // Elasticsearch полнотекстовый анализатор плохо ранжирует односимвольные запросы
     // (например, "м"), поэтому для таких префиксов используем прямой DB fallback.
     if (normalizedQ.length === 1) {
-      return this.searchFromDatabase(
+      const result = await this.searchFromDatabase(
         dto,
         normalizedQ,
         page,
         limit,
         excludeOwnerId,
       );
+      await this.cacheSearchResult(cacheKey, result);
+      return result;
     }
 
     const filter: estypes.QueryDslQueryContainer[] = [
@@ -218,11 +240,13 @@ export class SearchService {
           excludeOwnerId,
         );
         if (dbFallback.totalCount > 0) {
-          return {
+          const result = {
             ...dbFallback,
             relaxedMatch: true,
             suggestion,
           };
+          await this.cacheSearchResult(cacheKey, result);
+          return result;
         }
       }
 
@@ -238,7 +262,7 @@ export class SearchService {
         ? await this.loadPopularCategories()
         : [];
 
-      return {
+      const result = {
         results,
         totalCount: total,
         page,
@@ -248,16 +272,64 @@ export class SearchService {
         relaxedMatch,
         popularCategories,
       };
+      await this.cacheSearchResult(cacheKey, result);
+      return result;
     } catch (err) {
       this.logger.error(`Elasticsearch search failed: ${String(err)}`);
-      return this.searchFromDatabase(
+      const result = await this.searchFromDatabase(
         dto,
         normalizedQ,
         page,
         limit,
         excludeOwnerId,
       );
+      await this.cacheSearchResult(cacheKey, result);
+      return result;
     }
+  }
+
+  private async cacheSearchResult(
+    cacheKey: string,
+    result: SearchResponse,
+  ): Promise<void> {
+    if (this.searchCacheTtlSeconds <= 0) {
+      return;
+    }
+
+    await this.redisService?.setJson(
+      cacheKey,
+      result,
+      this.searchCacheTtlSeconds,
+    );
+  }
+
+  private buildSearchCacheKey(input: {
+    dto: SearchQueryDto;
+    excludeOwnerId?: string;
+    normalizedQ: string;
+    normalizedCity: string;
+    page: number;
+    limit: number;
+    sort: SearchSort;
+  }): string {
+    const payload = {
+      q: input.normalizedQ,
+      city: input.normalizedCity,
+      categoryId: input.dto.categoryId ?? null,
+      minPrice: input.dto.minPrice ?? null,
+      maxPrice: input.dto.maxPrice ?? null,
+      lat: input.dto.lat ?? null,
+      lon: input.dto.lon ?? null,
+      distanceKm: input.dto.distanceKm ?? null,
+      page: input.page,
+      limit: input.limit,
+      sort: input.sort,
+      excludeOwnerId: input.excludeOwnerId ?? null,
+    };
+    const hash = createHash('sha256')
+      .update(JSON.stringify(payload))
+      .digest('hex');
+    return `search:v1:${hash}`;
   }
 
   private async searchFromDatabase(
@@ -505,6 +577,12 @@ export class SearchService {
       return [];
     }
 
+    const cacheKey = `autocomplete:v1:${limit}:${prefix}`;
+    const cached = await this.redisService?.get<string[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     try {
       const res = await this.client.search({
         index: this.indexName,
@@ -537,6 +615,11 @@ export class SearchService {
           }
         }
       }
+      await this.redisService?.setJson(
+        cacheKey,
+        out,
+        this.searchCacheTtlSeconds,
+      );
       return out;
     } catch (err) {
       this.logger.error(`Elasticsearch autocomplete failed: ${String(err)}`);

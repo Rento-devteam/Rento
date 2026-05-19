@@ -19,6 +19,7 @@ import {
 import { CompleteRegistrationQueryDto } from './dto/complete-registration-query.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResendConfirmationDto } from './dto/resend-confirmation.dto';
 import { TelegramAuthDto } from './dto/telegram-auth.dto';
 import { TelegramLoginConfirmDto } from './dto/telegram-login-confirm.dto';
@@ -207,6 +208,21 @@ export class AuthService {
       status: 'completed',
       nextStep: null,
     };
+  }
+
+  async refreshSession(dto: RefreshTokenDto): Promise<AuthSuccessResponse> {
+    const { user, ...tokens } = await this.jwtTokenService.refreshTokenPair(
+      dto.refreshToken,
+    );
+    return {
+      ...tokens,
+      user: buildUserProfileResponse(user),
+    };
+  }
+
+  async logout(dto: RefreshTokenDto): Promise<{ ok: true }> {
+    await this.jwtTokenService.revokeRefreshToken(dto.refreshToken);
+    return { ok: true };
   }
 
   async generateTelegramLink(

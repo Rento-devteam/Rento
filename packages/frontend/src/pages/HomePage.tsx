@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { FormEvent } from "react";
 import type { ICategory, IListing, RentalPeriod } from "@rento/shared";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/useAuth";
 import { autocompleteCatalog, searchCatalog } from "../catalog/catalogApi";
 import { ApiError } from "../lib/apiClient";
 import { formatListingRentalPriceRu } from "../lib/rentalPeriodRu";

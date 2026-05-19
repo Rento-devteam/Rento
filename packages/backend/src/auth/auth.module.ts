@@ -6,9 +6,10 @@ import { BotSecretGuard } from './bot-secret.guard';
 import { EmailModule } from '../email/email.module';
 import { JwtTokenService } from '../tokens/jwt-token.service';
 import { JwtAuthGuard, OptionalJwtAuthGuard } from './jwt-auth.guard';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
-  imports: [EmailModule, JwtModule.register({})],
+  imports: [EmailModule, JwtModule.register({}), RedisModule],
   controllers: [AuthController],
   providers: [
     AuthService,

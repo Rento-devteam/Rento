@@ -1,55 +1,64 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
-import type { AuthUser } from '../auth/types'
-import { authApi } from '../auth/authApi'
-import { apiRequest, ApiError } from '../lib/apiClient'
-import type { IListing, RentalPeriod } from '@rento/shared'
-import { formatListingRentalPriceRu } from '../lib/rentalPeriodRu'
-import { deleteListing } from '../catalog/catalogApi'
-import { userStatusLabelRu } from '../lib/statusRu'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
+import type { AuthUser } from "../auth/types";
+import { authApi } from "../auth/authApi";
+import { apiRequest, ApiError } from "../lib/apiClient";
+import type { IListing, RentalPeriod } from "@rento/shared";
+import { formatListingRentalPriceRu } from "../lib/rentalPeriodRu";
+import { deleteListing } from "../catalog/catalogApi";
+import { userStatusLabelRu } from "../lib/statusRu";
 import {
   attachCard,
   listPaymentMethods,
   removeCard,
   setDefaultCard,
   type BankCard,
-} from '../payments/paymentMethodsApi'
-import '../styles/profile.css'
-import { AddressPicker, type AddressPickerValue } from '../components/AddressPicker'
+} from "../payments/paymentMethodsApi";
+import "../styles/profile.css";
+import {
+  AddressPicker,
+  type AddressPickerValue,
+} from "../components/AddressPicker";
 
 type ProfileEditModalProps = {
-  open: boolean
-  onClose: () => void
-  user: AuthUser
-  accessToken: string | null
-  refreshProfile: () => Promise<void>
-}
+  open: boolean;
+  onClose: () => void;
+  user: AuthUser;
+  accessToken: string | null;
+  refreshProfile: () => Promise<void>;
+};
 
 function formatTelegramPhone(input: string): string {
-  const rawDigits = input.replace(/\D/g, '')
-  if (!rawDigits) return ''
+  const rawDigits = input.replace(/\D/g, "");
+  if (!rawDigits) return "";
 
-  let digits = rawDigits
-  if (digits[0] === '8') {
-    digits = `7${digits.slice(1)}`
-  } else if (digits[0] !== '7') {
-    digits = `7${digits}`
+  let digits = rawDigits;
+  if (digits[0] === "8") {
+    digits = `7${digits.slice(1)}`;
+  } else if (digits[0] !== "7") {
+    digits = `7${digits}`;
   }
-  digits = digits.slice(0, 11)
+  digits = digits.slice(0, 11);
 
-  const country = digits.slice(0, 1)
-  const part1 = digits.slice(1, 4)
-  const part2 = digits.slice(4, 7)
-  const part3 = digits.slice(7, 9)
-  const part4 = digits.slice(9, 11)
+  const country = digits.slice(0, 1);
+  const part1 = digits.slice(1, 4);
+  const part2 = digits.slice(4, 7);
+  const part3 = digits.slice(7, 9);
+  const part4 = digits.slice(9, 11);
 
-  let formatted = `+${country}`
-  if (part1) formatted += ` ${part1}`
-  if (part2) formatted += ` ${part2}`
-  if (part3) formatted += `-${part3}`
-  if (part4) formatted += `-${part4}`
-  return formatted
+  let formatted = `+${country}`;
+  if (part1) formatted += ` ${part1}`;
+  if (part2) formatted += ` ${part2}`;
+  if (part3) formatted += `-${part3}`;
+  if (part4) formatted += `-${part4}`;
+  return formatted;
 }
 
 function ProfileEditModal({
@@ -59,102 +68,107 @@ function ProfileEditModal({
   accessToken,
   refreshProfile,
 }: ProfileEditModalProps) {
-  const [draftFullName, setDraftFullName] = useState(() => user.fullName ?? '')
-  const [draftPhone, setDraftPhone] = useState(() => formatTelegramPhone(user.phone ?? ''))
+  const [draftFullName, setDraftFullName] = useState(() => user.fullName ?? "");
+  const [draftPhone, setDraftPhone] = useState(() =>
+    formatTelegramPhone(user.phone ?? ""),
+  );
   const [draftAddress, setDraftAddress] = useState<AddressPickerValue>(() => ({
-    addressText: user.addressText ?? '',
+    addressText: user.addressText ?? "",
     latitude: user.addressLatitude ?? null,
     longitude: user.addressLongitude ?? null,
-  }))
-  const [profileSaving, setProfileSaving] = useState(false)
-  const [profileMessage, setProfileMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(
-    null,
-  )
+  }));
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<{
+    type: "ok" | "err";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     queueMicrotask(() => {
-      setDraftFullName(user.fullName ?? '')
-      setDraftPhone(formatTelegramPhone(user.phone ?? ''))
+      setDraftFullName(user.fullName ?? "");
+      setDraftPhone(formatTelegramPhone(user.phone ?? ""));
       setDraftAddress({
-        addressText: user.addressText ?? '',
+        addressText: user.addressText ?? "",
         latitude: user.addressLatitude ?? null,
         longitude: user.addressLongitude ?? null,
-      })
-      setProfileMessage(null)
-    })
-  }, [open, user])
+      });
+      setProfileMessage(null);
+    });
+  }, [open, user]);
 
   const isProfileDirty = useMemo(() => {
-    const initialPhone = formatTelegramPhone(user.phone ?? '')
-    const currentPhone = formatTelegramPhone(draftPhone)
+    const initialPhone = formatTelegramPhone(user.phone ?? "");
+    const currentPhone = formatTelegramPhone(draftPhone);
     const addrDirty =
-      draftAddress.addressText.trim() !== (user.addressText ?? '').trim() ||
+      draftAddress.addressText.trim() !== (user.addressText ?? "").trim() ||
       (draftAddress.latitude ?? null) !== (user.addressLatitude ?? null) ||
-      (draftAddress.longitude ?? null) !== (user.addressLongitude ?? null)
+      (draftAddress.longitude ?? null) !== (user.addressLongitude ?? null);
     return (
-      draftFullName.trim() !== (user.fullName ?? '').trim() ||
+      draftFullName.trim() !== (user.fullName ?? "").trim() ||
       currentPhone !== initialPhone ||
       addrDirty
-    )
-  }, [user, draftFullName, draftPhone, draftAddress])
+    );
+  }, [user, draftFullName, draftPhone, draftAddress]);
 
   const handleSaveProfile = async (event: FormEvent) => {
-    event.preventDefault()
-    if (!accessToken || !isProfileDirty) return
-    const body: Parameters<typeof authApi.updateCurrentUser>[0] = {}
-    if (draftFullName.trim() !== (user.fullName ?? '').trim()) {
-      body.fullName = draftFullName.trim()
+    event.preventDefault();
+    if (!accessToken || !isProfileDirty) return;
+    const body: Parameters<typeof authApi.updateCurrentUser>[0] = {};
+    if (draftFullName.trim() !== (user.fullName ?? "").trim()) {
+      body.fullName = draftFullName.trim();
     }
-    const nextPhone = formatTelegramPhone(draftPhone)
-    const initialPhone = formatTelegramPhone(user.phone ?? '')
+    const nextPhone = formatTelegramPhone(draftPhone);
+    const initialPhone = formatTelegramPhone(user.phone ?? "");
     if (nextPhone !== initialPhone) {
-      body.phone = nextPhone
+      body.phone = nextPhone;
     }
-    const nextAddrText = draftAddress.addressText.trim()
-    const prevAddrText = (user.addressText ?? '').trim()
-    const nextLat = draftAddress.latitude ?? null
-    const nextLon = draftAddress.longitude ?? null
-    const prevLat = user.addressLatitude ?? null
-    const prevLon = user.addressLongitude ?? null
+    const nextAddrText = draftAddress.addressText.trim();
+    const prevAddrText = (user.addressText ?? "").trim();
+    const nextLat = draftAddress.latitude ?? null;
+    const nextLon = draftAddress.longitude ?? null;
+    const prevLat = user.addressLatitude ?? null;
+    const prevLon = user.addressLongitude ?? null;
     if (nextAddrText !== prevAddrText) {
-      body.addressText = nextAddrText === '' ? '' : draftAddress.addressText.trim()
+      body.addressText =
+        nextAddrText === "" ? "" : draftAddress.addressText.trim();
     }
     if (nextLat !== prevLat || nextLon !== prevLon) {
       if (nextLat == null && nextLon == null) {
-        body.addressLatitude = null
-        body.addressLongitude = null
+        body.addressLatitude = null;
+        body.addressLongitude = null;
       } else if (nextLat != null && nextLon != null) {
-        body.addressLatitude = nextLat
-        body.addressLongitude = nextLon
+        body.addressLatitude = nextLat;
+        body.addressLongitude = nextLon;
       }
     }
-    if (Object.keys(body).length === 0) return
+    if (Object.keys(body).length === 0) return;
 
-    setProfileSaving(true)
-    setProfileMessage(null)
+    setProfileSaving(true);
+    setProfileMessage(null);
     try {
-      await authApi.updateCurrentUser(body, accessToken)
-      await refreshProfile()
-      onClose()
+      await authApi.updateCurrentUser(body, accessToken);
+      await refreshProfile();
+      onClose();
     } catch (err: unknown) {
       setProfileMessage({
-        type: 'err',
-        text: err instanceof ApiError ? err.message : 'Не удалось сохранить данные',
-      })
+        type: "err",
+        text:
+          err instanceof ApiError ? err.message : "Не удалось сохранить данные",
+      });
     } finally {
-      setProfileSaving(false)
+      setProfileSaving(false);
     }
-  }
+  };
 
-  if (!open) return null
+  if (!open) return null;
 
   return (
     <div
       className="modal"
       role="presentation"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
@@ -164,10 +178,19 @@ function ProfileEditModal({
         aria-labelledby="profile-edit-modal-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" className="modal__close" onClick={onClose} aria-label="Закрыть">
+        <button
+          type="button"
+          className="modal__close"
+          onClick={onClose}
+          aria-label="Закрыть"
+        >
           ×
         </button>
-        <h2 id="profile-edit-modal-title" className="modal__title" style={{ marginTop: 0 }}>
+        <h2
+          id="profile-edit-modal-title"
+          className="modal__title"
+          style={{ marginTop: 0 }}
+        >
           Личные данные
         </h2>
         <form onSubmit={(e) => void handleSaveProfile(e)}>
@@ -199,7 +222,9 @@ function ProfileEditModal({
                 maxLength={16}
                 placeholder="+7 999 123-45-67"
                 value={draftPhone}
-                onChange={(e) => setDraftPhone(formatTelegramPhone(e.target.value))}
+                onChange={(e) =>
+                  setDraftPhone(formatTelegramPhone(e.target.value))
+                }
               />
               <span className="field__hint">Формат: +7 999 123-45-67</span>
             </div>
@@ -213,33 +238,36 @@ function ProfileEditModal({
           </div>
           {profileMessage ? (
             <p
-              className={`profile-resend-msg${profileMessage.type === 'ok' ? ' profile-resend-msg--ok' : ' profile-resend-msg--err'}`}
-              style={{ marginTop: 'var(--sp-3)' }}
+              className={`profile-resend-msg${profileMessage.type === "ok" ? " profile-resend-msg--ok" : " profile-resend-msg--err"}`}
+              style={{ marginTop: "var(--sp-3)" }}
             >
               {profileMessage.text}
             </p>
           ) : null}
-          <div className="profile-form__actions" style={{ marginTop: 'var(--sp-4)' }}>
+          <div
+            className="profile-form__actions"
+            style={{ marginTop: "var(--sp-4)" }}
+          >
             <button
               type="submit"
               className="btn btn--brand"
               disabled={!isProfileDirty || profileSaving || !accessToken}
             >
-              {profileSaving ? 'Сохранение…' : 'Сохранить'}
+              {profileSaving ? "Сохранение…" : "Сохранить"}
             </button>
             <button
               type="button"
               className="btn btn--ghost"
               disabled={!isProfileDirty || profileSaving || !accessToken}
               onClick={() => {
-                setDraftFullName(user.fullName ?? '')
-                setDraftPhone(formatTelegramPhone(user.phone ?? ''))
+                setDraftFullName(user.fullName ?? "");
+                setDraftPhone(formatTelegramPhone(user.phone ?? ""));
                 setDraftAddress({
-                  addressText: user.addressText ?? '',
+                  addressText: user.addressText ?? "",
                   latitude: user.addressLatitude ?? null,
                   longitude: user.addressLongitude ?? null,
-                })
-                setProfileMessage(null)
+                });
+                setProfileMessage(null);
               }}
             >
               Сбросить
@@ -248,21 +276,26 @@ function ProfileEditModal({
         </form>
       </div>
     </div>
-  )
+  );
 }
 
-const PROFILE_CARDS_PREVIEW = 3
-const PROFILE_LISTINGS_PREVIEW = 3
+const PROFILE_CARDS_PREVIEW = 3;
+const PROFILE_LISTINGS_PREVIEW = 3;
 
 type ProfileFullListModalProps = {
-  title: string
-  open: boolean
-  onClose: () => void
-  children: ReactNode
-}
+  title: string;
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+};
 
-function ProfileFullListModal({ title, open, onClose, children }: ProfileFullListModalProps) {
-  if (!open) return null
+function ProfileFullListModal({
+  title,
+  open,
+  onClose,
+  children,
+}: ProfileFullListModalProps) {
+  if (!open) return null;
   return (
     <div className="modal" role="presentation" onClick={onClose}>
       <div
@@ -272,273 +305,317 @@ function ProfileFullListModal({ title, open, onClose, children }: ProfileFullLis
         aria-labelledby="profile-full-list-heading"
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" className="modal__close" onClick={onClose} aria-label="Закрыть">
+        <button
+          type="button"
+          className="modal__close"
+          onClick={onClose}
+          aria-label="Закрыть"
+        >
           ×
         </button>
-        <h2 id="profile-full-list-heading" className="modal__title" style={{ marginTop: 0 }}>
+        <h2
+          id="profile-full-list-heading"
+          className="modal__title"
+          style={{ marginTop: 0 }}
+        >
           {title}
         </h2>
         <div className="profile-full-list-modal__body">{children}</div>
       </div>
     </div>
-  )
+  );
 }
 
-function calculateOnTimeReturnsRate(totalDeals: number, lateReturns: number): number {
-  if (totalDeals <= 0) return 0
-  const onTime = Math.max(0, totalDeals - lateReturns)
-  return Math.round((onTime / totalDeals) * 100)
+function calculateOnTimeReturnsRate(
+  totalDeals: number,
+  lateReturns: number,
+): number {
+  if (totalDeals <= 0) return 0;
+  const onTime = Math.max(0, totalDeals - lateReturns);
+  return Math.round((onTime / totalDeals) * 100);
 }
 
 function formatAccountId(id: string): string {
-  if (id.length <= 14) return id
-  return `${id.slice(0, 6)}…${id.slice(-4)}`
+  if (id.length <= 14) return id;
+  return `${id.slice(0, 6)}…${id.slice(-4)}`;
 }
 
 function formatStarRating(rating: number): string {
-  return Math.min(5, Math.max(0, rating)).toLocaleString('ru-RU', {
+  return Math.min(5, Math.max(0, rating)).toLocaleString("ru-RU", {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
-  })
+  });
 }
 
 function reviewsLabel(count: number): string {
-  const mod10 = count % 10
-  const mod100 = count % 100
-  if (mod10 === 1 && mod100 !== 11) return `${count} оценка`
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} оценки`
-  return `${count} оценок`
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${count} оценка`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14))
+    return `${count} оценки`;
+  return `${count} оценок`;
 }
 
 export function ProfilePage() {
-  const { user, accessToken, logout, refreshProfile } = useAuth()
-  const navigate = useNavigate()
-  const [listings, setListings] = useState<IListing[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [resendState, setResendState] = useState<'idle' | 'loading' | 'ok' | 'err'>('idle')
-  const [resendMessage, setResendMessage] = useState<string | null>(null)
-  const [cards, setCards] = useState<BankCard[]>([])
-  const [cardsLoading, setCardsLoading] = useState(true)
-  const [cardsError, setCardsError] = useState<string | null>(null)
-  const [cardToken, setCardToken] = useState('')
-  const [setAsDefault, setSetAsDefault] = useState(false)
-  const [cardActionLoading, setCardActionLoading] = useState(false)
-  const [cardMessage, setCardMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
-  const [profileEditOpen, setProfileEditOpen] = useState(false)
-  const [profileFullListOpen, setProfileFullListOpen] = useState<'cards' | null>(null)
-  const [listingsPage, setListingsPage] = useState(1)
-  const [listingDeleteTarget, setListingDeleteTarget] = useState<{ id: string; title: string } | null>(
+  const { user, accessToken, logout, refreshProfile } = useAuth();
+  const navigate = useNavigate();
+  const [listings, setListings] = useState<IListing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [resendState, setResendState] = useState<
+    "idle" | "loading" | "ok" | "err"
+  >("idle");
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [cards, setCards] = useState<BankCard[]>([]);
+  const [cardsLoading, setCardsLoading] = useState(true);
+  const [cardsError, setCardsError] = useState<string | null>(null);
+  const [cardToken, setCardToken] = useState("");
+  const [setAsDefault, setSetAsDefault] = useState(false);
+  const [cardActionLoading, setCardActionLoading] = useState(false);
+  const [cardMessage, setCardMessage] = useState<{
+    type: "ok" | "err";
+    text: string;
+  } | null>(null);
+  const [profileEditOpen, setProfileEditOpen] = useState(false);
+  const [profileFullListOpen, setProfileFullListOpen] = useState<
+    "cards" | null
+  >(null);
+  const [listingsPage, setListingsPage] = useState(1);
+  const [listingDeleteTarget, setListingDeleteTarget] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [listingDeleteSubmitting, setListingDeleteSubmitting] = useState(false);
+  const [listingDeleteError, setListingDeleteError] = useState<string | null>(
     null,
-  )
-  const [listingDeleteSubmitting, setListingDeleteSubmitting] = useState(false)
-  const [listingDeleteError, setListingDeleteError] = useState<string | null>(null)
+  );
 
-  const visibleCards = useMemo(() => cards.slice(0, PROFILE_CARDS_PREVIEW), [cards])
+  const visibleCards = useMemo(
+    () => cards.slice(0, PROFILE_CARDS_PREVIEW),
+    [cards],
+  );
   const listingsTotalPages = useMemo(
     () => Math.max(1, Math.ceil(listings.length / PROFILE_LISTINGS_PREVIEW)),
     [listings.length],
-  )
-  const currentListingsPage = Math.min(listingsPage, listingsTotalPages)
+  );
+  const currentListingsPage = Math.min(listingsPage, listingsTotalPages);
   const visibleListings = useMemo(() => {
-    const start = (currentListingsPage - 1) * PROFILE_LISTINGS_PREVIEW
-    return listings.slice(start, start + PROFILE_LISTINGS_PREVIEW)
-  }, [listings, currentListingsPage])
+    const start = (currentListingsPage - 1) * PROFILE_LISTINGS_PREVIEW;
+    return listings.slice(start, start + PROFILE_LISTINGS_PREVIEW);
+  }, [listings, currentListingsPage]);
 
   useEffect(() => {
     if (!user?.id) {
-      navigate('/')
-      return
+      navigate("/");
+      return;
     }
-    void refreshProfile()
+    void refreshProfile();
     // Зависимость только от id: после refreshProfile приходит новый объект user и
     // не должно заново дергать API (иначе бесконечный цикл перерисовок).
-  }, [user?.id, navigate, refreshProfile])
+  }, [user?.id, navigate, refreshProfile]);
 
   useEffect(() => {
-    if (!user?.id) return
+    if (!user?.id) return;
 
     async function loadMyListings() {
       try {
-        const res = await apiRequest<IListing[]>('/listings/my', {
+        const res = await apiRequest<IListing[]>("/listings/my", {
           accessToken,
-        })
-        setListings(res)
+        });
+        setListings(res);
       } catch (err: unknown) {
         if (err instanceof ApiError) {
-          setError(err.message)
+          setError(err.message);
         } else if (err instanceof Error) {
-          setError(err.message)
+          setError(err.message);
         } else {
-          setError('Не удалось загрузить ваши объявления')
+          setError("Не удалось загрузить ваши объявления");
         }
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
 
-    void loadMyListings()
-  }, [user?.id, accessToken])
+    void loadMyListings();
+  }, [user?.id, accessToken]);
 
   useEffect(() => {
-    if (!user?.id || !accessToken) return
-    const token = accessToken
+    if (!user?.id || !accessToken) return;
+    const token = accessToken;
 
     async function loadCards() {
-      setCardsLoading(true)
-      setCardsError(null)
+      setCardsLoading(true);
+      setCardsError(null);
       try {
-        const items = await listPaymentMethods(token)
-        setCards(items)
+        const items = await listPaymentMethods(token);
+        setCards(items);
       } catch (err: unknown) {
         setCardsError(
-          err instanceof ApiError ? err.message : 'Не удалось загрузить привязанные карты',
-        )
+          err instanceof ApiError
+            ? err.message
+            : "Не удалось загрузить привязанные карты",
+        );
       } finally {
-        setCardsLoading(false)
+        setCardsLoading(false);
       }
     }
 
-    void loadCards()
-  }, [user?.id, accessToken])
+    void loadCards();
+  }, [user?.id, accessToken]);
 
   const openListingDeleteModal = (listingId: string, title: string) => {
-    setListingDeleteError(null)
-    setListingDeleteTarget({ id: listingId, title })
-  }
+    setListingDeleteError(null);
+    setListingDeleteTarget({ id: listingId, title });
+  };
 
   const handleListingDeleteConfirm = async () => {
-    if (!listingDeleteTarget || !accessToken) return
-    setListingDeleteSubmitting(true)
-    setListingDeleteError(null)
+    if (!listingDeleteTarget || !accessToken) return;
+    setListingDeleteSubmitting(true);
+    setListingDeleteError(null);
     try {
-      await deleteListing(listingDeleteTarget.id, accessToken)
-      setListings((prev) => prev.filter((l) => l.id !== listingDeleteTarget.id))
-      setListingDeleteTarget(null)
-      setProfileFullListOpen(null)
+      await deleteListing(listingDeleteTarget.id, accessToken);
+      setListings((prev) =>
+        prev.filter((l) => l.id !== listingDeleteTarget.id),
+      );
+      setListingDeleteTarget(null);
+      setProfileFullListOpen(null);
     } catch (err: unknown) {
       setListingDeleteError(
-        err instanceof ApiError ? err.message : 'Не удалось удалить объявление',
-      )
+        err instanceof ApiError ? err.message : "Не удалось удалить объявление",
+      );
     } finally {
-      setListingDeleteSubmitting(false)
+      setListingDeleteSubmitting(false);
     }
-  }
+  };
 
   const handleResendConfirmation = async () => {
-    if (!user?.email) return
-    setResendState('loading')
-    setResendMessage(null)
+    if (!user?.email) return;
+    setResendState("loading");
+    setResendMessage(null);
     try {
-      const { message } = await authApi.resendConfirmation(user.email)
-      setResendState('ok')
-      setResendMessage(message)
+      const { message } = await authApi.resendConfirmation(user.email);
+      setResendState("ok");
+      setResendMessage(message);
     } catch (err: unknown) {
-      setResendState('err')
+      setResendState("err");
       setResendMessage(
-        err instanceof ApiError ? err.message : 'Не удалось отправить письмо',
-      )
+        err instanceof ApiError ? err.message : "Не удалось отправить письмо",
+      );
     }
-  }
+  };
 
   const handleAttachCard = async (event: FormEvent) => {
-    event.preventDefault()
-    if (!accessToken || !cardToken.trim()) return
+    event.preventDefault();
+    if (!accessToken || !cardToken.trim()) return;
 
-    setCardActionLoading(true)
-    setCardMessage(null)
+    setCardActionLoading(true);
+    setCardMessage(null);
     try {
       const created = await attachCard({
         accessToken,
         token: cardToken.trim(),
         setAsDefault,
-      })
+      });
       setCards((prev) => {
-        const withoutCreated = prev.filter((card) => card.id !== created.id)
+        const withoutCreated = prev.filter((card) => card.id !== created.id);
         if (created.isDefault) {
-          return [created, ...withoutCreated.map((card) => ({ ...card, isDefault: false }))]
+          return [
+            created,
+            ...withoutCreated.map((card) => ({ ...card, isDefault: false })),
+          ];
         }
-        return [...withoutCreated, created]
-      })
-      setCardToken('')
-      setSetAsDefault(false)
-      setCardMessage({ type: 'ok', text: 'Карта успешно привязана' })
+        return [...withoutCreated, created];
+      });
+      setCardToken("");
+      setSetAsDefault(false);
+      setCardMessage({ type: "ok", text: "Карта успешно привязана" });
     } catch (err: unknown) {
       setCardMessage({
-        type: 'err',
-        text: err instanceof ApiError ? err.message : 'Не удалось привязать карту',
-      })
+        type: "err",
+        text:
+          err instanceof ApiError ? err.message : "Не удалось привязать карту",
+      });
     } finally {
-      setCardActionLoading(false)
+      setCardActionLoading(false);
     }
-  }
+  };
 
   const handleSetDefaultCard = async (cardId: string) => {
-    if (!accessToken) return
-    setCardActionLoading(true)
-    setCardMessage(null)
+    if (!accessToken) return;
+    setCardActionLoading(true);
+    setCardMessage(null);
     try {
-      await setDefaultCard(accessToken, cardId)
-      setCards((prev) => prev.map((card) => ({ ...card, isDefault: card.id === cardId })))
-      setCardMessage({ type: 'ok', text: 'Карта выбрана для Escrow по умолчанию' })
+      await setDefaultCard(accessToken, cardId);
+      setCards((prev) =>
+        prev.map((card) => ({ ...card, isDefault: card.id === cardId })),
+      );
+      setCardMessage({
+        type: "ok",
+        text: "Карта выбрана для Escrow по умолчанию",
+      });
     } catch (err: unknown) {
       setCardMessage({
-        type: 'err',
-        text: err instanceof ApiError ? err.message : 'Не удалось обновить карту по умолчанию',
-      })
+        type: "err",
+        text:
+          err instanceof ApiError
+            ? err.message
+            : "Не удалось обновить карту по умолчанию",
+      });
     } finally {
-      setCardActionLoading(false)
+      setCardActionLoading(false);
     }
-  }
+  };
 
   const handleRemoveCard = async (cardId: string) => {
-    if (!accessToken) return
-    setCardActionLoading(true)
-    setCardMessage(null)
+    if (!accessToken) return;
+    setCardActionLoading(true);
+    setCardMessage(null);
     try {
-      await removeCard(accessToken, cardId)
-      setCards((prev) => prev.filter((card) => card.id !== cardId))
-      setCardMessage({ type: 'ok', text: 'Карта отвязана' })
+      await removeCard(accessToken, cardId);
+      setCards((prev) => prev.filter((card) => card.id !== cardId));
+      setCardMessage({ type: "ok", text: "Карта отвязана" });
     } catch (err: unknown) {
       setCardMessage({
-        type: 'err',
-        text: err instanceof ApiError ? err.message : 'Не удалось отвязать карту',
-      })
+        type: "err",
+        text:
+          err instanceof ApiError ? err.message : "Не удалось отвязать карту",
+      });
     } finally {
-      setCardActionLoading(false)
+      setCardActionLoading(false);
     }
-  }
+  };
 
   const activeListingsCount = useMemo(
-    () => listings.filter((l) => l.status === 'ACTIVE').length,
+    () => listings.filter((l) => l.status === "ACTIVE").length,
     [listings],
-  )
+  );
 
-  if (!user) return null
+  if (!user) return null;
 
   const initials =
     user.fullName?.trim()?.[0]?.toUpperCase() ||
     user.email?.[0]?.toUpperCase() ||
-    '?'
+    "?";
 
-  const emailNeedsConfirmation = Boolean(user.email && !user.isVerified)
-  const trust = user.trustScore
+  const emailNeedsConfirmation = Boolean(user.email && !user.isVerified);
+  const trust = user.trustScore;
 
   const userRatingSource = user as typeof user & {
-    averageRating?: number | null
-    reviewsCount?: number | null
-    rating?: number | null
-    ratingCount?: number | null
-  }
+    averageRating?: number | null;
+    reviewsCount?: number | null;
+    rating?: number | null;
+    ratingCount?: number | null;
+  };
   const userRating = Math.min(
     5,
     Math.max(0, userRatingSource.averageRating ?? userRatingSource.rating ?? 0),
-  )
+  );
   const userReviewsCount = Math.max(
     0,
     userRatingSource.reviewsCount ?? userRatingSource.ratingCount ?? 0,
-  )
-  const userRatingValue = userReviewsCount > 0 ? formatStarRating(userRating) : '—'
+  );
+  const userRatingValue =
+    userReviewsCount > 0 ? formatStarRating(userRating) : "—";
 
   return (
     <main className="profile-page">
@@ -555,7 +632,11 @@ export function ProfilePage() {
               >
                 <PencilGlyph />
               </button>
-              <button type="button" className="btn btn--primary profile-page__logout" onClick={logout}>
+              <button
+                type="button"
+                className="btn btn--primary profile-page__logout"
+                onClick={logout}
+              >
                 Выйти
               </button>
             </div>
@@ -565,16 +646,32 @@ export function ProfilePage() {
           <section className="profile-hero" aria-label="Сводка профиля">
             <div className="profile-hero__identity">
               <div className="profile-hero__avatar-wrap">
-                <div className="profile-hero__avatar" aria-hidden={!!user.avatarUrl}>
-                  {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : initials}
+                <div
+                  className="profile-hero__avatar"
+                  aria-hidden={!!user.avatarUrl}
+                >
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="" />
+                  ) : (
+                    initials
+                  )}
                 </div>
               </div>
               <div className="profile-hero__text">
-                <p className="profile-hero__name">{user.fullName || 'Без имени'}</p>
-                <p className="profile-hero__since">На Rento — ваш личный кабинет</p>
-                <p className="profile-hero__account">Аккаунт: {formatAccountId(user.id)}</p>
+                <p className="profile-hero__name">
+                  {user.fullName || "Без имени"}
+                </p>
+                <p className="profile-hero__since">
+                  На Rento — ваш личный кабинет
+                </p>
+                <p className="profile-hero__account">
+                  Аккаунт: {formatAccountId(user.id)}
+                </p>
                 {user.addressText?.trim() ? (
-                  <p className="profile-hero__address" style={{ marginTop: 'var(--sp-2)', opacity: 0.92 }}>
+                  <p
+                    className="profile-hero__address"
+                    style={{ marginTop: "var(--sp-2)", opacity: 0.92 }}
+                  >
                     {user.addressText.trim()}
                   </p>
                 ) : null}
@@ -583,11 +680,15 @@ export function ProfilePage() {
 
             <div className="profile-hero__rating-card">
               <div className="profile-hero__rating-top">
-                <span className="profile-hero__rating-value">{userRatingValue}</span>
+                <span className="profile-hero__rating-value">
+                  {userRatingValue}
+                </span>
                 <ProfileStarRow rating={userRating} />
               </div>
               <p className="profile-hero__reviews">
-                {userReviewsCount > 0 ? reviewsLabel(userReviewsCount) : 'Оценок пока нет'}
+                {userReviewsCount > 0
+                  ? reviewsLabel(userReviewsCount)
+                  : "Оценок пока нет"}
               </p>
               <p className="profile-hero__trust-level">
                 Рейтинг зависит только от оценок пользователей
@@ -599,56 +700,95 @@ export function ProfilePage() {
                 <WalletGlyph muted={false} />
               </div>
               <p className="profile-hero__wallet-label">На удержании</p>
-              <p className="profile-hero__wallet-sub">Безопасная сделка (Escrow)</p>
+              <p className="profile-hero__wallet-sub">
+                Безопасная сделка (Escrow)
+              </p>
               <p className="profile-hero__wallet-amount">—</p>
-              <p className="profile-hero__wallet-hint">Сумма удержания отображается в карточке бронирования</p>
+              <p className="profile-hero__wallet-hint">
+                Сумма удержания отображается в карточке бронирования
+              </p>
             </div>
           </section>
 
-          <section className="profile-panel profile-panel--trust" aria-label="Индекс доверия">
+          <section
+            className="profile-panel profile-panel--trust"
+            aria-label="Индекс доверия"
+          >
             <div className="profile-panel__head">
               <h3 className="profile-panel__title">Индекс доверия</h3>
             </div>
-            {trust ? <div className="profile-trust-score-badge">{trust.currentScore}</div> : null}
+            {trust ? (
+              <div className="profile-trust-score-badge">
+                {trust.currentScore}
+              </div>
+            ) : null}
             <p className="profile-panel__hint">
-              Индекс доверия учитывает только историю возвратов по завершённым сделкам.
+              Индекс доверия учитывает только историю возвратов по завершённым
+              сделкам.
             </p>
             {trust ? (
               <>
-                <div className="profile-trust" style={{ marginTop: 'var(--sp-3)' }}>
+                <div
+                  className="profile-trust"
+                  style={{ marginTop: "var(--sp-3)" }}
+                >
                   <div className="profile-trust__item">
-                    <span className="profile-trust__label">Подтверждение личности</span>
+                    <span className="profile-trust__label">
+                      Подтверждение личности
+                    </span>
                     <span className="profile-trust__value">Скоро</span>
                   </div>
                   <div className="profile-trust__item">
-                    <span className="profile-trust__label">Возвраты в срок</span>
+                    <span className="profile-trust__label">
+                      Возвраты в срок
+                    </span>
                     <span className="profile-trust__value">
-                      {calculateOnTimeReturnsRate(trust.totalDeals, trust.lateReturns)}%
+                      {calculateOnTimeReturnsRate(
+                        trust.totalDeals,
+                        trust.lateReturns,
+                      )}
+                      %
                     </span>
                   </div>
                   <div className="profile-trust__item">
                     <span className="profile-trust__label">Всего сделок</span>
-                    <span className="profile-trust__value">{trust.totalDeals}</span>
+                    <span className="profile-trust__value">
+                      {trust.totalDeals}
+                    </span>
                   </div>
                   <div className="profile-trust__item">
-                    <span className="profile-trust__label">Успешных сделок</span>
-                    <span className="profile-trust__value">{trust.successfulDeals}</span>
+                    <span className="profile-trust__label">
+                      Успешных сделок
+                    </span>
+                    <span className="profile-trust__value">
+                      {trust.successfulDeals}
+                    </span>
                   </div>
                   <div className="profile-trust__item">
-                    <span className="profile-trust__label">Просроченных возвратов</span>
-                    <span className="profile-trust__value">{trust.lateReturns}</span>
+                    <span className="profile-trust__label">
+                      Просроченных возвратов
+                    </span>
+                    <span className="profile-trust__value">
+                      {trust.lateReturns}
+                    </span>
                   </div>
                   <div className="profile-trust__item">
                     <span className="profile-trust__label">Отзывы</span>
                     <span className="profile-trust__value">
-                      {userReviewsCount > 0 ? `Оценка ${userRatingValue}` : 'Оценка —'}
+                      {userReviewsCount > 0
+                        ? `Оценка ${userRatingValue}`
+                        : "Оценка —"}
                     </span>
                   </div>
                 </div>
               </>
             ) : (
-              <p className="profile-panel__hint" style={{ marginTop: 'var(--sp-3)' }}>
-                Индекс пока не рассчитан. Появится после первой синхронизации данных профиля.
+              <p
+                className="profile-panel__hint"
+                style={{ marginTop: "var(--sp-3)" }}
+              >
+                Индекс пока не рассчитан. Появится после первой синхронизации
+                данных профиля.
               </p>
             )}
           </section>
@@ -661,44 +801,66 @@ export function ProfilePage() {
                 </div>
                 <div>
                   <p className="profile-aside__verify-title">
-                    {user.isVerified ? 'Email подтверждён' : 'Статус не подтверждён'}
+                    {user.isVerified
+                      ? "Email подтверждён"
+                      : "Статус не подтверждён"}
                   </p>
                   <p className="profile-aside__verify-text">
                     {user.isVerified
-                      ? 'Подтверждение личности через Госуслуги появится в следующей версии.'
-                      : 'Подтвердите email, чтобы разблокировать все функции сервиса.'}
+                      ? "Подтверждение личности через Госуслуги появится в следующей версии."
+                      : "Подтвердите email, чтобы разблокировать все функции сервиса."}
                   </p>
                 </div>
-                <button type="button" className="btn btn--brand profile-aside__verify-btn" disabled>
+                <button
+                  type="button"
+                  className="btn btn--brand profile-aside__verify-btn"
+                  disabled
+                >
                   Через Госуслуги
                 </button>
               </div>
 
               <div className="profile-aside__stats">
                 <div className="profile-stat-card">
-                  <span className="profile-stat-card__icon profile-stat-card__icon--ok" aria-hidden>
+                  <span
+                    className="profile-stat-card__icon profile-stat-card__icon--ok"
+                    aria-hidden
+                  >
                     ✓
                   </span>
                   <div>
                     <p className="profile-stat-card__label">Сделки</p>
                     <p className="profile-stat-card__hint">История сделок</p>
                   </div>
-                  <span className="profile-stat-card__value">{trust?.totalDeals ?? 0}</span>
+                  <span className="profile-stat-card__value">
+                    {trust?.totalDeals ?? 0}
+                  </span>
                 </div>
                 <div className="profile-stat-card">
-                  <span className="profile-stat-card__icon profile-stat-card__icon--plus" aria-hidden>
+                  <span
+                    className="profile-stat-card__icon profile-stat-card__icon--plus"
+                    aria-hidden
+                  >
                     +
                   </span>
                   <div>
                     <p className="profile-stat-card__label">Объявления</p>
                     <p className="profile-stat-card__hint">Активные</p>
                   </div>
-                  <span className="profile-stat-card__value">{activeListingsCount}</span>
+                  <span className="profile-stat-card__value">
+                    {activeListingsCount}
+                  </span>
                 </div>
               </div>
 
-              <section className="profile-aside__data" aria-labelledby="profile-user-data-title">
-                <h2 id="profile-user-data-title" className="profile-aside__data-title">
+              <section
+                className="profile-aside__data"
+                aria-labelledby="profile-user-data-title"
+              >
+                <h2
+                  id="profile-user-data-title"
+                  className="profile-aside__data-title"
+                >
                   Данные пользователя
                 </h2>
                 {user.phone ? (
@@ -709,7 +871,9 @@ export function ProfilePage() {
                 ) : (
                   <div className="profile-aside__row">
                     <PhoneGlyph />
-                    <span className="profile-aside__muted">Телефон не указан</span>
+                    <span className="profile-aside__muted">
+                      Телефон не указан
+                    </span>
                   </div>
                 )}
                 {user.email ? (
@@ -721,300 +885,381 @@ export function ProfilePage() {
                 {user.addressText?.trim() ? (
                   <div className="profile-aside__row">
                     <HomeGlyph />
-                    <span className="profile-aside__address">{user.addressText.trim()}</span>
+                    <span className="profile-aside__address">
+                      {user.addressText.trim()}
+                    </span>
                   </div>
                 ) : (
                   <div className="profile-aside__row">
                     <HomeGlyph />
-                    <span className="profile-aside__muted">Адрес не указан — добавьте в редактировании профиля</span>
+                    <span className="profile-aside__muted">
+                      Адрес не указан — добавьте в редактировании профиля
+                    </span>
                   </div>
                 )}
                 <div className="profile-aside__row">
                   <ShieldGlyph />
                   <span>{userStatusLabelRu(user.status)}</span>
                 </div>
-                {user.role === 'ADMIN' ? (
+                {user.role === "ADMIN" ? (
                   <p className="profile-aside__role">Роль: администратор</p>
                 ) : null}
               </section>
             </aside>
 
             <div className="profile-main">
-            <div className="profile-cards">
-              <section className="profile-panel profile-panel--muted" aria-labelledby="profile-wallet-title">
-                <div className="profile-panel__head">
-                  <h3 id="profile-wallet-title" className="profile-panel__title">
-                    Карты для Escrow
-                  </h3>
-                  <WalletGlyph />
-                </div>
-                <p className="profile-panel__hint">
-                  Привяжите карту через защищенный платежный шлюз. На backend сейчас используется заглушка:
-                  для теста используйте любой непустой токен.
-                </p>
-                <form className="profile-cards-form" onSubmit={(e) => void handleAttachCard(e)}>
-                  <div className="field" style={{ marginBottom: 0 }}>
-                    <label className="field__label" htmlFor="card-token">
-                      Токен карты из шлюза
-                    </label>
-                    <input
-                      id="card-token"
-                      className="field__input"
-                      value={cardToken}
-                      onChange={(e) => setCardToken(e.target.value)}
-                      placeholder="pm_token_..."
-                      maxLength={255}
-                    />
+              <div className="profile-cards">
+                <section
+                  className="profile-panel profile-panel--muted"
+                  aria-labelledby="profile-wallet-title"
+                >
+                  <div className="profile-panel__head">
+                    <h3
+                      id="profile-wallet-title"
+                      className="profile-panel__title"
+                    >
+                      Карты для Escrow
+                    </h3>
+                    <WalletGlyph />
                   </div>
-                  <label className="profile-cards-form__checkbox">
-                    <input
-                      type="checkbox"
-                      checked={setAsDefault}
-                      onChange={(e) => setSetAsDefault(e.target.checked)}
-                    />
-                    <span>Сделать основной картой для удержаний</span>
-                  </label>
-                  <button
-                    type="submit"
-                    className="btn btn--brand"
-                    disabled={cardActionLoading || !cardToken.trim()}
-                  >
-                    {cardActionLoading ? 'Привязка…' : 'Привязать карту'}
-                  </button>
-                </form>
-                {cardMessage ? (
-                  <p
-                    className={`profile-resend-msg${cardMessage.type === 'ok' ? ' profile-resend-msg--ok' : ' profile-resend-msg--err'}`}
-                    style={{ marginTop: 'var(--sp-3)' }}
-                  >
-                    {cardMessage.text}
+                  <p className="profile-panel__hint">
+                    Привяжите карту через защищенный платежный шлюз. На backend
+                    сейчас используется заглушка: для теста используйте любой
+                    непустой токен.
                   </p>
-                ) : null}
-                {cardsError ? <p className="profile-resend-msg profile-resend-msg--err">{cardsError}</p> : null}
-                {cardsLoading ? (
-                  <div className="skeleton" style={{ height: 70, borderRadius: 'var(--r-md)' }} />
-                ) : cards.length === 0 ? (
-                  <div className="status" style={{ marginTop: 'var(--sp-3)' }}>
-                    Пока нет привязанных карт
-                  </div>
-                ) : (
-                  <>
-                    <ul className="profile-bank-cards" aria-label="Привязанные банковские карты">
-                      {visibleCards.map((card) => (
-                        <li key={card.id} className="profile-bank-cards__item">
-                          <div>
-                            <strong>
-                              {card.cardType} •••• {card.last4}
-                            </strong>
-                            <div className="profile-bank-cards__meta">
-                              {card.isDefault ? 'Карта по умолчанию' : 'Дополнительная карта'}
+                  <form
+                    className="profile-cards-form"
+                    onSubmit={(e) => void handleAttachCard(e)}
+                  >
+                    <div className="field" style={{ marginBottom: 0 }}>
+                      <label className="field__label" htmlFor="card-token">
+                        Токен карты из шлюза
+                      </label>
+                      <input
+                        id="card-token"
+                        className="field__input"
+                        value={cardToken}
+                        onChange={(e) => setCardToken(e.target.value)}
+                        placeholder="pm_token_..."
+                        maxLength={255}
+                      />
+                    </div>
+                    <label className="profile-cards-form__checkbox">
+                      <input
+                        type="checkbox"
+                        checked={setAsDefault}
+                        onChange={(e) => setSetAsDefault(e.target.checked)}
+                      />
+                      <span>Сделать основной картой для удержаний</span>
+                    </label>
+                    <button
+                      type="submit"
+                      className="btn btn--brand"
+                      disabled={cardActionLoading || !cardToken.trim()}
+                    >
+                      {cardActionLoading ? "Привязка…" : "Привязать карту"}
+                    </button>
+                  </form>
+                  {cardMessage ? (
+                    <p
+                      className={`profile-resend-msg${cardMessage.type === "ok" ? " profile-resend-msg--ok" : " profile-resend-msg--err"}`}
+                      style={{ marginTop: "var(--sp-3)" }}
+                    >
+                      {cardMessage.text}
+                    </p>
+                  ) : null}
+                  {cardsError ? (
+                    <p className="profile-resend-msg profile-resend-msg--err">
+                      {cardsError}
+                    </p>
+                  ) : null}
+                  {cardsLoading ? (
+                    <div
+                      className="skeleton"
+                      style={{ height: 70, borderRadius: "var(--r-md)" }}
+                    />
+                  ) : cards.length === 0 ? (
+                    <div
+                      className="status"
+                      style={{ marginTop: "var(--sp-3)" }}
+                    >
+                      Пока нет привязанных карт
+                    </div>
+                  ) : (
+                    <>
+                      <ul
+                        className="profile-bank-cards"
+                        aria-label="Привязанные банковские карты"
+                      >
+                        {visibleCards.map((card) => (
+                          <li
+                            key={card.id}
+                            className="profile-bank-cards__item"
+                          >
+                            <div>
+                              <strong>
+                                {card.cardType} •••• {card.last4}
+                              </strong>
+                              <div className="profile-bank-cards__meta">
+                                {card.isDefault
+                                  ? "Карта по умолчанию"
+                                  : "Дополнительная карта"}
+                              </div>
                             </div>
-                          </div>
-                          <div className="profile-bank-cards__actions">
-                            {!card.isDefault ? (
+                            <div className="profile-bank-cards__actions">
+                              {!card.isDefault ? (
+                                <button
+                                  type="button"
+                                  className="btn btn--ghost"
+                                  disabled={cardActionLoading}
+                                  onClick={() =>
+                                    void handleSetDefaultCard(card.id)
+                                  }
+                                >
+                                  Сделать основной
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
                                 className="btn btn--ghost"
                                 disabled={cardActionLoading}
-                                onClick={() => void handleSetDefaultCard(card.id)}
+                                onClick={() => void handleRemoveCard(card.id)}
                               >
-                                Сделать основной
+                                Удалить
                               </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                      {cards.length > PROFILE_CARDS_PREVIEW ? (
+                        <button
+                          type="button"
+                          className="btn btn--ghost profile-expand-more-btn"
+                          onClick={() => setProfileFullListOpen("cards")}
+                        >
+                          Показать все карты ({cards.length})
+                          <span
+                            className="profile-expand-more-btn__chevron"
+                            aria-hidden
+                          >
+                            ▼
+                          </span>
+                        </button>
+                      ) : null}
+                    </>
+                  )}
+                </section>
+
+                {emailNeedsConfirmation ? (
+                  <section
+                    className="profile-panel profile-panel--alert profile-cards__span"
+                    aria-labelledby="profile-email-title"
+                  >
+                    <div className="profile-panel__head">
+                      <h3
+                        id="profile-email-title"
+                        className="profile-panel__title"
+                      >
+                        Подтвердите email
+                      </h3>
+                    </div>
+                    <p className="profile-panel__hint">
+                      На адрес <strong>{user.email}</strong> отправлено письмо
+                      со ссылкой. Без подтверждения часть функций может быть
+                      недоступна.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn--brand"
+                      disabled={resendState === "loading"}
+                      onClick={() => void handleResendConfirmation()}
+                    >
+                      {resendState === "loading"
+                        ? "Отправка…"
+                        : "Отправить письмо ещё раз"}
+                    </button>
+                    {resendMessage ? (
+                      <p
+                        className={`profile-resend-msg${resendState === "ok" ? " profile-resend-msg--ok" : ""}${resendState === "err" ? " profile-resend-msg--err" : ""}`}
+                        style={{ marginTop: "var(--sp-3)" }}
+                      >
+                        {resendMessage}
+                      </p>
+                    ) : null}
+                  </section>
+                ) : null}
+              </div>
+
+              <ProfileEditModal
+                open={profileEditOpen}
+                onClose={() => setProfileEditOpen(false)}
+                user={user}
+                accessToken={accessToken}
+                refreshProfile={refreshProfile}
+              />
+
+              <section
+                className="profile-listings"
+                aria-labelledby="profile-listings-title"
+              >
+                <div className="profile-listings__head">
+                  <h2
+                    id="profile-listings-title"
+                    className="profile-listings__title"
+                  >
+                    Мои объявления
+                  </h2>
+                  <Link to="/create-item" className="btn btn--brand">
+                    Добавить
+                  </Link>
+                </div>
+
+                {error ? (
+                  <div className="alert alert--error">{error}</div>
+                ) : null}
+
+                {loading ? (
+                  <div
+                    className="skeleton"
+                    style={{ height: 120, borderRadius: "var(--r-md)" }}
+                  />
+                ) : listings.length === 0 ? (
+                  <div className="status">У вас пока нет объявлений.</div>
+                ) : (
+                  <>
+                    <div className="profile-listings-grid">
+                      {visibleListings.map((listing) => (
+                        <div
+                          key={listing.id}
+                          className="profile-listing-card profile-listing-card--tile"
+                        >
+                          <Link
+                            to={
+                              listing.status === "DRAFT"
+                                ? `/listings/${listing.id}/edit`
+                                : `/listings/${listing.id}`
+                            }
+                            className="profile-listing-card__link"
+                            aria-label={listing.title}
+                          />
+                          <div className="profile-listing-card__thumb">
+                            {listing.photos?.[0]?.url ? (
+                              <img src={listing.photos[0].url} alt="" />
                             ) : null}
+                          </div>
+                          <div className="profile-listing-card__body">
+                            <h3 className="profile-listing-card__title">
+                              {listing.title}
+                            </h3>
+                            <div className="profile-listing-card__meta">
+                              <span>
+                                {formatListingRentalPriceRu(
+                                  listing.rentalPrice,
+                                  listing.rentalPeriod as RentalPeriod,
+                                )}
+                              </span>
+                              <span>•</span>
+                              <span
+                                style={{
+                                  color:
+                                    listing.status === "ACTIVE"
+                                      ? "var(--success-fg, #15803d)"
+                                      : "var(--ink-500)",
+                                }}
+                              >
+                                {listing.status === "ACTIVE"
+                                  ? "Активно"
+                                  : "Черновик"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="profile-listing-card__actions">
+                            <Link
+                              to={`/listings/${listing.id}/edit`}
+                              className="btn btn--ghost"
+                              style={{
+                                padding: "6px 12px",
+                                fontSize: "0.85rem",
+                              }}
+                            >
+                              Изменить
+                            </Link>
+                            <Link
+                              to={`/listings/${listing.id}/calendar`}
+                              className="btn btn--ghost"
+                              style={{
+                                padding: "6px 12px",
+                                fontSize: "0.85rem",
+                              }}
+                            >
+                              Календарь
+                            </Link>
                             <button
                               type="button"
+                              onClick={() =>
+                                openListingDeleteModal(
+                                  listing.id,
+                                  listing.title,
+                                )
+                              }
                               className="btn btn--ghost"
-                              disabled={cardActionLoading}
-                              onClick={() => void handleRemoveCard(card.id)}
+                              style={{
+                                padding: "6px 12px",
+                                fontSize: "0.85rem",
+                                color: "var(--danger-fg, #b91c1c)",
+                              }}
                             >
                               Удалить
                             </button>
                           </div>
-                        </li>
+                        </div>
                       ))}
-                    </ul>
-                    {cards.length > PROFILE_CARDS_PREVIEW ? (
-                      <button
-                        type="button"
-                        className="btn btn--ghost profile-expand-more-btn"
-                        onClick={() => setProfileFullListOpen('cards')}
-                      >
-                        Показать все карты ({cards.length})
-                        <span className="profile-expand-more-btn__chevron" aria-hidden>
-                          ▼
+                    </div>
+                    {listingsTotalPages > 1 ? (
+                      <div className="profile-listings-pagination">
+                        <button
+                          type="button"
+                          className="btn btn--ghost"
+                          disabled={currentListingsPage === 1}
+                          onClick={() =>
+                            setListingsPage(
+                              Math.max(1, currentListingsPage - 1),
+                            )
+                          }
+                        >
+                          Назад
+                        </button>
+                        <span className="profile-listings-pagination__meta">
+                          Страница {currentListingsPage} из {listingsTotalPages}
                         </span>
-                      </button>
+                        <button
+                          type="button"
+                          className="btn btn--ghost"
+                          disabled={currentListingsPage === listingsTotalPages}
+                          onClick={() =>
+                            setListingsPage(
+                              Math.min(
+                                listingsTotalPages,
+                                currentListingsPage + 1,
+                              ),
+                            )
+                          }
+                        >
+                          Далее
+                        </button>
+                      </div>
                     ) : null}
                   </>
                 )}
               </section>
-
-              {emailNeedsConfirmation ? (
-                <section
-                  className="profile-panel profile-panel--alert profile-cards__span"
-                  aria-labelledby="profile-email-title"
-                >
-                  <div className="profile-panel__head">
-                    <h3 id="profile-email-title" className="profile-panel__title">
-                      Подтвердите email
-                    </h3>
-                  </div>
-                  <p className="profile-panel__hint">
-                    На адрес <strong>{user.email}</strong> отправлено письмо со ссылкой. Без подтверждения часть
-                    функций может быть недоступна.
-                  </p>
-                  <button
-                    type="button"
-                    className="btn btn--brand"
-                    disabled={resendState === 'loading'}
-                    onClick={() => void handleResendConfirmation()}
-                  >
-                    {resendState === 'loading' ? 'Отправка…' : 'Отправить письмо ещё раз'}
-                  </button>
-                  {resendMessage ? (
-                    <p
-                      className={`profile-resend-msg${resendState === 'ok' ? ' profile-resend-msg--ok' : ''}${resendState === 'err' ? ' profile-resend-msg--err' : ''}`}
-                      style={{ marginTop: 'var(--sp-3)' }}
-                    >
-                      {resendMessage}
-                    </p>
-                  ) : null}
-                </section>
-              ) : null}
             </div>
-
-            <ProfileEditModal
-              open={profileEditOpen}
-              onClose={() => setProfileEditOpen(false)}
-              user={user}
-              accessToken={accessToken}
-              refreshProfile={refreshProfile}
-            />
-
-            <section className="profile-listings" aria-labelledby="profile-listings-title">
-              <div className="profile-listings__head">
-                <h2 id="profile-listings-title" className="profile-listings__title">
-                  Мои объявления
-                </h2>
-                <Link to="/create-item" className="btn btn--brand">
-                  Добавить
-                </Link>
-              </div>
-
-              {error ? <div className="alert alert--error">{error}</div> : null}
-
-              {loading ? (
-                <div className="skeleton" style={{ height: 120, borderRadius: 'var(--r-md)' }} />
-              ) : listings.length === 0 ? (
-                <div className="status">У вас пока нет объявлений.</div>
-              ) : (
-                <>
-                  <div className="profile-listings-grid">
-                    {visibleListings.map((listing) => (
-                      <div key={listing.id} className="profile-listing-card profile-listing-card--tile">
-                        <Link
-                          to={
-                            listing.status === 'DRAFT'
-                              ? `/listings/${listing.id}/edit`
-                              : `/listings/${listing.id}`
-                          }
-                          className="profile-listing-card__link"
-                          aria-label={listing.title}
-                        />
-                        <div className="profile-listing-card__thumb">
-                          {listing.photos?.[0]?.url ? (
-                            <img src={listing.photos[0].url} alt="" />
-                          ) : null}
-                        </div>
-                        <div className="profile-listing-card__body">
-                          <h3 className="profile-listing-card__title">{listing.title}</h3>
-                          <div className="profile-listing-card__meta">
-                            <span>
-                              {formatListingRentalPriceRu(
-                                listing.rentalPrice,
-                                listing.rentalPeriod as RentalPeriod,
-                              )}
-                            </span>
-                            <span>•</span>
-                            <span
-                              style={{
-                                color:
-                                  listing.status === 'ACTIVE'
-                                    ? 'var(--success-fg, #15803d)'
-                                    : 'var(--ink-500)',
-                              }}
-                            >
-                              {listing.status === 'ACTIVE' ? 'Активно' : 'Черновик'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="profile-listing-card__actions">
-                          <Link
-                            to={`/listings/${listing.id}/edit`}
-                            className="btn btn--ghost"
-                            style={{ padding: '6px 12px', fontSize: '0.85rem' }}
-                          >
-                            Изменить
-                          </Link>
-                          <Link
-                            to={`/listings/${listing.id}/calendar`}
-                            className="btn btn--ghost"
-                            style={{ padding: '6px 12px', fontSize: '0.85rem' }}
-                          >
-                            Календарь
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => openListingDeleteModal(listing.id, listing.title)}
-                            className="btn btn--ghost"
-                            style={{
-                              padding: '6px 12px',
-                              fontSize: '0.85rem',
-                              color: 'var(--danger-fg, #b91c1c)',
-                            }}
-                          >
-                            Удалить
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {listingsTotalPages > 1 ? (
-                    <div className="profile-listings-pagination">
-                      <button
-                        type="button"
-                        className="btn btn--ghost"
-                        disabled={currentListingsPage === 1}
-                        onClick={() => setListingsPage(Math.max(1, currentListingsPage - 1))}
-                      >
-                        Назад
-                      </button>
-                      <span className="profile-listings-pagination__meta">
-                        Страница {currentListingsPage} из {listingsTotalPages}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn--ghost"
-                        disabled={currentListingsPage === listingsTotalPages}
-                        onClick={() =>
-                          setListingsPage(Math.min(listingsTotalPages, currentListingsPage + 1))
-                        }
-                      >
-                        Далее
-                      </button>
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </section>
           </div>
         </div>
       </div>
-    </div>
 
       <ProfileFullListModal
         title="Все привязанные карты"
-        open={profileFullListOpen === 'cards'}
+        open={profileFullListOpen === "cards"}
         onClose={() => setProfileFullListOpen(null)}
       >
         <ul className="profile-bank-cards" aria-label="Все банковские карты">
@@ -1025,7 +1270,9 @@ export function ProfilePage() {
                   {card.cardType} •••• {card.last4}
                 </strong>
                 <div className="profile-bank-cards__meta">
-                  {card.isDefault ? 'Карта по умолчанию' : 'Дополнительная карта'}
+                  {card.isDefault
+                    ? "Карта по умолчанию"
+                    : "Дополнительная карта"}
                 </div>
               </div>
               <div className="profile-bank-cards__actions">
@@ -1059,8 +1306,8 @@ export function ProfilePage() {
           role="presentation"
           onClick={() => {
             if (!listingDeleteSubmitting) {
-              setListingDeleteTarget(null)
-              setListingDeleteError(null)
+              setListingDeleteTarget(null);
+              setListingDeleteError(null);
             }
           }}
         >
@@ -1077,34 +1324,53 @@ export function ProfilePage() {
               aria-label="Закрыть"
               disabled={listingDeleteSubmitting}
               onClick={() => {
-                setListingDeleteTarget(null)
-                setListingDeleteError(null)
+                setListingDeleteTarget(null);
+                setListingDeleteError(null);
               }}
             >
               ×
             </button>
-            <h2 id="profile-delete-listing-title" className="modal__title" style={{ marginTop: 0 }}>
+            <h2
+              id="profile-delete-listing-title"
+              className="modal__title"
+              style={{ marginTop: 0 }}
+            >
               Удалить объявление?
             </h2>
-            <p className="modal__subtitle" style={{ marginBottom: 'var(--sp-4)' }}>
+            <p
+              className="modal__subtitle"
+              style={{ marginBottom: "var(--sp-4)" }}
+            >
               Объявление «
-              <strong style={{ wordBreak: 'break-word' }}>{listingDeleteTarget.title}</strong>» будет
-              удалено без возможности восстановления. Активные карточки исчезнут из каталога, черновики
-              тоже.
+              <strong style={{ wordBreak: "break-word" }}>
+                {listingDeleteTarget.title}
+              </strong>
+              » будет удалено без возможности восстановления. Активные карточки
+              исчезнут из каталога, черновики тоже.
             </p>
             {listingDeleteError ? (
-              <div className="alert alert--error" style={{ marginBottom: 'var(--sp-3)' }}>
+              <div
+                className="alert alert--error"
+                style={{ marginBottom: "var(--sp-3)" }}
+              >
                 {listingDeleteError}
               </div>
             ) : null}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-3)', justifyContent: 'flex-end' }}>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "var(--sp-3)",
+                justifyContent: "flex-end",
+              }}
+            >
               <button
                 type="button"
                 className="btn btn--ghost-solid"
                 disabled={listingDeleteSubmitting}
                 onClick={() => {
-                  setListingDeleteTarget(null)
-                  setListingDeleteError(null)
+                  setListingDeleteTarget(null);
+                  setListingDeleteError(null);
                 }}
               >
                 Отмена
@@ -1115,14 +1381,14 @@ export function ProfilePage() {
                 disabled={listingDeleteSubmitting}
                 onClick={() => void handleListingDeleteConfirm()}
               >
-                {listingDeleteSubmitting ? 'Удаление…' : 'Да, удалить'}
+                {listingDeleteSubmitting ? "Удаление…" : "Да, удалить"}
               </button>
             </div>
           </div>
         </div>
       ) : null}
     </main>
-  )
+  );
 }
 
 function PencilGlyph() {
@@ -1140,59 +1406,91 @@ function PencilGlyph() {
     >
       <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
     </svg>
-  )
+  );
 }
 
 function ProfileStarRow({ rating }: { rating: number }) {
-  const safeRating = Math.min(5, Math.max(0, rating))
-  const filled = Math.round(safeRating)
-  const label = `${formatStarRating(safeRating)} из 5`
+  const safeRating = Math.min(5, Math.max(0, rating));
+  const filled = Math.round(safeRating);
+  const label = `${formatStarRating(safeRating)} из 5`;
   return (
     <div className="profile-hero__stars" role="img" aria-label={label}>
       {Array.from({ length: 5 }, (_, i) => (
         <span
           key={i}
-          className={i < filled ? 'profile-hero__star profile-hero__star--on' : 'profile-hero__star'}
+          className={
+            i < filled
+              ? "profile-hero__star profile-hero__star--on"
+              : "profile-hero__star"
+          }
           aria-hidden
         >
           ★
         </span>
       ))}
     </div>
-  )
+  );
 }
 
 function HomeGlyph() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden stroke="currentColor" fill="none" strokeWidth="1.7" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      stroke="currentColor"
+      fill="none"
+      strokeWidth="1.7"
+      strokeLinejoin="round"
+    >
       <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z" />
     </svg>
-  )
+  );
 }
 
 function MailGlyph() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden stroke="currentColor" fill="none" strokeWidth="1.7" strokeLinecap="round">
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      stroke="currentColor"
+      fill="none"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+    >
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="M3 7l9 6 9-6" />
     </svg>
-  )
+  );
 }
 
 function PhoneGlyph() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden stroke="currentColor" fill="none" strokeWidth="1.7" strokeLinecap="round">
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      stroke="currentColor"
+      fill="none"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+    >
       <path d="M6 3h4l2 5-2 1a12 12 0 0 0 5 5l1-2 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 6 5a2 2 0 0 1 2-2z" />
     </svg>
-  )
+  );
 }
 
 function ShieldGlyph() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden stroke="currentColor" fill="none" strokeWidth="1.7" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      stroke="currentColor"
+      fill="none"
+      strokeWidth="1.7"
+      strokeLinejoin="round"
+    >
       <path d="M12 3l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V7l8-4z" />
     </svg>
-  )
+  );
 }
 
 function WalletGlyph({ muted = true }: { muted?: boolean }) {
@@ -1211,5 +1509,5 @@ function WalletGlyph({ muted = true }: { muted?: boolean }) {
       <path d="M3 10h18" />
       <circle cx="16" cy="13" r="1.5" fill="currentColor" stroke="none" />
     </svg>
-  )
+  );
 }

@@ -80,6 +80,8 @@ export class ListingTextModerationService {
         usedLlm: decision.usedLlm,
         usedRules: decision.usedRules,
         confidence: decision.confidence,
+        reasons: decision.reasons,
+        flags: decision.flags,
       }),
     );
 

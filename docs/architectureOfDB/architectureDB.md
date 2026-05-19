@@ -1,7 +1,49 @@
-# Архитектура БД (PostgreSQL)
+# Архитектура данных Rento
 
-**Источник:** `packages/backend/prisma/schema.prisma`  
+**Источник схемы PostgreSQL:** `packages/backend/prisma/schema.prisma`  
 Идентификаторы — **UUID** (`String @id @default(uuid())`).
+
+## Слои хранения
+
+```mermaid
+flowchart TB
+    subgraph App [NestJS backend]
+        API[Controllers / Services]
+    end
+
+    subgraph Persistent [Постоянные]
+        PG[(PostgreSQL<br/>источник истины)]
+        S3[(S3<br/>фото)]
+    end
+
+    subgraph SearchIndex [Поиск]
+        ES[(Elasticsearch<br/>rento-listings)]
+    end
+
+    subgraph Cache [Кэш / сессии — план]
+        R[(Redis 7)]
+    end
+
+    API --> PG
+    API --> S3
+    API --> ES
+    API -.->|план| R
+
+    R -.->|refresh sessions TTL| API
+    R -.->|кэш search/autocomplete| API
+```
+
+| Хранилище         | Роль                                                         | Статус                                       |
+| ----------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| **PostgreSQL**    | Пользователи, объявления, брони, платежи, trust, верификация | Реализовано                                  |
+| **Elasticsearch** | Полнотекстовый индекс ACTIVE-объявлений                      | Реализовано                                  |
+| **S3**            | Бинарные фото `ListingPhoto`                                 | Реализовано                                  |
+| **Redis**         | Сессии (refresh), кэш ES-выдачи, rate limit                  | **План** — [redis-plan.md](../redis-plan.md) |
+| **Ollama**        | LLM-модерация (HTTP, не БД)                                  | Реализовано                                  |
+
+---
+
+## ER-диаграмма (PostgreSQL)
 
 ```mermaid
 erDiagram
@@ -38,6 +80,15 @@ erDiagram
         string telegramId UK
         datetime createdAt
         datetime updatedAt
+    }
+
+    RefreshToken {
+        uuid id PK
+        uuid userId FK
+        string tokenHash
+        datetime expiresAt
+        datetime revokedAt
+        datetime createdAt
     }
 
     IdentityVerification {
@@ -114,16 +165,10 @@ erDiagram
         date endDate
         datetime startAt
         datetime endAt
-        float rentAmount
-        float depositAmount
         float totalAmount
-        float amountHeld
         string paymentHoldId
         enum status
         enum settlementStatus
-        datetime returnRenterConfirmedAt
-        datetime returnLandlordConfirmedAt
-        datetime returnMutualConfirmedAt
         datetime completedAt
     }
 
@@ -132,27 +177,33 @@ erDiagram
         uuid userId FK
         string token
         string last4
-        string cardType
-        boolean isDefault
         enum status
     }
 ```
 
+### RefreshToken и Redis (план)
+
+| Сейчас                                                | После Redis                                                 |
+| ----------------------------------------------------- | ----------------------------------------------------------- |
+| Каждый login создаёт строку `RefreshToken` в Postgres | Активная сессия в `rento:session:{sessionId}` (TTL 30 дней) |
+| Нет `POST /auth/refresh`                              | Refresh по Redis + ротация токена                           |
+| Access JWT 15 мин, фронт не обновляет                 | Silent refresh в `apiClient`                                |
+
+Таблица `RefreshToken` может остаться для аудита или быть выведена из hot path — см. [redis-plan.md](../redis-plan.md).
+
+---
+
 ## Календарь доступности
 
-Отдельной таблицы «слотов» нет. Занятость вычисляется из:
+Отдельной таблицы «слотов» нет. Занятость:
 
-1. **`Booking`** — статусы, блокирующие даты (см. [state/Booking.md](../state/Booking.md));
+1. **`Booking`** — блокирующие статусы (см. [state/Booking.md](../state/Booking.md));
 2. **`ListingManualCalendarBlock`** — ручные блоки владельца.
 
-## Вне PostgreSQL
-
-| Хранилище         | Данные                                                  |
-| ----------------- | ------------------------------------------------------- |
-| **Elasticsearch** | Индекс `rento-listings` — поиск по активным объявлениям |
-| **S3**            | Файлы `ListingPhoto.url`                                |
-| **Ollama**        | Не в БД; вызовы модерации по HTTP                       |
+---
 
 ## Категории (production)
 
-Справочник `Category`: «Для ремонта», «Для детей», «Для авто», «Для дома», «Для питомцев», «Для хобби», «Разное» (slug: `dlya-remonta` … `raznoe`).
+Справочник `Category`: «Для ремонта», «Для детей», «Для авто», «Для дома», «Для питомцев», «Для хобби», «Разное» (`dlya-remonta` … `raznoe`).
+
+Кэш списка категорий в Redis (план): ключ `rento:categories:active`, инвалидация при изменении `Category`.
