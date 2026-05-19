@@ -49,10 +49,20 @@ function parseFlags(v: unknown): ModerationFlags | null {
   const profanity = asBool(v.profanity);
   const gibberish = asBool(v.gibberish);
   const spamLike = asBool(v.spamLike);
-  if (profanity === null || gibberish === null || spamLike === null) {
+  if (v.profanity !== undefined && profanity === null) {
     return null;
   }
-  return { profanity, gibberish, spamLike };
+  if (v.gibberish !== undefined && gibberish === null) {
+    return null;
+  }
+  if (v.spamLike !== undefined && spamLike === null) {
+    return null;
+  }
+  return {
+    profanity: profanity ?? false,
+    gibberish: gibberish ?? false,
+    spamLike: spamLike ?? false,
+  };
 }
 
 /** Strip markdown fences and pick the outermost `{…}` block (small models often add prose). */
