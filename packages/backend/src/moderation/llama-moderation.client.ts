@@ -194,6 +194,9 @@ export class LlamaModerationClient implements OnModuleInit {
         const parsed = parseLlmModerationJson(raw);
         if (!parsed) {
           lastErr = new Error('Ollama JSON schema mismatch');
+          this.logger.warn(
+            `Ollama response failed schema check (model=${this.config.llmModel}): ${raw.trim().slice(0, 400)}`,
+          );
           continue;
         }
         return raw;

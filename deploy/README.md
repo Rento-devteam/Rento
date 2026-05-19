@@ -66,8 +66,13 @@ CD перед `up` удаляет такой «чужой» контейнер (
 ```bash
 docker rm -f rento-ollama
 docker compose -f deploy/docker-compose.yml up -d --build
+# Важно: внутри контейнера бинарник называется `ollama`, не `pull`:
 docker exec rento-ollama ollama pull llama3.1:8b
+# или из корня репозитория:
+sh deploy/scripts/ensure-ollama-model.sh
 ```
+
+Проверка: `docker exec rento-ollama ollama list` — в списке должна быть `llama3.1:8b` (или ваш `MODERATION_LLM_MODEL`).
 
 Локальный dev compose использует имя **`rento-ollama-dev`**, чтобы не конфликтовать с продом на одной машине.
 

@@ -1,4 +1,7 @@
-import { parseLlmModerationJson } from './moderation-result.schema';
+import {
+  extractModerationJsonPayload,
+  parseLlmModerationJson,
+} from './moderation-result.schema';
 
 describe('parseLlmModerationJson', () => {
   it('parses valid payload', () => {
@@ -17,9 +20,37 @@ describe('parseLlmModerationJson', () => {
     expect(parseLlmModerationJson('not json')).toBeNull();
   });
 
-  it('returns null when keys missing', () => {
+  it('returns null when required fields missing', () => {
     expect(
       parseLlmModerationJson(JSON.stringify({ status: 'allow' })),
     ).toBeNull();
+  });
+
+  it('parses JSON inside markdown fences', () => {
+    const raw = `\`\`\`json
+${JSON.stringify({
+  status: 'allow',
+  confidence: 0.9,
+  reasons: [],
+  flags: { profanity: false, gibberish: false, spamLike: false },
+})}
+\`\`\``;
+    expect(parseLlmModerationJson(raw)?.status).toBe('allow');
+  });
+
+  it('parses JSON with leading prose', () => {
+    const inner = JSON.stringify({
+      status: 'WARN',
+      confidence: '0.55',
+      reasons: ['unclear'],
+      flags: { profanity: false, gibberish: true, spamLike: false },
+    });
+    expect(
+      parseLlmModerationJson(`Here is the result:\n${inner}`)?.status,
+    ).toBe('warn');
+  });
+
+  it('extractModerationJsonPayload picks object block', () => {
+    expect(extractModerationJsonPayload('x {"a":1} y')).toBe('{"a":1}');
   });
 });

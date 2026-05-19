@@ -8,6 +8,12 @@ function asBool(v: unknown): boolean | null {
   if (typeof v === 'boolean') {
     return v;
   }
+  if (v === 'true' || v === 'false') {
+    return v === 'true';
+  }
+  if (v === 1 || v === 0) {
+    return v === 1;
+  }
   return null;
 }
 
@@ -49,22 +55,40 @@ function parseFlags(v: unknown): ModerationFlags | null {
   return { profanity, gibberish, spamLike };
 }
 
+/** Strip markdown fences and pick the outermost `{…}` block (small models often add prose). */
+export function extractModerationJsonPayload(raw: string): string {
+  const trimmed = raw.trim();
+  const fenced = /^```(?:json)?\s*([\s\S]*?)```$/im.exec(trimmed);
+  if (fenced?.[1]) {
+    return fenced[1].trim();
+  }
+  const start = trimmed.indexOf('{');
+  const end = trimmed.lastIndexOf('}');
+  if (start >= 0 && end > start) {
+    return trimmed.slice(start, end + 1);
+  }
+  return trimmed;
+}
+
 /**
  * Validates LLM JSON payload. Returns null if invalid.
  */
 export function parseLlmModerationJson(
   raw: string,
 ): LlmModerationVerdict | null {
+  const payload = extractModerationJsonPayload(raw);
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw) as unknown;
+    parsed = JSON.parse(payload) as unknown;
   } catch {
     return null;
   }
   if (!isRecord(parsed)) {
     return null;
   }
-  const status = parsed.status;
+  const statusRaw = parsed.status;
+  const status =
+    typeof statusRaw === 'string' ? statusRaw.trim().toLowerCase() : null;
   if (status !== 'allow' && status !== 'warn' && status !== 'block') {
     return null;
   }
@@ -72,10 +96,7 @@ export function parseLlmModerationJson(
   if (confidence === null || confidence < 0 || confidence > 1) {
     return null;
   }
-  const reasons = asStrArray(parsed.reasons);
-  if (!reasons) {
-    return null;
-  }
+  const reasons = asStrArray(parsed.reasons) ?? [];
   const flags = parseFlags(parsed.flags);
   if (!flags) {
     return null;
