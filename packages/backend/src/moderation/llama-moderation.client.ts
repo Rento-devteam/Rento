@@ -406,6 +406,7 @@ export class LlamaModerationClient implements OnModuleInit {
       '- Obvious keyboard mash / random letters with NO readable meaning (e.g. "asdfgh", "ываывапролд").',
       '- Pure spam: unrelated ads, many URLs, no description of an item.',
       '',
+      'WARN or BLOCK if the description is only a greeting, one word, or empty filler (e.g. just "привет", "ok", "test") with no item details.',
       'WARN only if the text is mostly readable but genuinely too vague to understand what is rented (not because of typos).',
       '',
       'Flags (be strict — false positives hurt users):',

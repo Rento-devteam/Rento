@@ -22,11 +22,14 @@ export function fuseModeration(input: {
   const usedRules = true;
   const usedLlm = llm !== null;
 
-  const rulesGibberishPublishBlock =
+  const rulesInsufficient = rules.reasons.some((r) =>
+    r.startsWith('rule:insufficient'),
+  );
+  const rulesContentPublishBlock =
     phase === 'publish' &&
     hardBlockEnabled &&
-    rules.flags.gibberish &&
-    !rules.flags.profanity;
+    !rules.flags.profanity &&
+    (rules.flags.gibberish || rulesInsufficient);
 
   if (rules.severity === 'hard_block') {
     return {
@@ -45,7 +48,7 @@ export function fuseModeration(input: {
        * Without LLM, rules-only `warn` used to still allow publish — listings looked “moderated”
        * but garbage text went live. Block **publish** when heuristics flagged gibberish.
        */
-      if (rulesGibberishPublishBlock) {
+      if (rulesContentPublishBlock) {
         return {
           status: 'block',
           reasons: rules.reasons,
@@ -80,8 +83,7 @@ export function fuseModeration(input: {
   const rulesBackedGibberish = rules.flags.gibberish;
 
   /**
-   * Small local models often return block + profanity/gibberish on normal listings.
-   * If heuristics did not flag anything, trust readable copy and allow (draft always; publish too).
+   * Small models over-block normal copy; allow only when rules did not flag content issues.
    */
   if (
     rules.severity === 'none' &&
@@ -89,6 +91,7 @@ export function fuseModeration(input: {
     !rulesBackedProfanity &&
     !rulesBackedGibberish &&
     !rules.flags.spamLike &&
+    !rulesInsufficient &&
     c >= thresholds.warnThreshold
   ) {
     return {
@@ -170,23 +173,8 @@ export function fuseModeration(input: {
     };
   }
 
-  if (llm.status === 'warn' && rules.severity === 'none' && phase === 'draft') {
-    return {
-      status: 'allow',
-      reasons: [],
-      confidence: c,
-      flags: mergeFlags(rules.flags, {
-        profanity: false,
-        gibberish: false,
-        spamLike: false,
-      }),
-      usedLlm,
-      usedRules,
-    };
-  }
-
   if (llm.status === 'warn' || rules.severity === 'warn') {
-    if (rulesGibberishPublishBlock) {
+    if (rulesContentPublishBlock) {
       return {
         status: 'block',
         reasons: mergeReasons(rules.reasons, llm.reasons),

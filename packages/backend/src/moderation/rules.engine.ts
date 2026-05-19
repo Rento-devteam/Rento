@@ -71,14 +71,69 @@ export class RulesEngine {
       reasons.push(`rule:spam_like(${spam.toFixed(2)})`);
     }
 
+    if (this.isInsufficientListingText(title, description)) {
+      reasons.push('rule:insufficient_description');
+    }
+
     let severity: RuleEngineResult['severity'] = 'none';
     if (flags.profanity) {
       severity = 'hard_block';
-    } else if (flags.gibberish || flags.spamLike) {
+    } else if (
+      flags.gibberish ||
+      flags.spamLike ||
+      reasons.some((r) => r.startsWith('rule:insufficient'))
+    ) {
       severity = 'warn';
     }
 
     return { severity, reasons, flags };
+  }
+
+  /**
+   * Description must explain what is rented (not only «привет» or empty body after Бренд/Год/Состояние).
+   */
+  private isInsufficientListingText(
+    title: string,
+    description: string,
+  ): boolean {
+    const titleWords = normalizeListingText(title)
+      .split(/\s+/)
+      .filter((w) => w.length > 0);
+    const body = this.descriptionBodyForModeration(description);
+    const bodyWords = body.split(/\s+/).filter((w) => w.length > 0);
+    const bodyLetters = body.replace(/[^a-zA-Zа-яА-ЯёЁ]/g, '');
+
+    if (bodyWords.length === 0 && bodyLetters.length < 12) {
+      return true;
+    }
+    if (bodyWords.length < 3 && bodyLetters.length < 20) {
+      return true;
+    }
+    if (bodyWords.length < 5 && bodyLetters.length < 35) {
+      return true;
+    }
+    const totalWords = titleWords.length + bodyWords.length;
+    if (totalWords < 6 && bodyLetters.length < 30) {
+      return true;
+    }
+    return false;
+  }
+
+  private descriptionBodyForModeration(description: string): string {
+    const normalized = normalizeListingText(description);
+    const segments = normalized
+      .split(/\.+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    const bodyParts = segments.filter((segment) => {
+      const lower = segment.toLowerCase();
+      return (
+        !lower.startsWith('бренд:') &&
+        !lower.startsWith('год:') &&
+        !lower.startsWith('состояние:')
+      );
+    });
+    return bodyParts.join(' ').trim();
   }
 
   private detectProfanity(scanLower: string): boolean {
