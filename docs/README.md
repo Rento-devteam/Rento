@@ -21,7 +21,6 @@
 | [class/](class/)                                                         | Доменная модель (соответствует Prisma)                                  |
 | [architectureOfDB/architectureDB.md](architectureOfDB/architectureDB.md) | ER-диаграмма PostgreSQL                                                 |
 | [flowshart/flowchart.md](flowshart/flowchart.md)                         | Архитектура сервисов (production)                                       |
-| [redis-plan.md](redis-plan.md)                                           | План: Redis (сессии, кэш Elasticsearch)                                 |
 | [yandex-s3-setup.md](yandex-s3-setup.md)                                 | S3 / Yandex Object Storage                                              |
 
 ## Ключевые отличия от ранних версий docs
@@ -31,8 +30,7 @@
 - **Модерация:** только текст при create/update/publish; `warn` и `block` → **422**, запись не сохраняется.
 - **Бронирование:** `POST /bookings` → `PENDING_PAYMENT` → `CONFIRMED` | `PAYMENT_FAILED`; возврат — `POST /bookings/:id/return/confirm`.
 - **Демо-каталог:** автосид отключён (`CATALOG_DEFAULT_SEED_ENABLED=false` по умолчанию).
-- **Нет в коде:** избранное, чат сделки, handover-чеклисты, `/deals/*`, панель модератора.
-- **Redis:** в плане — [redis-plan.md](redis-plan.md) (сессии + кэш поиска); сейчас refresh только в Postgres, `POST /auth/refresh` отсутствует.
+- **Нет в коде:** избранное, чат сделки, handover-чеклисты, `/deals/*`, панель модератора, Redis-сессии.
 
 ## Production API
 

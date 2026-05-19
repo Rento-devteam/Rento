@@ -184,7 +184,6 @@ sequenceDiagram
 | **API**      | NestJS 11, class-validator, JWT                                   | REST, модули, guards, scheduled jobs                  |
 | **ORM / БД** | Prisma 7, PostgreSQL 16                                           | Миграции, типобезопасный доступ к данным              |
 | **Поиск**    | Elasticsearch 8.11, `@elastic/elasticsearch`                      | Полнотекст, сортировки, geo (при наличии координат)   |
-| **Кэш**      | Redis 7 _(план)_                                                  | Refresh-сессии, кэш выдачи ES — см. ниже              |
 | **Файлы**    | AWS SDK v3 (S3 API)                                               | Фото объявлений (MinIO, Yandex Object Storage и т.п.) |
 | **LLM**      | Ollama + Llama (модель из `MODERATION_LLM_MODEL`)                 | Модерация title/description                           |
 | **Клиент**   | React 19, React Router 7, Vite 6                                  | SPA, маршрутизация, сборка                            |
@@ -452,43 +451,10 @@ docs: описать архитектуру в README
 
 ---
 
-## Redis (план внедрения)
-
-Сейчас сессии — **JWT access (15 мин)** + **refresh в Postgres**, но на фронте **нет** автоматического `POST /auth/refresh`, поэтому через 15 минут пользователь теряет доступ. Elasticsearch вызывается на каждый запрос каталога без кэша.
-
-**Цели Redis:**
-
-1. **Стабильные сессии** — refresh-сессии в Redis, эндпоинт `/auth/refresh`, silent refresh на фронте, ротация refresh-токена.
-2. **Оптимизация поиска** — кэш ответов `GET /search` и `GET /search/autocomplete` с инвалидацией при publish/update/delete объявления.
-
-```mermaid
-flowchart LR
-    FE[Frontend] -->|access JWT| API[Backend]
-    API --> PG[(PostgreSQL)]
-    API --> ES[(Elasticsearch)]
-    API --> R[(Redis)]
-    R -->|session + search cache| API
-```
-
-| Этап | Содержание                                      | Приоритет |
-| ---- | ----------------------------------------------- | --------- |
-| 1    | `redis` в `docker-compose`, `REDIS_URL`, health | P0        |
-| 2    | `POST /auth/refresh`, logout, сессии в Redis    | P0        |
-| 3    | Silent refresh в `apiClient.ts`                 | P0        |
-| 4    | Кэш поиска + сброс при индексации               | P1        |
-| 5    | Вывод hot path из таблицы `RefreshToken`        | P3        |
-
-Полный план с ключами, TTL, критериями приёмки и рисками: **[docs/redis-plan.md](docs/redis-plan.md)**.
-
-Обновлённые диаграммы данных: [docs/architectureOfDB/architectureDB.md](docs/architectureOfDB/architectureDB.md), [docs/flowshart/flowchart.md](docs/flowshart/flowchart.md).
-
----
-
 ## Куда смотреть новому участнику
 
 1. Этот README — обзор архитектуры и стека.
 2. [docs/README.md](docs/README.md) — указатель артефактов (OpenAPI, диаграммы).
-3. [docs/redis-plan.md](docs/redis-plan.md) — план Redis (сессии + кэш ES).
-4. [packages/backend/README.md](packages/backend/README.md) — API, поиск, геокодер, env.
-5. [deploy/README.md](deploy/README.md) — production, Ollama, секреты GitHub Actions.
-6. Контроллеры в `packages/backend/src/**/*.controller.ts` — актуальные HTTP-маршруты.
+3. [packages/backend/README.md](packages/backend/README.md) — API, поиск, геокодер, env.
+4. [deploy/README.md](deploy/README.md) — production, Ollama, секреты GitHub Actions.
+5. Контроллеры в `packages/backend/src/**/*.controller.ts` — актуальные HTTP-маршруты.

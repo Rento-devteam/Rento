@@ -1,6 +1,6 @@
 # Архитектура системы (production)
 
-Соответствует `deploy/docker-compose.yml`. **Redis** — по [redis-plan.md](../redis-plan.md) (внедрение в работе).
+Соответствует `deploy/docker-compose.yml` и модулям NestJS.
 
 ```mermaid
 flowchart LR
@@ -20,7 +20,6 @@ flowchart LR
     subgraph Data [Данные]
         PG[(PostgreSQL)]
         ES[(Elasticsearch)]
-        R[(Redis<br/>сессии + кэш поиска)]
         S3[(S3 фото)]
         Ollama[Ollama LLM]
     end
@@ -38,12 +37,11 @@ flowchart LR
     Caddy -->|/api/*| API
     Caddy -->|/telegram/webhook*| Bot
 
-    FE -.->|JWT access + refresh| Caddy
+    FE -.->|JWT| Caddy
     Bot --> API
 
     API --> PG
     API --> ES
-    API --> R
     API --> S3
     API --> Ollama
     API --> ESIA
@@ -51,12 +49,12 @@ flowchart LR
     API --> SMTP
     API --> Pay
 
-    subgraph API_Modules [Модули backend]
+    subgraph API_Modules [Модули backend — реализовано]
         direction TB
-        M1[Auth + refresh / sessions]
+        M1[Auth + Telegram login]
         M2[Listings + Calendar]
-        M3[Search + ES cache]
-        M4[Bookings + Payments]
+        M3[Search]
+        M4[Bookings + Payments hold]
         M5[Moderation rules+LLM]
         M6[Geo + Verification + TrustScore]
     end
@@ -64,28 +62,20 @@ flowchart LR
     API --> API_Modules
 ```
 
-## Потоки через Redis (план)
+## Не в текущем production-стеке
 
-| Поток                | Redis               | Postgres / ES          |
-| -------------------- | ------------------- | ---------------------- |
-| Login                | `SET session:{sid}` | User                   |
-| `POST /auth/refresh` | read/rotate session | User status            |
-| `GET /search`        | cache hit → skip ES | miss → ES + hydrate PG |
-| Publish listing      | `DEL search:*`      | UPDATE + ES index      |
-
-## Статус компонентов
-
-| Компонент                  | Статус                                            |
-| -------------------------- | ------------------------------------------------- |
-| PostgreSQL, ES, S3, Ollama | Реализовано                                       |
-| Redis                      | Запланировано ([redis-plan.md](../redis-plan.md)) |
-| Chat / WebSocket           | Запланировано                                     |
-| Панель модератора          | Запланировано                                     |
+| Компонент                                | Статус                                     |
+| ---------------------------------------- | ------------------------------------------ |
+| Redis (сессии/кэш)                       | Не используется — JWT + refresh в Postgres |
+| Chat / WebSocket                         | Запланировано                              |
+| Dispute / Report admin                   | Запланировано                              |
+| ИИ-рекомендации (`GET /recommendations`) | Запланировано                              |
+| PWA offline                              | Запланировано                              |
 
 ## Переменные окружения (ключевые)
 
-| Сервис       | Примеры                                                                                |
-| ------------ | -------------------------------------------------------------------------------------- |
-| backend      | `DATABASE_URL`, `ELASTICSEARCH_NODE`, `REDIS_URL`, `JWT_*`, `MODERATION_LLM_*`, `S3_*` |
-| telegram-bot | `BOT_TOKEN`, `BOT_SECRET`, `BACKEND_BASE_URL`                                          |
-| compose      | `CATALOG_DEFAULT_SEED_ENABLED=false`                                                   |
+| Сервис       | Примеры                                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------------- |
+| backend      | `DATABASE_URL`, `ELASTICSEARCH_NODE`, `MODERATION_LLM_*`, `S3_*`, `JWT_*`, `YANDEX_GEOCODER_API_KEY` |
+| telegram-bot | `BOT_TOKEN`, `BOT_SECRET`, `PUBLIC_BOT_BASE_URL`, `BACKEND_BASE_URL`                                 |
+| compose      | `CATALOG_DEFAULT_SEED_ENABLED=false` (демо-каталог выключен)                                         |
