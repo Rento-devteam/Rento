@@ -102,5 +102,6 @@ jobs:
             "set -e; cd \"${DEPLOY_PATH}\"; git fetch origin deploy; git checkout deploy; git pull --ff-only origin deploy; \
             docker rm -f rento-ollama 2>/dev/null || true; \
             docker compose -f deploy/docker-compose.yml up -d --build --remove-orphans; \
+            sh deploy/scripts/ensure-ollama-model.sh deploy/docker-compose.yml; \
             docker compose -f deploy/docker-compose.yml run --rm backend npx prisma migrate deploy; \
             docker compose -f deploy/docker-compose.yml ps ollama backend"
