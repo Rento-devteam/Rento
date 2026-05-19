@@ -40,6 +40,8 @@ services:
       # Listing text moderation (Ollama). Do NOT set localhost in deploy/.env — use http://ollama:11434 inside Docker.
       MODERATION_LLM_BASE_URL: ${MODERATION_LLM_BASE_URL:-http://ollama:11434}
       MODERATION_LLM_MODEL: ${MODERATION_LLM_MODEL:-llama3.1:8b}
+      # Demo catalog (Ninebot / Makita / GoPro) only when explicitly enabled
+      CATALOG_DEFAULT_SEED_ENABLED: ${CATALOG_DEFAULT_SEED_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy
