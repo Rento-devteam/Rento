@@ -60,7 +60,7 @@ export class RulesEngine {
       ),
     );
     /** Catch noise without LLM when Ollama is slow/unavailable. */
-    if (gibScore >= 0.42) {
+    if (gibScore >= 0.5) {
       flags.gibberish = true;
       reasons.push(`rule:gibberish_heuristic(${gibScore.toFixed(2)})`);
     }
