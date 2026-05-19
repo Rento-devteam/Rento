@@ -76,6 +76,8 @@ sh deploy/scripts/ensure-ollama-model.sh
 
 Локальный dev compose использует имя **`rento-ollama-dev`**, чтобы не конфликтовать с продом на одной машине.
 
+Сервис `ollama` в продакшен-compose подключён к сетям **`internal`** (для backend) и **`web`** (чтобы `ollama pull` мог скачивать модели с registry). Без `web` при деплое будет `lookup registry.ollama.ai ... server misbehaving`.
+
 ### Notes
 
 - The frontend is served by `caddy` on `https://$DOMAIN/`. The API is available on `https://$DOMAIN/api/*` (Caddy strips `/api` and proxies to `backend:3000`).
