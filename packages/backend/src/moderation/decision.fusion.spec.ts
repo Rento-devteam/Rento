@@ -185,4 +185,22 @@ describe('fuseModeration', () => {
     });
     expect(out.status).toBe('allow');
   });
+
+  it('allows readable rental copy when clean rules only get an LLM warn without flags', () => {
+    const llm: LlmModerationVerdict = {
+      status: 'warn',
+      confidence: 0.9,
+      reasons: ['tone'],
+      flags: { profanity: false, gibberish: false, spamLike: false },
+    };
+    const out = fuseModeration({
+      phase: 'draft',
+      rules: emptyRules,
+      llm,
+      hardBlockEnabled: true,
+      thresholds,
+    });
+    expect(out.status).toBe('allow');
+    expect(out.reasons).toEqual([]);
+  });
 });

@@ -14,7 +14,7 @@ const publishListingMock = vi.hoisted(() => vi.fn());
 const getOwnedListingForEditMock = vi.hoisted(() => vi.fn());
 const updateListingMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../auth/AuthContext", () => ({
+vi.mock("../auth/useAuth", () => ({
   useAuth: () => useAuthMock(),
 }));
 

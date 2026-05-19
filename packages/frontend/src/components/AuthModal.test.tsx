@@ -21,7 +21,7 @@ const applyAuthSuccess = vi.fn();
 const logout = vi.fn();
 const refreshProfile = vi.fn();
 
-vi.mock("../auth/AuthContext", () => ({
+vi.mock("../auth/useAuth", () => ({
   useAuth: () => ({
     user: null,
     accessToken: null,
