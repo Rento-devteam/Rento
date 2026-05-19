@@ -53,4 +53,19 @@ ${JSON.stringify({
   it('extractModerationJsonPayload picks object block', () => {
     expect(extractModerationJsonPayload('x {"a":1} y')).toBe('{"a":1}');
   });
+
+  it('parses flags when spamLike is omitted (small models)', () => {
+    const raw = JSON.stringify({
+      status: 'block',
+      confidence: 0.85,
+      reasons: ['profanity', 'gibberish'],
+      flags: { profanity: true, gibberish: true },
+    });
+    const v = parseLlmModerationJson(raw);
+    expect(v?.flags).toEqual({
+      profanity: true,
+      gibberish: true,
+      spamLike: false,
+    });
+  });
 });
