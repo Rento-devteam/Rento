@@ -162,6 +162,8 @@ services:
       - rento_ollama_data:/root/.ollama
     networks:
       - internal
+      # Доступ в интернет для `ollama pull` (сеть `internal` — без маршрута наружу).
+      - web
     healthcheck:
       test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
       interval: 20s
