@@ -1,22 +1,19 @@
+# Review — отзывы после сделки
+
+**Статус в коде:** не реализовано (нет модели `Review` в Prisma).
+
 ```mermaid
-    stateDiagram-v2
-    [*] --> Draft: Начало написания
+stateDiagram-v2
+    [*] --> Draft: Запланировано (UC-17)
 
-    Draft --> Published: Опубликован
-   
-    state Published {
-        [*] --> Visible
-        Visible --> Reported: Получена жалоба
-        Reported --> Hidden: FR-504: Скрыт модератором
-        Reported --> Visible: Жалоба отклонена
-    }
-   
-    Edited --> Published: Сохранено
-   
-    Published --> DeletedByAuthor: Удалён автором
-    Hidden --> DeletedByModerator: FR-504: Удалён модератором
-   
-    DeletedByAuthor --> [*]
-    DeletedByModerator --> [*]
+    Draft --> Published: Запланировано
+    Published --> Visible: Запланировано
+    Visible --> Reported: Запланировано
+    Reported --> Hidden: Запланировано
+    Reported --> Visible: жалоба отклонена
 
+    Published --> DeletedByAuthor: Запланировано
+    Hidden --> DeletedByModerator: Запланировано
 ```
+
+**Связь с ARS:** пересчёт `TrustScore` — `POST /internal/trust-score/recalculate` (внутренний API, реализован).

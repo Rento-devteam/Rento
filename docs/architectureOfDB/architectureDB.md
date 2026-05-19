@@ -1,108 +1,158 @@
+# Архитектура БД (PostgreSQL)
+
+**Источник:** `packages/backend/prisma/schema.prisma`  
+Идентификаторы — **UUID** (`String @id @default(uuid())`).
+
 ```mermaid
 erDiagram
-    ПОЛЬЗОВАТЕЛИ {
-        bigint id_пользователя PK
-        string фамилия
-        string имя
-        string отчество
-        boolean проверенный_пользователь
-        boolean пользователь_онлайн
-        datetime последнееВремяОнлайн
-        string пароль
-        string email
-        string номер_телефона
-        string роль
-        string серия_номер_паспорта
-        string фото_аккаунта
-        datetime дата_созданияАккаунта
+    User ||--o{ Listing : owns
+    User ||--o{ Booking : rents
+    User ||--o| IdentityVerification : has
+    User ||--o| TrustScore : has
+    User ||--o{ UserPaymentMethod : has
+    User ||--o{ RefreshToken : has
+    User ||--o{ EmailConfirmationToken : has
+    User ||--o{ TelegramLinkCode : has
+    User ||--o{ TelegramLoginExchangeCode : has
+
+    Category ||--o{ Listing : categorizes
+    Listing ||--o{ ListingPhoto : has
+    Listing ||--o{ ListingManualCalendarBlock : blocks
+    Listing ||--o{ Booking : receives
+
+    TelegramLoginAttempt ||--o{ TelegramLoginExchangeCode : issues
+
+    User {
+        uuid id PK
+        string email UK
+        string passwordHash
+        string fullName
+        string phone
+        string avatarUrl
+        string addressText
+        float addressLatitude
+        float addressLongitude
+        enum role
+        enum status
+        datetime emailConfirmedAt
+        string telegramId UK
+        datetime createdAt
+        datetime updatedAt
     }
 
-    ОБЪЯВЛЕНИЯ {
-        bigint id_объявления PK
-        bigint id_пользователя FK
-        datetime датаПубликации
-        string описание
-        string название
-        string город
-        decimal широта
-        decimal долгота
-        decimal ценаЗаЧас
+    IdentityVerification {
+        uuid id PK
+        uuid userId FK UK
+        string provider
+        enum status
+        datetime verifiedAt
+        datetime expiresAt
+        string lastError
     }
 
-    ПОЛЬЗОВАТЕЛИ_ВЕЩИ {
-        bigint id_пользователя FK
-        bigint id_вещи FK
+    TrustScore {
+        uuid id PK
+        uuid userId FK UK
+        int currentScore
+        int totalDeals
+        int successfulDeals
+        int lateReturns
+        int disputes
+        datetime calculatedAt
     }
 
-    ФОТОГРАФИИ_ОБЪЯВЛЕНИЙ {
-        bigint id_фотографии PK
-        string фотография
+    Category {
+        uuid id PK
+        string name
+        string slug UK
+        string icon
+        int order
+        boolean isActive
     }
 
-    ИЗБРАННОЕ {
-        bigint id_пользователя FK
-        bigint id_объявления FK
+    Listing {
+        uuid id PK
+        uuid ownerId FK
+        uuid categoryId FK
+        string title
+        string description
+        float rentalPrice
+        enum rentalPeriod
+        float depositAmount
+        enum status
+        string addressText
+        float latitude
+        float longitude
+        enum moderationStatus
+        json moderationReasons
+        int moderationVersion
+        float moderationConfidence
     }
 
-    ЧАТЫ {
-        bigint id_чата PK
-        bigint id_объявления FK
-        datetime времяСоздания
-        datetime времяОбновления
+    ListingPhoto {
+        uuid id PK
+        uuid listingId FK
+        string url
+        string thumbnailUrl
+        int order
+        boolean isPrimary
     }
 
-    УЧАСТНИКИ_ЧАТА {
-        bigint участник_id PK
-        bigint id_чата FK
-        bigint id_пользователя FK
-        string роль
+    ListingManualCalendarBlock {
+        uuid id PK
+        uuid listingId FK
+        date startDate
+        date endDate
+        string reason
     }
 
-    СВЯЗЬ_ОБЪЯВЛЕНИЯ_ФОТО {
-        bigint id_объявления FK
-        bigint id_фотографии FK
+    Booking {
+        uuid id PK
+        uuid listingId FK
+        uuid renterId FK
+        date startDate
+        date endDate
+        datetime startAt
+        datetime endAt
+        float rentAmount
+        float depositAmount
+        float totalAmount
+        float amountHeld
+        string paymentHoldId
+        enum status
+        enum settlementStatus
+        datetime returnRenterConfirmedAt
+        datetime returnLandlordConfirmedAt
+        datetime returnMutualConfirmedAt
+        datetime completedAt
     }
 
-    %% Календарь доступности в проекте не хранится как "слоты по дням".
-    %% Доступность вычисляется из:
-    %% 1) активных/блокирующих бронирований (АРЕНДЫ)
-    %% 2) ручных блокировок владельцем (РУЧНЫЕ_БЛОКИ_КАЛЕНДАРЯ_ОБЪЯВЛЕНИЯ)
-    %% Поэтому вместо таблицы КАЛЕНДАРЬ_ДОСТУПНОСТИ хранится только таблица блокировок диапазонов дат.
-
-    РУЧНЫЕ_БЛОКИ_КАЛЕНДАРЯ_ОБЪЯВЛЕНИЯ {
-        bigint id_блока PK
-        bigint id_объявления FK
-        date дата_начала
-        date дата_конца
-        string причина
-        datetime дата_создания
+    UserPaymentMethod {
+        uuid id PK
+        uuid userId FK
+        string token
+        string last4
+        string cardType
+        boolean isDefault
+        enum status
     }
+```
 
-    АРЕНДЫ {
-        bigint id_аренды PK
-        bigint id_объявления FK
-        bigint id_арендатора FK
-        datetime времяНачала
-        datetime времяКонца
-        string статусАренды
-        string статусПлаты
-        decimal залог
-        datetime датаСоздания
-    }
+## Календарь доступности
 
-    %% Relationships
-    ПОЛЬЗОВАТЕЛИ ||--o{ ОБЪЯВЛЕНИЯ : "создает"
-    ПОЛЬЗОВАТЕЛИ ||--o{ ИЗБРАННОЕ : "добавляет в избранное"
-    ПОЛЬЗОВАТЕЛИ ||--o{ ПОЛЬЗОВАТЕЛИ_ВЕЩИ : "владеет"
-    
-    ОБЪЯВЛЕНИЯ ||--o{ ИЗБРАННОЕ : "попадает в избранное"
-    ОБЪЯВЛЕНИЯ ||--o{ ЧАТЫ : "обсуждается в"
-    ОБЪЯВЛЕНИЯ ||--o{ СВЯЗЬ_ОБЪЯВЛЕНИЯ_ФОТО : "используется в"
-    ОБЪЯВЛЕНИЯ ||--o{ РУЧНЫЕ_БЛОКИ_КАЛЕНДАРЯ_ОБЪЯВЛЕНИЯ : "имеет блокировки"
-    ОБЪЯВЛЕНИЯ ||--o{ АРЕНДЫ : "имеет бронирования"
-    
-    ФОТОГРАФИИ_ОБЪЯВЛЕНИЙ ||--o{ СВЯЗЬ_ОБЪЯВЛЕНИЯ_ФОТО : "привязывается к"
-    
-    ЧАТЫ ||--o{ УЧАСТНИКИ_ЧАТА : "содержит"
-    
-    ПОЛЬЗОВАТЕЛИ ||--o{ АРЕНДЫ : "арендует как"
+Отдельной таблицы «слотов» нет. Занятость вычисляется из:
+
+1. **`Booking`** — статусы, блокирующие даты (см. [state/Booking.md](../state/Booking.md));
+2. **`ListingManualCalendarBlock`** — ручные блоки владельца.
+
+## Вне PostgreSQL
+
+| Хранилище         | Данные                                                  |
+| ----------------- | ------------------------------------------------------- |
+| **Elasticsearch** | Индекс `rento-listings` — поиск по активным объявлениям |
+| **S3**            | Файлы `ListingPhoto.url`                                |
+| **Ollama**        | Не в БД; вызовы модерации по HTTP                       |
+
+## Категории (production)
+
+Справочник `Category`: «Для ремонта», «Для детей», «Для авто», «Для дома», «Для питомцев», «Для хобби», «Разное» (slug: `dlya-remonta` … `raznoe`).
