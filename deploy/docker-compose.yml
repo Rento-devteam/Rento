@@ -37,6 +37,9 @@ services:
       PORT: "3000"
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       ELASTICSEARCH_NODE: http://elasticsearch:9200
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-rento}
       # Listing text moderation (Ollama). Do NOT set localhost in deploy/.env — use http://ollama:11434 inside Docker.
       MODERATION_LLM_BASE_URL: ${MODERATION_LLM_BASE_URL:-http://ollama:11434}
       MODERATION_LLM_MODEL: ${MODERATION_LLM_MODEL:-llama3.1:8b}
@@ -151,6 +154,21 @@ services:
     networks:
       - internal
 
+  redis:
+    image: redis:7-alpine
+    container_name: rento-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - rento_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - internal
+
   # Ollama — LLM for listing text moderation (Nest calls MODERATION_LLM_BASE_URL, default http://ollama:11434).
   ollama:
     image: ollama/ollama:latest
@@ -176,6 +194,7 @@ services:
 volumes:
   rento_pg_data:
   rento_es_data:
+  rento_redis_data:
   rento_ollama_data:
   rento_caddy_data:
   rento_caddy_config:

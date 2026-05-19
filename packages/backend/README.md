@@ -82,6 +82,14 @@ Optional demo catalog when there are no ACTIVE listings: set `CATALOG_DEFAULT_SE
 
 **E2E tests** stub `ListingSearchIndexService`, so they do not require a running Elasticsearch node. To exercise search against a real cluster, run ES locally and hit the HTTP endpoints manually with `ELASTICSEARCH_NODE` set.
 
+## Redis (safe foundation)
+
+Local compose includes Redis on **6379**. The backend has a `RedisModule` and `GET /health/redis`, but Redis is **disabled by default** in `.env.example` so local development keeps working without it.
+
+- Enable locally: `REDIS_ENABLED=true`, `REDIS_URL=redis://localhost:6379`
+- Production compose enables Redis via `redis://redis:6379`
+- Current behavior is unchanged: sessions still use JWT + `RefreshToken` in Postgres; search still goes to Elasticsearch. Redis is the safe foundation for the next steps in `docs/redis-plan.md`.
+
 ## Геокодирование (Yandex, только бэкенд)
 
 Ключ **не** отдаётся в браузер: фронт вызывает защищённые JWT-эндпоинты, бэкенд ходит в [HTTP Геокодер](https://yandex.ru/maps-api/docs/geocoder-api/index.html).

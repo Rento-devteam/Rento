@@ -16,11 +16,13 @@ import { VerificationModule } from './verification/verification.module';
 import { TrustScoreModule } from './trust-score/trust-score.module';
 import { GeoModule } from './geo/geo.module';
 import { ModerationModule } from './moderation/moderation.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     PrismaModule,
+    RedisModule,
     ModerationModule,
     AuthModule,
     UsersModule,
