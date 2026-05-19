@@ -5,7 +5,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/useAuth";
 import { bookingStatusLabel } from "../bookings/bookingUi";
 import { bookingSettlementStatusLabelRu } from "../lib/statusRu";
 import {

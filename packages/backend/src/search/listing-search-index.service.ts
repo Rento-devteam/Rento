@@ -1,8 +1,15 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { Client } from '@elastic/elasticsearch';
 import { ListingStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ELASTICSEARCH_CLIENT, getListingsIndexName } from './search.constants';
+import { RedisService } from '../redis/redis.service';
 
 function completionInputs(title: string): string[] {
   const t = title.trim().toLowerCase();
@@ -25,6 +32,7 @@ export class ListingSearchIndexService implements OnModuleInit {
   constructor(
     @Inject(ELASTICSEARCH_CLIENT) private readonly client: Client,
     @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Optional() private readonly redisService?: RedisService,
   ) {}
 
   async onModuleInit() {
@@ -119,6 +127,7 @@ export class ListingSearchIndexService implements OnModuleInit {
       document: doc,
       refresh: true,
     });
+    await this.invalidateSearchCache();
   }
 
   async removeListing(listingId: string): Promise<void> {
@@ -128,6 +137,7 @@ export class ListingSearchIndexService implements OnModuleInit {
         id: listingId,
         refresh: true,
       });
+      await this.invalidateSearchCache();
     } catch (err: unknown) {
       const status =
         err && typeof err === 'object' && 'meta' in err
@@ -153,5 +163,10 @@ export class ListingSearchIndexService implements OnModuleInit {
     }
 
     return { indexed };
+  }
+
+  private async invalidateSearchCache(): Promise<void> {
+    await this.redisService?.delByPattern('search:v1:*');
+    await this.redisService?.delByPattern('autocomplete:v1:*');
   }
 }

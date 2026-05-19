@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { FormEvent } from "react";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/useAuth";
 import { reloadHomeAfterLogin } from "../auth/reloadAfterLogin";
 import { authApi } from "../auth/authApi";
 import { isStrongPassword, PASSWORD_HINT } from "../auth/passwordPolicy";

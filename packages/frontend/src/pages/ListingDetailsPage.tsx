@@ -1,261 +1,296 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { IListing, IListingPhoto, RentalPeriod } from '@rento/shared'
-import { useAuth } from '../auth/AuthContext'
-import { createBooking, retryBookingPayment } from '../bookings/bookingsApi'
-import { getBookingSummary, type BookingSummaryResponse } from '../bookings/bookingSummaryApi'
-import { getListingDetails, getOwnedListingForEdit } from '../catalog/catalogApi'
-import { PhotoLightbox } from '../components/PhotoLightbox'
-import { ApiError } from '../lib/apiClient'
-import { listPaymentMethods, type BankCard } from '../payments/paymentMethodsApi'
-import { getPublicUserProfile, type PublicUserProfile } from '../users/publicProfileApi'
-import { listingConditionLabelRu } from '../lib/listingConditionRu'
-import { getListingDisplayParts } from '../lib/listingDescriptionParts'
-import { logListingDetails } from '../lib/listingDetailsDebugLog'
-import { LISTING_RENTAL_PRICE_CAPTION } from '../lib/rentalPeriodRu'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import type { IListing, IListingPhoto, RentalPeriod } from "@rento/shared";
+import { useAuth } from "../auth/useAuth";
+import { createBooking, retryBookingPayment } from "../bookings/bookingsApi";
+import {
+  getBookingSummary,
+  type BookingSummaryResponse,
+} from "../bookings/bookingSummaryApi";
+import {
+  getListingDetails,
+  getOwnedListingForEdit,
+} from "../catalog/catalogApi";
+import { PhotoLightbox } from "../components/PhotoLightbox";
+import { ApiError } from "../lib/apiClient";
+import {
+  listPaymentMethods,
+  type BankCard,
+} from "../payments/paymentMethodsApi";
+import {
+  getPublicUserProfile,
+  type PublicUserProfile,
+} from "../users/publicProfileApi";
+import { listingConditionLabelRu } from "../lib/listingConditionRu";
+import { getListingDisplayParts } from "../lib/listingDescriptionParts";
+import { logListingDetails } from "../lib/listingDetailsDebugLog";
+import { LISTING_RENTAL_PRICE_CAPTION } from "../lib/rentalPeriodRu";
 
-const STUB_CARD_BALANCE_KEY = 'rento_stub_card_balance'
+const STUB_CARD_BALANCE_KEY = "rento_stub_card_balance";
 
 function formatMoneyRub(n: number): string {
-  return `${n.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₽`
+  return `${n.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} ₽`;
 }
 
 function toDatetimeLocalValue(d: Date): string {
-  const pad = (x: number) => String(x).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const pad = (x: number) => String(x).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function minDatetimeLocalNow(): string {
-  const d = new Date()
-  d.setSeconds(0, 0)
-  d.setMilliseconds(0)
-  return toDatetimeLocalValue(d)
+  const d = new Date();
+  d.setSeconds(0, 0);
+  d.setMilliseconds(0);
+  return toDatetimeLocalValue(d);
 }
 
-function defaultRangeForPeriod(period: RentalPeriod): { start: Date; end: Date } {
-  const start = new Date()
-  start.setDate(start.getDate() + 1)
-  start.setHours(12, 0, 0, 0)
-  const end = new Date(start)
+function defaultRangeForPeriod(period: RentalPeriod): {
+  start: Date;
+  end: Date;
+} {
+  const start = new Date();
+  start.setDate(start.getDate() + 1);
+  start.setHours(12, 0, 0, 0);
+  const end = new Date(start);
   switch (period) {
-    case 'HOUR':
-      end.setHours(end.getHours() + 2)
-      break
-    case 'DAY':
-      end.setDate(end.getDate() + 1)
-      break
-    case 'WEEK':
-      end.setDate(end.getDate() + 7)
-      break
-    case 'MONTH':
-      end.setMonth(end.getMonth() + 1)
-      break
+    case "HOUR":
+      end.setHours(end.getHours() + 2);
+      break;
+    case "DAY":
+      end.setDate(end.getDate() + 1);
+      break;
+    case "WEEK":
+      end.setDate(end.getDate() + 7);
+      break;
+    case "MONTH":
+      end.setMonth(end.getMonth() + 1);
+      break;
     default:
-      end.setDate(end.getDate() + 1)
+      end.setDate(end.getDate() + 1);
   }
-  return { start, end }
+  return { start, end };
 }
 
 function periodShort(period: RentalPeriod): string {
   switch (period) {
-    case 'HOUR':
-      return 'час'
-    case 'DAY':
-      return 'сутки'
-    case 'WEEK':
-      return 'неделя'
-    case 'MONTH':
-      return 'месяц'
+    case "HOUR":
+      return "час";
+    case "DAY":
+      return "сутки";
+    case "WEEK":
+      return "неделя";
+    case "MONTH":
+      return "месяц";
     default:
-      return 'сутки'
+      return "сутки";
   }
 }
 
 function periodFull(period: RentalPeriod): string {
   switch (period) {
-    case 'HOUR':
-      return 'Почасовая'
-    case 'DAY':
-      return 'Посуточная'
-    case 'WEEK':
-      return 'Понедельная'
-    case 'MONTH':
-      return 'Помесячная'
+    case "HOUR":
+      return "Почасовая";
+    case "DAY":
+      return "Посуточная";
+    case "WEEK":
+      return "Понедельная";
+    case "MONTH":
+      return "Помесячная";
     default:
-      return 'Аренда'
+      return "Аренда";
   }
 }
 
 function bookingActionErrorMessage(err: unknown): string {
   if (!(err instanceof ApiError)) {
-    return 'Не удалось создать бронирование'
+    return "Не удалось создать бронирование";
   }
   if (err.status === 409) {
     if (err.message?.trim()) {
-      return err.message
+      return err.message;
     }
-    return 'Выбранные даты больше недоступны. Измените период и нажмите «Пересчитать».'
+    return "Выбранные даты больше недоступны. Измените период и нажмите «Пересчитать».";
   }
   if (err.status === 402) {
-    return err.message || 'Не удалось заблокировать средства на карте'
+    return err.message || "Не удалось заблокировать средства на карте";
   }
   if (err.status === 403) {
-    return err.message
+    return err.message;
   }
   if (err.status === 404) {
-    return 'Нет подходящей карты: привяжите карту в профиле или выберите другую.'
+    return "Нет подходящей карты: привяжите карту в профиле или выберите другую.";
   }
   if (err.status === 401) {
-    return 'Сессия истекла. Войдите снова и повторите попытку.'
+    return "Сессия истекла. Войдите снова и повторите попытку.";
   }
-  return err.message
+  return err.message;
 }
 
 function formatPublished(iso: string): string {
   try {
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }).format(new Date(iso))
+    return new Intl.DateTimeFormat("ru-RU", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date(iso));
   } catch {
-    return iso
+    return iso;
   }
 }
 
 export function ListingDetailsPage() {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const { user, accessToken } = useAuth()
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user, accessToken } = useAuth();
 
-  const [listing, setListing] = useState<IListing | null>(null)
-  const [loading, setLoading] = useState(() => Boolean(id))
-  const [error, setError] = useState<string | null>(null)
-  const [activePhoto, setActivePhoto] = useState(0)
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [listing, setListing] = useState<IListing | null>(null);
+  const [loading, setLoading] = useState(() => Boolean(id));
+  const [error, setError] = useState<string | null>(null);
+  const [activePhoto, setActivePhoto] = useState(0);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  const [bookModalOpen, setBookModalOpen] = useState(false)
-  const [bookStartLocal, setBookStartLocal] = useState('')
-  const [bookEndLocal, setBookEndLocal] = useState('')
-  const [bookingSummary, setBookingSummary] = useState<BookingSummaryResponse | null>(null)
-  const [bookingSummaryLoading, setBookingSummaryLoading] = useState(false)
-  const [bookingSummaryError, setBookingSummaryError] = useState<string | null>(null)
+  const [bookModalOpen, setBookModalOpen] = useState(false);
+  const [bookStartLocal, setBookStartLocal] = useState("");
+  const [bookEndLocal, setBookEndLocal] = useState("");
+  const [bookingSummary, setBookingSummary] =
+    useState<BookingSummaryResponse | null>(null);
+  const [bookingSummaryLoading, setBookingSummaryLoading] = useState(false);
+  const [bookingSummaryError, setBookingSummaryError] = useState<string | null>(
+    null,
+  );
   const [stubCardBalance, setStubCardBalance] = useState(() => {
-    if (typeof sessionStorage === 'undefined') return ''
-    return sessionStorage.getItem(STUB_CARD_BALANCE_KEY) ?? ''
-  })
-  const [stubCardEditorOpen, setStubCardEditorOpen] = useState(false)
+    if (typeof sessionStorage === "undefined") return "";
+    return sessionStorage.getItem(STUB_CARD_BALANCE_KEY) ?? "";
+  });
+  const [stubCardEditorOpen, setStubCardEditorOpen] = useState(false);
 
-  const [paymentMethods, setPaymentMethods] = useState<BankCard[]>([])
-  const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(false)
-  const [paymentMethodsError, setPaymentMethodsError] = useState<string | null>(null)
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
-  const [bookingSubmitting, setBookingSubmitting] = useState(false)
-  const [bookingActionError, setBookingActionError] = useState<string | null>(null)
-  const [payFailedBookingId, setPayFailedBookingId] = useState<string | null>(null)
-  const [ownerProfile, setOwnerProfile] = useState<PublicUserProfile | null>(null)
+  const [paymentMethods, setPaymentMethods] = useState<BankCard[]>([]);
+  const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(false);
+  const [paymentMethodsError, setPaymentMethodsError] = useState<string | null>(
+    null,
+  );
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
+  const [bookingActionError, setBookingActionError] = useState<string | null>(
+    null,
+  );
+  const [payFailedBookingId, setPayFailedBookingId] = useState<string | null>(
+    null,
+  );
+  const [ownerProfile, setOwnerProfile] = useState<PublicUserProfile | null>(
+    null,
+  );
 
   const persistStubBalance = useCallback((value: string) => {
-    setStubCardBalance(value)
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem(STUB_CARD_BALANCE_KEY, value)
+    setStubCardBalance(value);
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(STUB_CARD_BALANCE_KEY, value);
     }
-  }, [])
+  }, []);
 
   const fetchBookingSummary = useCallback(
     async (listingId: string, startLocal: string, endLocal: string) => {
-      const startIso = new Date(startLocal).toISOString()
-      const endIso = new Date(endLocal).toISOString()
-      setBookingSummaryLoading(true)
-      setBookingSummaryError(null)
+      const startIso = new Date(startLocal).toISOString();
+      const endIso = new Date(endLocal).toISOString();
+      setBookingSummaryLoading(true);
+      setBookingSummaryError(null);
       try {
         const data = await getBookingSummary({
           listingId,
           startAtIso: startIso,
           endAtIso: endIso,
-        })
-        setBookingSummary(data)
+        });
+        setBookingSummary(data);
       } catch (err: unknown) {
-        setBookingSummary(null)
+        setBookingSummary(null);
         setBookingSummaryError(
-          err instanceof ApiError ? err.message : 'Не удалось получить расчёт бронирования',
-        )
+          err instanceof ApiError
+            ? err.message
+            : "Не удалось получить расчёт бронирования",
+        );
       } finally {
-        setBookingSummaryLoading(false)
+        setBookingSummaryLoading(false);
       }
     },
     [],
-  )
+  );
 
   const openBookingStep1 = useCallback(() => {
-    if (!listing) return
-    const { start, end } = defaultRangeForPeriod(listing.rentalPeriod)
-    const s = toDatetimeLocalValue(start)
-    const e = toDatetimeLocalValue(end)
-    setBookStartLocal(s)
-    setBookEndLocal(e)
-    setStubCardEditorOpen(false)
-    setBookingActionError(null)
-    setPayFailedBookingId(null)
-    setBookModalOpen(true)
-    void fetchBookingSummary(listing.id, s, e)
-  }, [listing, fetchBookingSummary])
+    if (!listing) return;
+    const { start, end } = defaultRangeForPeriod(listing.rentalPeriod);
+    const s = toDatetimeLocalValue(start);
+    const e = toDatetimeLocalValue(end);
+    setBookStartLocal(s);
+    setBookEndLocal(e);
+    setStubCardEditorOpen(false);
+    setBookingActionError(null);
+    setPayFailedBookingId(null);
+    setBookModalOpen(true);
+    void fetchBookingSummary(listing.id, s, e);
+  }, [listing, fetchBookingSummary]);
 
   const closeBookingModal = useCallback(() => {
-    setBookModalOpen(false)
-    setPayFailedBookingId(null)
-    setBookingActionError(null)
-    setPaymentMethods([])
-    setPaymentMethodsError(null)
-    setPaymentMethodsLoading(false)
-    setSelectedCardId(null)
-  }, [])
+    setBookModalOpen(false);
+    setPayFailedBookingId(null);
+    setBookingActionError(null);
+    setPaymentMethods([]);
+    setPaymentMethodsError(null);
+    setPaymentMethodsLoading(false);
+    setSelectedCardId(null);
+  }, []);
 
   const photoLightboxSlides = useMemo(() => {
-    if (!listing?.photos || !Array.isArray(listing.photos)) return []
-    return listing.photos.map((p: IListingPhoto) => ({ url: p.url, alt: listing.title }))
-  }, [listing])
+    if (!listing?.photos || !Array.isArray(listing.photos)) return [];
+    return listing.photos.map((p: IListingPhoto) => ({
+      url: p.url,
+      alt: listing.title,
+    }));
+  }, [listing]);
 
   useEffect(() => {
-    if (!bookModalOpen || !accessToken) return
-    const token = accessToken
-    let cancelled = false
+    if (!bookModalOpen || !accessToken) return;
+    const token = accessToken;
+    let cancelled = false;
     async function loadCards() {
-      await Promise.resolve()
-      if (cancelled) return
-      setPaymentMethodsLoading(true)
-      setPaymentMethodsError(null)
+      await Promise.resolve();
+      if (cancelled) return;
+      setPaymentMethodsLoading(true);
+      setPaymentMethodsError(null);
       try {
-        const items = await listPaymentMethods(token)
-        if (cancelled) return
-        setPaymentMethods(items)
-        const def = items.find((c) => c.isDefault) ?? items[0]
-        setSelectedCardId(def?.id ?? null)
+        const items = await listPaymentMethods(token);
+        if (cancelled) return;
+        setPaymentMethods(items);
+        const def = items.find((c) => c.isDefault) ?? items[0];
+        setSelectedCardId(def?.id ?? null);
       } catch (err: unknown) {
-        if (cancelled) return
-        setPaymentMethods([])
+        if (cancelled) return;
+        setPaymentMethods([]);
         setPaymentMethodsError(
-          err instanceof ApiError ? err.message : 'Не удалось загрузить карты',
-        )
+          err instanceof ApiError ? err.message : "Не удалось загрузить карты",
+        );
       } finally {
-        if (!cancelled) setPaymentMethodsLoading(false)
+        if (!cancelled) setPaymentMethodsLoading(false);
       }
     }
-    void loadCards()
+    void loadCards();
     return () => {
-      cancelled = true
-    }
-  }, [bookModalOpen, accessToken])
+      cancelled = true;
+    };
+  }, [bookModalOpen, accessToken]);
 
   const handleConfirmBooking = useCallback(async () => {
-    if (!listing || !accessToken || !bookStartLocal || !bookEndLocal) return
-    setBookingSubmitting(true)
-    setBookingActionError(null)
+    if (!listing || !accessToken || !bookStartLocal || !bookEndLocal) return;
+    setBookingSubmitting(true);
+    setBookingActionError(null);
     try {
       const stubParsed =
-        stubCardBalance.trim() === '' ? undefined : Number(stubCardBalance.replace(',', '.'))
+        stubCardBalance.trim() === ""
+          ? undefined
+          : Number(stubCardBalance.replace(",", "."));
       const stubBalanceRub =
-        stubParsed != null && Number.isFinite(stubParsed) ? stubParsed : undefined
+        stubParsed != null && Number.isFinite(stubParsed)
+          ? stubParsed
+          : undefined;
       const res = await createBooking(
         {
           listingId: listing.id,
@@ -265,16 +300,16 @@ export function ListingDetailsPage() {
           ...(stubBalanceRub != null ? { stubBalanceRub } : {}),
         },
         accessToken,
-      )
-      closeBookingModal()
-      navigate(`/bookings/${res.bookingId}`)
+      );
+      closeBookingModal();
+      navigate(`/bookings/${res.bookingId}`);
     } catch (err: unknown) {
-      setBookingActionError(bookingActionErrorMessage(err))
+      setBookingActionError(bookingActionErrorMessage(err));
       if (err instanceof ApiError && err.status === 402 && err.bookingId) {
-        setPayFailedBookingId(err.bookingId)
+        setPayFailedBookingId(err.bookingId);
       }
     } finally {
-      setBookingSubmitting(false)
+      setBookingSubmitting(false);
     }
   }, [
     listing,
@@ -285,70 +320,84 @@ export function ListingDetailsPage() {
     stubCardBalance,
     navigate,
     closeBookingModal,
-  ])
+  ]);
 
   const handleRetryHoldInModal = useCallback(async () => {
-    if (!accessToken || !payFailedBookingId || !selectedCardId) return
-    setBookingSubmitting(true)
-    setBookingActionError(null)
+    if (!accessToken || !payFailedBookingId || !selectedCardId) return;
+    setBookingSubmitting(true);
+    setBookingActionError(null);
     try {
       const stubParsed =
-        stubCardBalance.trim() === '' ? undefined : Number(stubCardBalance.replace(',', '.'))
+        stubCardBalance.trim() === ""
+          ? undefined
+          : Number(stubCardBalance.replace(",", "."));
       const stubBalanceRub =
-        stubParsed != null && Number.isFinite(stubParsed) ? stubParsed : undefined
+        stubParsed != null && Number.isFinite(stubParsed)
+          ? stubParsed
+          : undefined;
       await retryBookingPayment(
         payFailedBookingId,
-        { cardId: selectedCardId, ...(stubBalanceRub != null ? { stubBalanceRub } : {}) },
+        {
+          cardId: selectedCardId,
+          ...(stubBalanceRub != null ? { stubBalanceRub } : {}),
+        },
         accessToken,
-      )
-      closeBookingModal()
-      navigate(`/bookings/${payFailedBookingId}`)
+      );
+      closeBookingModal();
+      navigate(`/bookings/${payFailedBookingId}`);
     } catch (err: unknown) {
-      setBookingActionError(bookingActionErrorMessage(err))
+      setBookingActionError(bookingActionErrorMessage(err));
     } finally {
-      setBookingSubmitting(false)
+      setBookingSubmitting(false);
     }
-  }, [accessToken, payFailedBookingId, selectedCardId, stubCardBalance, navigate, closeBookingModal])
+  }, [
+    accessToken,
+    payFailedBookingId,
+    selectedCardId,
+    stubCardBalance,
+    navigate,
+    closeBookingModal,
+  ]);
 
   useEffect(() => {
     if (!id) {
-      logListingDetails('skip-load:no-id', { id })
-      return
+      logListingDetails("skip-load:no-id", { id });
+      return;
     }
-    const listingId = id
-    let cancelled = false
+    const listingId = id;
+    let cancelled = false;
 
-    logListingDetails('load:start', {
+    logListingDetails("load:start", {
       listingId,
       hasAccessToken: Boolean(accessToken),
-    })
+    });
 
     async function loadListing() {
-      setLoading(true)
-      setError(null)
-      setLightboxIndex(null)
+      setLoading(true);
+      setError(null);
+      setLightboxIndex(null);
       try {
-        const data = await getListingDetails(listingId)
+        const data = await getListingDetails(listingId);
         if (cancelled) {
-          logListingDetails('load:cancelled-after-public', { listingId })
-          return
+          logListingDetails("load:cancelled-after-public", { listingId });
+          return;
         }
-        logListingDetails('load:ok-public', {
+        logListingDetails("load:ok-public", {
           listingId,
           status: data.status,
           photosCount: data.photos?.length ?? 0,
           hasCategory: Boolean(data.category),
-        })
-        setListing(data)
-        setActivePhoto(0)
+        });
+        setListing(data);
+        setActivePhoto(0);
       } catch (err: unknown) {
-        logListingDetails('load:public-error', {
+        logListingDetails("load:public-error", {
           listingId,
           cancelled,
           isApiError: err instanceof ApiError,
           status: err instanceof ApiError ? err.status : undefined,
           message: err instanceof Error ? err.message : String(err),
-        })
+        });
         if (
           err instanceof ApiError &&
           err.status === 404 &&
@@ -356,25 +405,25 @@ export function ListingDetailsPage() {
           !cancelled
         ) {
           try {
-            logListingDetails('load:try-owned', { listingId })
-            const owned = await getOwnedListingForEdit(listingId, accessToken)
+            logListingDetails("load:try-owned", { listingId });
+            const owned = await getOwnedListingForEdit(listingId, accessToken);
             if (!cancelled) {
-              logListingDetails('load:ok-owned', {
+              logListingDetails("load:ok-owned", {
                 listingId,
                 status: owned.status,
                 photosCount: owned.photos?.length ?? 0,
-              })
-              setListing(owned)
-              setActivePhoto(0)
-              setError(null)
+              });
+              setListing(owned);
+              setActivePhoto(0);
+              setError(null);
             }
-            return
+            return;
           } catch (ownedErr: unknown) {
-            logListingDetails('load:owned-failed', {
+            logListingDetails("load:owned-failed", {
               listingId,
               message:
                 ownedErr instanceof Error ? ownedErr.message : String(ownedErr),
-            })
+            });
             // fall through to public error
           }
         }
@@ -382,80 +431,90 @@ export function ListingDetailsPage() {
           if (err instanceof ApiError && err.status === 404) {
             setError(
               accessToken
-                ? 'Объявление не найдено или у вас нет доступа к этому черновику.'
-                : 'Объявление не найдено. Если это ваш черновик — войдите в аккаунт, чтобы открыть его.',
-            )
+                ? "Объявление не найдено или у вас нет доступа к этому черновику."
+                : "Объявление не найдено. Если это ваш черновик — войдите в аккаунт, чтобы открыть его.",
+            );
           } else if (err instanceof Error) {
-            setError(err.message.trim() || 'Не удалось загрузить объявление')
+            setError(err.message.trim() || "Не удалось загрузить объявление");
           } else {
-            setError('Не удалось загрузить объявление')
+            setError("Не удалось загрузить объявление");
           }
-          setListing(null)
+          setListing(null);
         }
       } finally {
         if (!cancelled) {
-          setLoading(false)
-          logListingDetails('load:finally', { listingId })
+          setLoading(false);
+          logListingDetails("load:finally", { listingId });
         }
       }
     }
 
-    void loadListing()
+    void loadListing();
     return () => {
-      cancelled = true
-      logListingDetails('load:cleanup', { listingId })
-    }
-  }, [id, accessToken])
+      cancelled = true;
+      logListingDetails("load:cleanup", { listingId });
+    };
+  }, [id, accessToken]);
 
   useEffect(() => {
-    const ownerId = listing?.ownerId
-    if (!ownerId) return
-    let cancelled = false
+    const ownerId = listing?.ownerId;
+    if (!ownerId) return;
+    let cancelled = false;
     async function loadOwner() {
       try {
-        const data = await getPublicUserProfile(ownerId!)
-        if (!cancelled) setOwnerProfile(data)
+        const data = await getPublicUserProfile(ownerId!);
+        if (!cancelled) setOwnerProfile(data);
       } catch {
-        if (!cancelled) setOwnerProfile(null)
+        if (!cancelled) setOwnerProfile(null);
       }
     }
-    void loadOwner()
+    void loadOwner();
     return () => {
-      cancelled = true
-    }
-  }, [listing?.ownerId])
+      cancelled = true;
+    };
+  }, [listing?.ownerId]);
 
   useEffect(() => {
-    logListingDetails('render-state', {
+    logListingDetails("render-state", {
       id,
       loading,
-      error: error === null ? null : error === '' ? '(empty string)' : error,
+      error: error === null ? null : error === "" ? "(empty string)" : error,
       hasListing: Boolean(listing),
       listingId: listing?.id,
       listingStatus: listing?.status,
-    })
-  }, [id, loading, error, listing])
+    });
+  }, [id, loading, error, listing]);
 
-  const periodLabel = useMemo(() => (listing ? periodShort(listing.rentalPeriod) : ''), [listing])
-  const periodTitle = useMemo(() => (listing ? periodFull(listing.rentalPeriod) : ''), [listing])
-  const displayParts = useMemo(
-    () => (listing ? getListingDisplayParts(listing.description ?? '') : null),
+  const periodLabel = useMemo(
+    () => (listing ? periodShort(listing.rentalPeriod) : ""),
     [listing],
-  )
+  );
+  const periodTitle = useMemo(
+    () => (listing ? periodFull(listing.rentalPeriod) : ""),
+    [listing],
+  );
+  const displayParts = useMemo(
+    () => (listing ? getListingDisplayParts(listing.description ?? "") : null),
+    [listing],
+  );
 
-  const bookingDatetimeMin = minDatetimeLocalNow()
+  const bookingDatetimeMin = minDatetimeLocalNow();
 
   if (!id) {
     return (
       <main className="listing-page">
         <div className="listing-page__inner container">
           <div className="status status--error">Объявление не найдено</div>
-          <Link to="/" className="btn btn--brand" style={{ marginTop: 'var(--sp-4)' }}>
+          <Link
+            to="/"
+            className="btn btn--brand"
+            style={{ marginTop: "var(--sp-4)" }}
+          >
             На главную
           </Link>
         </div>
       </main>
-    )
+    );
   }
 
   if (loading) {
@@ -465,41 +524,52 @@ export function ListingDetailsPage() {
           <div className="listing-page__skeleton" aria-hidden />
         </div>
       </main>
-    )
+    );
   }
 
   if (error || !listing) {
     const errorMessage = error?.trim()
       ? error
-      : 'Объявление не найдено или не удалось загрузить данные.'
+      : "Объявление не найдено или не удалось загрузить данные.";
     return (
       <main className="listing-page">
         <div className="listing-page__inner container">
           <div className="status status--error">{errorMessage}</div>
-          <Link to="/" className="btn btn--brand" style={{ marginTop: 'var(--sp-4)' }}>
+          <Link
+            to="/"
+            className="btn btn--brand"
+            style={{ marginTop: "var(--sp-4)" }}
+          >
             На главную
           </Link>
         </div>
       </main>
-    )
+    );
   }
 
-  const photos = Array.isArray(listing.photos) ? listing.photos : []
-  const categoryName = listing.category?.name?.trim() || 'Категория'
-  const hasPhotos = photos.length > 0
-  const currentPhoto = hasPhotos ? photos[Math.min(activePhoto, photos.length - 1)] : null
-  const isDraft = listing.status === 'DRAFT'
+  const photos = Array.isArray(listing.photos) ? listing.photos : [];
+  const categoryName = listing.category?.name?.trim() || "Категория";
+  const hasPhotos = photos.length > 0;
+  const currentPhoto = hasPhotos
+    ? photos[Math.min(activePhoto, photos.length - 1)]
+    : null;
+  const isDraft = listing.status === "DRAFT";
 
   const conditionLabel =
-    displayParts?.condition != null && displayParts.condition !== ''
-      ? listingConditionLabelRu(displayParts.condition) ?? displayParts.condition
-      : null
-  const showCharacteristics = Boolean(displayParts?.brand || displayParts?.year || conditionLabel)
+    displayParts?.condition != null && displayParts.condition !== ""
+      ? (listingConditionLabelRu(displayParts.condition) ??
+        displayParts.condition)
+      : null;
+  const showCharacteristics = Boolean(
+    displayParts?.brand || displayParts?.year || conditionLabel,
+  );
   const listingAddressLine =
-    listing.addressText?.trim() || displayParts?.address?.trim() || null
-  const needsGapBeforeDescription = Boolean(listingAddressLine || showCharacteristics)
-  const isOwner = Boolean(user?.id && listing.ownerId === user.id)
-  const ownerDisplayName = ownerProfile?.fullName?.trim() || 'Пользователь'
+    listing.addressText?.trim() || displayParts?.address?.trim() || null;
+  const needsGapBeforeDescription = Boolean(
+    listingAddressLine || showCharacteristics,
+  );
+  const isOwner = Boolean(user?.id && listing.ownerId === user.id);
+  const ownerDisplayName = ownerProfile?.fullName?.trim() || "Пользователь";
 
   return (
     <main className="listing-page">
@@ -517,7 +587,10 @@ export function ListingDetailsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="listing-booking-modal__head">
-              <h2 id="listing-booking-modal-title" className="listing-booking-modal__title">
+              <h2
+                id="listing-booking-modal-title"
+                className="listing-booking-modal__title"
+              >
                 Бронирование и блокировка (Escrow)
               </h2>
               <button
@@ -531,8 +604,9 @@ export function ListingDetailsPage() {
             </div>
 
             <p className="listing-booking-modal__lead">
-              Перед подтверждением сделки вы видите расчёт: аренда, залог и сумма, которую банк должен{' '}
-              <strong>заблокировать</strong> на карте (авторизационный холд, не списание).
+              Перед подтверждением сделки вы видите расчёт: аренда, залог и
+              сумма, которую банк должен <strong>заблокировать</strong> на карте
+              (авторизационный холд, не списание).
             </p>
 
             <div className="listing-booking-modal__dates">
@@ -569,40 +643,60 @@ export function ListingDetailsPage() {
             <button
               type="button"
               className="btn btn--ghost"
-              style={{ marginTop: 'var(--sp-3)' }}
+              style={{ marginTop: "var(--sp-3)" }}
               disabled={
                 Boolean(payFailedBookingId) ||
                 bookingSummaryLoading ||
                 !bookStartLocal ||
                 !bookEndLocal
               }
-              onClick={() => void fetchBookingSummary(listing.id, bookStartLocal, bookEndLocal)}
+              onClick={() =>
+                void fetchBookingSummary(
+                  listing.id,
+                  bookStartLocal,
+                  bookEndLocal,
+                )
+              }
             >
-              {bookingSummaryLoading ? 'Расчёт…' : 'Пересчитать'}
+              {bookingSummaryLoading ? "Расчёт…" : "Пересчитать"}
             </button>
 
             {bookingSummaryError ? (
-              <div className="alert alert--error" style={{ marginTop: 'var(--sp-3)' }}>
+              <div
+                className="alert alert--error"
+                style={{ marginTop: "var(--sp-3)" }}
+              >
                 {bookingSummaryError}
               </div>
             ) : null}
 
             {!accessToken ? (
-              <div className="alert alert--error" style={{ marginTop: 'var(--sp-3)' }}>
-                Войдите в аккаунт, чтобы подтвердить бронь и заблокировать средства на карте.
+              <div
+                className="alert alert--error"
+                style={{ marginTop: "var(--sp-3)" }}
+              >
+                Войдите в аккаунт, чтобы подтвердить бронь и заблокировать
+                средства на карте.
               </div>
             ) : null}
 
             {bookingActionError ? (
-              <div className="alert alert--error" style={{ marginTop: 'var(--sp-3)' }}>
+              <div
+                className="alert alert--error"
+                style={{ marginTop: "var(--sp-3)" }}
+              >
                 {bookingActionError}
               </div>
             ) : null}
 
             {payFailedBookingId ? (
-              <div className="alert alert--warning" style={{ marginTop: 'var(--sp-3)' }}>
-                Бронь создана, но холд не прошёл (недостаточно средств или отказ банка). Выберите другую
-                привязанную карту или измените демо-баланс и нажмите «Повторить блокировку». Даты в этом окне
+              <div
+                className="alert alert--warning"
+                style={{ marginTop: "var(--sp-3)" }}
+              >
+                Бронь создана, но холд не прошёл (недостаточно средств или отказ
+                банка). Выберите другую привязанную карту или измените
+                демо-баланс и нажмите «Повторить блокировку». Даты в этом окне
                 зафиксированы для этой брони.
               </div>
             ) : null}
@@ -615,40 +709,64 @@ export function ListingDetailsPage() {
                 </div>
                 <div className="listing-booking-modal__row">
                   <span>Залог</span>
-                  <strong>{formatMoneyRub(bookingSummary.depositAmount)}</strong>
+                  <strong>
+                    {formatMoneyRub(bookingSummary.depositAmount)}
+                  </strong>
                 </div>
                 <div className="listing-booking-modal__row listing-booking-modal__row--total">
                   <span>Итого к блокировке</span>
-                  <strong>{formatMoneyRub(bookingSummary.totalHoldAmount)}</strong>
+                  <strong>
+                    {formatMoneyRub(bookingSummary.totalHoldAmount)}
+                  </strong>
                 </div>
                 <p className="listing-booking-modal__fineprint">
-                  Аренда: ставка {formatMoneyRub(listing.rentalPrice)} за {periodShort(listing.rentalPeriod)} ×{' '}
-                  {bookingSummary.units.toLocaleString('ru-RU')} ед. тарифа = {formatMoneyRub(bookingSummary.rentalAmount)}.
-                  Интервал: {new Date(bookingSummary.startAt).toLocaleString('ru-RU')} —{' '}
-                  {new Date(bookingSummary.endAt).toLocaleString('ru-RU')}.
+                  Аренда: ставка {formatMoneyRub(listing.rentalPrice)} за{" "}
+                  {periodShort(listing.rentalPeriod)} ×{" "}
+                  {bookingSummary.units.toLocaleString("ru-RU")} ед. тарифа ={" "}
+                  {formatMoneyRub(bookingSummary.rentalAmount)}. Интервал:{" "}
+                  {new Date(bookingSummary.startAt).toLocaleString("ru-RU")} —{" "}
+                  {new Date(bookingSummary.endAt).toLocaleString("ru-RU")}.
                 </p>
               </div>
             ) : bookingSummaryLoading ? (
-              <div className="skeleton" style={{ height: 120, marginTop: 'var(--sp-4)', borderRadius: 'var(--r-md)' }} />
+              <div
+                className="skeleton"
+                style={{
+                  height: 120,
+                  marginTop: "var(--sp-4)",
+                  borderRadius: "var(--r-md)",
+                }}
+              />
             ) : null}
 
             {accessToken ? (
               <div className="listing-booking-modal__methods">
-                <p className="listing-booking-modal__card-label">Карта для блокировки</p>
+                <p className="listing-booking-modal__card-label">
+                  Карта для блокировки
+                </p>
                 {paymentMethodsLoading ? (
-                  <div className="skeleton" style={{ height: 56, borderRadius: 'var(--r-md)' }} />
+                  <div
+                    className="skeleton"
+                    style={{ height: 56, borderRadius: "var(--r-md)" }}
+                  />
                 ) : paymentMethodsError ? (
-                  <div className="alert alert--error">{paymentMethodsError}</div>
+                  <div className="alert alert--error">
+                    {paymentMethodsError}
+                  </div>
                 ) : paymentMethods.length === 0 ? (
                   <p className="listing-booking-modal__fineprint">
-                    Нет привязанных карт. Добавьте карту в{' '}
+                    Нет привязанных карт. Добавьте карту в{" "}
                     <Link to="/profile" onClick={closeBookingModal}>
                       профиле
                     </Link>
                     .
                   </p>
                 ) : (
-                  <ul className="listing-booking-card-select" role="listbox" aria-label="Выбор карты">
+                  <ul
+                    className="listing-booking-card-select"
+                    role="listbox"
+                    aria-label="Выбор карты"
+                  >
                     {paymentMethods.map((card) => (
                       <li key={card.id}>
                         <label className="listing-booking-card-select__row">
@@ -660,7 +778,7 @@ export function ListingDetailsPage() {
                           />
                           <span>
                             {card.cardType} •••• {card.last4}
-                            {card.isDefault ? ' · по умолчанию' : ''}
+                            {card.isDefault ? " · по умолчанию" : ""}
                           </span>
                         </label>
                       </li>
@@ -671,18 +789,25 @@ export function ListingDetailsPage() {
             ) : null}
 
             <div className="listing-booking-modal__card-stack">
-              <p className="listing-booking-modal__card-label">Демо: условный баланс</p>
+              <p className="listing-booking-modal__card-label">
+                Демо: условный баланс
+              </p>
               <button
                 type="button"
-                className={`listing-booking-card${stubCardEditorOpen ? ' listing-booking-card--open' : ''}`}
+                className={`listing-booking-card${stubCardEditorOpen ? " listing-booking-card--open" : ""}`}
                 onClick={() => setStubCardEditorOpen((v) => !v)}
                 aria-expanded={stubCardEditorOpen}
               >
                 <span className="listing-booking-card__chip">Заглушка</span>
-                <span className="listing-booking-card__title">Проверка «хватит ли лимита»</span>
-                <span className="listing-booking-card__pan">Нажмите, чтобы ввести баланс</span>
+                <span className="listing-booking-card__title">
+                  Проверка «хватит ли лимита»
+                </span>
+                <span className="listing-booking-card__pan">
+                  Нажмите, чтобы ввести баланс
+                </span>
                 <span className="listing-booking-card__hint">
-                  Значение уходит в запрос как <code>stubBalanceRub</code> и учитывается только в dev-шлюзе холда.
+                  Значение уходит в запрос как <code>stubBalanceRub</code> и
+                  учитывается только в dev-шлюзе холда.
                 </span>
               </button>
               {stubCardEditorOpen ? (
@@ -703,14 +828,19 @@ export function ListingDetailsPage() {
                     onClick={(e) => e.stopPropagation()}
                   />
                   <span className="field__hint">
-                    Если баланс меньше суммы «Итого к блокировке», шлюз-заглушка вернёт отказ (402).
+                    Если баланс меньше суммы «Итого к блокировке», шлюз-заглушка
+                    вернёт отказ (402).
                   </span>
                 </div>
               ) : null}
             </div>
 
             <div className="listing-booking-modal__footer">
-              <button type="button" className="btn btn--ghost" onClick={closeBookingModal}>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={closeBookingModal}
+              >
                 Закрыть
               </button>
               {payFailedBookingId ? (
@@ -725,7 +855,7 @@ export function ListingDetailsPage() {
                   }
                   onClick={() => void handleRetryHoldInModal()}
                 >
-                  {bookingSubmitting ? 'Повтор…' : 'Повторить блокировку'}
+                  {bookingSubmitting ? "Повтор…" : "Повторить блокировку"}
                 </button>
               ) : (
                 <button
@@ -740,7 +870,7 @@ export function ListingDetailsPage() {
                   }
                   onClick={() => void handleConfirmBooking()}
                 >
-                  {bookingSubmitting ? 'Подтверждение…' : 'Подтвердить бронь'}
+                  {bookingSubmitting ? "Подтверждение…" : "Подтвердить бронь"}
                 </button>
               )}
             </div>
@@ -750,11 +880,18 @@ export function ListingDetailsPage() {
 
       <div className="listing-page__inner container">
         <div className="listing-page__top">
-          <button type="button" className="listing-page__back" onClick={() => navigate('/')}>
+          <button
+            type="button"
+            className="listing-page__back"
+            onClick={() => navigate("/")}
+          >
             <ChevronBackIcon />
             Назад
           </button>
-          <nav className="listing-page__crumbs" aria-label="Навигация по разделам">
+          <nav
+            className="listing-page__crumbs"
+            aria-label="Навигация по разделам"
+          >
             <Link to="/">Главная</Link>
             <span className="listing-page__crumb-sep" aria-hidden>
               /
@@ -768,13 +905,18 @@ export function ListingDetailsPage() {
         </div>
 
         <div className="listing-page__layout">
-          {listing.status === 'DRAFT' && isOwner ? (
+          {listing.status === "DRAFT" && isOwner ? (
             <div className="listing-page__draft-banner alert">
-              Черновик не показывается в каталоге. Загрузите фото и нажмите «Опубликовать» на странице{' '}
-              <Link to={`/listings/${listing.id}/edit`}>редактирования</Link>, либо откройте её из профиля.
+              Черновик не показывается в каталоге. Загрузите фото и нажмите
+              «Опубликовать» на странице{" "}
+              <Link to={`/listings/${listing.id}/edit`}>редактирования</Link>,
+              либо откройте её из профиля.
             </div>
           ) : null}
-          <section className="listing-page__gallery" aria-label="Фотографии объявления">
+          <section
+            className="listing-page__gallery"
+            aria-label="Фотографии объявления"
+          >
             <div className="listing-page__hero">
               {currentPhoto ? (
                 <button
@@ -794,7 +936,11 @@ export function ListingDetailsPage() {
             </div>
 
             {hasPhotos ? (
-              <div className="listing-page__thumbs" role="tablist" aria-label="Галерея фото">
+              <div
+                className="listing-page__thumbs"
+                role="tablist"
+                aria-label="Галерея фото"
+              >
                 {photos.map((photo, index) => (
                   <button
                     type="button"
@@ -802,12 +948,12 @@ export function ListingDetailsPage() {
                     role="tab"
                     aria-selected={index === activePhoto}
                     title="Выбрать фото. Двойной щелчок — просмотр на весь экран."
-                    className={`listing-page__thumb${index === activePhoto ? ' is-active' : ''}`}
+                    className={`listing-page__thumb${index === activePhoto ? " is-active" : ""}`}
                     onClick={() => setActivePhoto(index)}
                     onDoubleClick={(e) => {
-                      e.preventDefault()
-                      setActivePhoto(index)
-                      setLightboxIndex(index)
+                      e.preventDefault();
+                      setActivePhoto(index);
+                      setLightboxIndex(index);
                     }}
                   >
                     <img src={photo.thumbnailUrl ?? photo.url} alt="" />
@@ -817,13 +963,16 @@ export function ListingDetailsPage() {
             ) : null}
             {hasPhotos && currentPhoto ? (
               <p className="listing-page__gallery-hint">
-                Нажмите на большое фото, чтобы открыть его на весь экран. В миниатюрах двойной щелчок тоже
-                открывает просмотр.
+                Нажмите на большое фото, чтобы открыть его на весь экран. В
+                миниатюрах двойной щелчок тоже открывает просмотр.
               </p>
             ) : null}
           </section>
 
-          <aside className="listing-page__aside" aria-label="Условия и действия">
+          <aside
+            className="listing-page__aside"
+            aria-label="Условия и действия"
+          >
             <div className="listing-page__card">
               {!isOwner ? (
                 <Link
@@ -835,17 +984,24 @@ export function ListingDetailsPage() {
                     {ownerProfile?.avatarUrl ? (
                       <img src={ownerProfile.avatarUrl} alt="" />
                     ) : (
-                      ownerDisplayName[0]?.toUpperCase() ?? '?'
+                      (ownerDisplayName[0]?.toUpperCase() ?? "?")
                     )}
                   </span>
-                  <span className="listing-page__owner-name" title={ownerDisplayName}>
+                  <span
+                    className="listing-page__owner-name"
+                    title={ownerDisplayName}
+                  >
                     {ownerDisplayName}
                   </span>
                 </Link>
               ) : null}
               <div className="listing-page__card-head">
                 <span className="listing-page__category">{categoryName}</span>
-                {isDraft ? <span className="listing-page__pill listing-page__pill--draft">Не опубликовано</span> : null}
+                {isDraft ? (
+                  <span className="listing-page__pill listing-page__pill--draft">
+                    Не опубликовано
+                  </span>
+                ) : null}
               </div>
 
               <h1 className="listing-page__title">{listing.title}</h1>
@@ -853,12 +1009,16 @@ export function ListingDetailsPage() {
               <div className="listing-page__price-box">
                 <div className="listing-page__price-row">
                   <span className="listing-page__price-value">
-                    {Math.round(listing.rentalPrice).toLocaleString('ru-RU')}
+                    {Math.round(listing.rentalPrice).toLocaleString("ru-RU")}
                     <span className="listing-page__price-currency"> ₽</span>
                   </span>
-                  <span className="listing-page__price-period">/ {periodLabel}</span>
+                  <span className="listing-page__price-period">
+                    / {periodLabel}
+                  </span>
                 </div>
-                <p className="listing-page__price-caption">{LISTING_RENTAL_PRICE_CAPTION}</p>
+                <p className="listing-page__price-caption">
+                  {LISTING_RENTAL_PRICE_CAPTION}
+                </p>
               </div>
 
               <dl className="listing-page__specs">
@@ -870,8 +1030,8 @@ export function ListingDetailsPage() {
                   <dt>Залог</dt>
                   <dd>
                     {listing.depositAmount > 0
-                      ? `${listing.depositAmount.toLocaleString('ru-RU')} ₽`
-                      : 'Не требуется'}
+                      ? `${listing.depositAmount.toLocaleString("ru-RU")} ₽`
+                      : "Не требуется"}
                   </dd>
                 </div>
                 <div className="listing-page__spec-row">
@@ -886,16 +1046,18 @@ export function ListingDetailsPage() {
                     to={`/listings/${listing.id}/edit`}
                     className="btn btn--brand btn--block listing-page__cta-primary"
                   >
-                    {listing.status === 'DRAFT' ? 'Редактировать и опубликовать' : 'Редактировать объявление'}
+                    {listing.status === "DRAFT"
+                      ? "Редактировать и опубликовать"
+                      : "Редактировать объявление"}
                   </Link>
                 ) : null}
                 <Link
                   to={`/listings/${listing.id}/calendar`}
-                  className={`btn btn--accent btn--block${isOwner ? '' : ' listing-page__cta-primary'}`}
+                  className={`btn btn--accent btn--block${isOwner ? "" : " listing-page__cta-primary"}`}
                 >
                   Календарь и даты
                 </Link>
-                {listing.status === 'ACTIVE' && !isOwner ? (
+                {listing.status === "ACTIVE" && !isOwner ? (
                   <button
                     type="button"
                     className="btn btn--brand btn--block"
@@ -905,25 +1067,35 @@ export function ListingDetailsPage() {
                   </button>
                 ) : null}
                 {!isOwner ? (
-                  <button type="button" className="btn btn--ghost btn--block" disabled>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--block"
+                    disabled
+                  >
                     Написать арендодателю
                   </button>
                 ) : null}
               </div>
               <p className="listing-page__actions-hint">
-                {listing.status !== 'ACTIVE'
-                  ? 'Бронирование доступно только для опубликованных объявлений. Сообщения между пользователями появятся в следующей версии.'
+                {listing.status !== "ACTIVE"
+                  ? "Бронирование доступно только для опубликованных объявлений. Сообщения между пользователями появятся в следующей версии."
                   : isOwner
-                    ? 'Это ваше объявление — бронировать у себя нельзя.'
-                    : 'Сообщения между пользователями появятся в следующей версии.'}
+                    ? "Это ваше объявление — бронировать у себя нельзя."
+                    : "Сообщения между пользователями появятся в следующей версии."}
               </p>
             </div>
           </aside>
 
-          <section className="listing-page__about" aria-label="Адрес, характеристики и описание">
+          <section
+            className="listing-page__about"
+            aria-label="Адрес, характеристики и описание"
+          >
             {listingAddressLine ? (
               <>
-                <h2 id="listing-address-heading" className="listing-page__about-title">
+                <h2
+                  id="listing-address-heading"
+                  className="listing-page__about-title"
+                >
                   Адрес
                 </h2>
                 <p className="listing-page__address">{listingAddressLine}</p>
@@ -934,7 +1106,7 @@ export function ListingDetailsPage() {
               <>
                 <h2
                   id="listing-meta-heading"
-                  className={`listing-page__about-title${listingAddressLine ? ' listing-page__about-title--spaced' : ''}`}
+                  className={`listing-page__about-title${listingAddressLine ? " listing-page__about-title--spaced" : ""}`}
                 >
                   Характеристики
                 </h2>
@@ -942,19 +1114,25 @@ export function ListingDetailsPage() {
                   {displayParts?.brand ? (
                     <div className="listing-page__meta-row">
                       <dt className="listing-page__meta-dt">Бренд</dt>
-                      <dd className="listing-page__meta-dd">{displayParts.brand}</dd>
+                      <dd className="listing-page__meta-dd">
+                        {displayParts.brand}
+                      </dd>
                     </div>
                   ) : null}
                   {displayParts?.year ? (
                     <div className="listing-page__meta-row">
                       <dt className="listing-page__meta-dt">Год</dt>
-                      <dd className="listing-page__meta-dd">{displayParts.year}</dd>
+                      <dd className="listing-page__meta-dd">
+                        {displayParts.year}
+                      </dd>
                     </div>
                   ) : null}
                   {conditionLabel ? (
                     <div className="listing-page__meta-row">
                       <dt className="listing-page__meta-dt">Состояние</dt>
-                      <dd className="listing-page__meta-dd">{conditionLabel}</dd>
+                      <dd className="listing-page__meta-dd">
+                        {conditionLabel}
+                      </dd>
                     </div>
                   ) : null}
                 </dl>
@@ -963,7 +1141,7 @@ export function ListingDetailsPage() {
 
             <h2
               id="listing-desc-heading"
-              className={`listing-page__about-title${needsGapBeforeDescription ? ' listing-page__about-title--spaced' : ''}`}
+              className={`listing-page__about-title${needsGapBeforeDescription ? " listing-page__about-title--spaced" : ""}`}
             >
               Описание
             </h2>
@@ -980,12 +1158,12 @@ export function ListingDetailsPage() {
         index={lightboxIndex ?? 0}
         onClose={() => setLightboxIndex(null)}
         onNavigate={(i) => {
-          setLightboxIndex(i)
-          setActivePhoto(i)
+          setLightboxIndex(i);
+          setActivePhoto(i);
         }}
       />
     </main>
-  )
+  );
 }
 
 function ChevronBackIcon() {
@@ -1000,5 +1178,5 @@ function ChevronBackIcon() {
         d="M15 6l-6 6 6 6"
       />
     </svg>
-  )
+  );
 }

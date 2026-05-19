@@ -173,6 +173,27 @@ export function fuseModeration(input: {
     };
   }
 
+  if (
+    llm.status === 'warn' &&
+    rules.severity === 'none' &&
+    !f.profanity &&
+    !f.gibberish &&
+    !f.spamLike
+  ) {
+    return {
+      status: 'allow',
+      reasons: [],
+      confidence: c,
+      flags: mergeFlags(rules.flags, {
+        profanity: false,
+        gibberish: false,
+        spamLike: false,
+      }),
+      usedLlm,
+      usedRules,
+    };
+  }
+
   if (llm.status === 'warn' || rules.severity === 'warn') {
     if (rulesContentPublishBlock) {
       return {
