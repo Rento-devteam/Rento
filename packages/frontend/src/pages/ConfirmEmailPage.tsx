@@ -1,47 +1,57 @@
-import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { ApiError } from '../lib/apiClient'
-import { useAuth } from '../auth/AuthContext'
-import { authApi } from '../auth/authApi'
-import { BrandLogo } from '../components/BrandLogo'
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ApiError } from "../lib/apiClient";
+import { useAuth } from "../auth/useAuth";
+import { authApi } from "../auth/authApi";
+import { BrandLogo } from "../components/BrandLogo";
 
-type Status = 'loading' | 'ok' | 'err'
+type Status = "loading" | "ok" | "err";
 
 export function ConfirmEmailPage() {
-  const [params] = useSearchParams()
-  const token = params.get('token')
-  const { applyAuthSuccess } = useAuth()
-  const [status, setStatus] = useState<Status>(token ? 'loading' : 'err')
+  const [params] = useSearchParams();
+  const token = params.get("token");
+  const { applyAuthSuccess } = useAuth();
+  const [status, setStatus] = useState<Status>(token ? "loading" : "err");
   const [message, setMessage] = useState<string | null>(
-    token ? null : 'В ссылке нет токена подтверждения.',
-  )
+    token ? null : "В ссылке нет токена подтверждения.",
+  );
 
   useEffect(() => {
-    if (!token) return
-    const ac = new AbortController()
-    ;(async () => {
+    if (!token) return;
+    const ac = new AbortController();
+    (async () => {
       try {
-        const res = await authApi.confirmEmail(token, { signal: ac.signal })
-        applyAuthSuccess(res)
-        setStatus('ok')
-        setMessage('Email подтверждён — добро пожаловать в Rento.')
+        const res = await authApi.confirmEmail(token, { signal: ac.signal });
+        applyAuthSuccess(res);
+        setStatus("ok");
+        setMessage("Email подтверждён — добро пожаловать в Rento.");
       } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return
-        setStatus('err')
-        setMessage(err instanceof ApiError ? err.message : 'Не удалось подтвердить email.')
+        if (err instanceof Error && err.name === "AbortError") return;
+        setStatus("err");
+        setMessage(
+          err instanceof ApiError
+            ? err.message
+            : "Не удалось подтвердить email.",
+        );
       }
-    })()
-    return () => ac.abort()
-  }, [token, applyAuthSuccess])
+    })();
+    return () => ac.abort();
+  }, [token, applyAuthSuccess]);
 
   return (
     <div className="confirm">
       <div className="confirm__card">
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+        <div
+          style={{
+            marginBottom: 16,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
           <BrandLogo />
         </div>
 
-        {status === 'loading' ? (
+        {status === "loading" ? (
           <>
             <div className="confirm__icon" aria-hidden>
               <SpinnerIcon />
@@ -51,7 +61,7 @@ export function ConfirmEmailPage() {
           </>
         ) : null}
 
-        {status === 'ok' ? (
+        {status === "ok" ? (
           <>
             <div className="confirm__icon confirm__icon--success" aria-hidden>
               <CheckIcon />
@@ -64,7 +74,7 @@ export function ConfirmEmailPage() {
           </>
         ) : null}
 
-        {status === 'err' ? (
+        {status === "err" ? (
           <>
             <div className="confirm__icon confirm__icon--error" aria-hidden>
               <AlertIcon />
@@ -78,7 +88,7 @@ export function ConfirmEmailPage() {
         ) : null}
       </div>
     </div>
-  )
+  );
 }
 
 function CheckIcon() {
@@ -86,7 +96,7 @@ function CheckIcon() {
     <svg viewBox="0 0 24 24" aria-hidden>
       <path d="M5 12l4 4 10-10" />
     </svg>
-  )
+  );
 }
 
 function AlertIcon() {
@@ -96,7 +106,7 @@ function AlertIcon() {
       <circle cx="12" cy="17" r="0.6" fill="currentColor" />
       <circle cx="12" cy="12" r="9" />
     </svg>
-  )
+  );
 }
 
 function SpinnerIcon() {
@@ -104,9 +114,9 @@ function SpinnerIcon() {
     <svg
       viewBox="0 0 24 24"
       aria-hidden
-      style={{ animation: 'spin 1s linear infinite' }}
+      style={{ animation: "spin 1s linear infinite" }}
     >
       <path d="M12 3a9 9 0 1 0 9 9" />
     </svg>
-  )
+  );
 }

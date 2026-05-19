@@ -1,55 +1,63 @@
-import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
-import { authApi } from '../auth/authApi'
-import { ApiError } from '../lib/apiClient'
-import { BrandLogo } from '../components/BrandLogo'
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
+import { authApi } from "../auth/authApi";
+import { ApiError } from "../lib/apiClient";
+import { BrandLogo } from "../components/BrandLogo";
 
-type Status = 'loading' | 'ok' | 'err'
+type Status = "loading" | "ok" | "err";
 
 export function TelegramCallbackPage() {
-  const [params] = useSearchParams()
-  const code = params.get('code')
-  const returnToRaw = params.get('returnTo')
-  const { applyAuthSuccess } = useAuth()
-  const [status, setStatus] = useState<Status>(code ? 'loading' : 'err')
+  const [params] = useSearchParams();
+  const code = params.get("code");
+  const returnToRaw = params.get("returnTo");
+  const { applyAuthSuccess } = useAuth();
+  const [status, setStatus] = useState<Status>(code ? "loading" : "err");
   const [message, setMessage] = useState<string | null>(
-    code ? null : 'В ссылке нет кода подтверждения.',
-  )
+    code ? null : "В ссылке нет кода подтверждения.",
+  );
 
   const returnTo = (() => {
-    if (!returnToRaw) return '/'
+    if (!returnToRaw) return "/";
     // Accept only relative paths to avoid open redirects.
-    if (!returnToRaw.startsWith('/')) return '/'
-    return returnToRaw
-  })()
+    if (!returnToRaw.startsWith("/")) return "/";
+    return returnToRaw;
+  })();
 
   useEffect(() => {
-    if (!code) return
-    const ac = new AbortController()
-    ;(async () => {
+    if (!code) return;
+    const ac = new AbortController();
+    (async () => {
       try {
-        const res = await authApi.telegramLoginExchange({ code })
-        applyAuthSuccess(res)
-        setStatus('ok')
-        setMessage('Вы вошли через Telegram.')
+        const res = await authApi.telegramLoginExchange({ code });
+        applyAuthSuccess(res);
+        setStatus("ok");
+        setMessage("Вы вошли через Telegram.");
       } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return
-        setStatus('err')
-        setMessage(err instanceof ApiError ? err.message : 'Не удалось выполнить вход.')
+        if (err instanceof Error && err.name === "AbortError") return;
+        setStatus("err");
+        setMessage(
+          err instanceof ApiError ? err.message : "Не удалось выполнить вход.",
+        );
       }
-    })()
-    return () => ac.abort()
-  }, [code, applyAuthSuccess])
+    })();
+    return () => ac.abort();
+  }, [code, applyAuthSuccess]);
 
   return (
     <div className="confirm">
       <div className="confirm__card">
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+        <div
+          style={{
+            marginBottom: 16,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
           <BrandLogo />
         </div>
 
-        {status === 'loading' ? (
+        {status === "loading" ? (
           <>
             <div className="confirm__icon" aria-hidden>
               <SpinnerIcon />
@@ -59,7 +67,7 @@ export function TelegramCallbackPage() {
           </>
         ) : null}
 
-        {status === 'ok' ? (
+        {status === "ok" ? (
           <>
             <div className="confirm__icon confirm__icon--success" aria-hidden>
               <CheckIcon />
@@ -72,7 +80,7 @@ export function TelegramCallbackPage() {
           </>
         ) : null}
 
-        {status === 'err' ? (
+        {status === "err" ? (
           <>
             <div className="confirm__icon confirm__icon--error" aria-hidden>
               <AlertIcon />
@@ -86,7 +94,7 @@ export function TelegramCallbackPage() {
         ) : null}
       </div>
     </div>
-  )
+  );
 }
 
 function CheckIcon() {
@@ -94,7 +102,7 @@ function CheckIcon() {
     <svg viewBox="0 0 24 24" aria-hidden>
       <path d="M5 12l4 4 10-10" />
     </svg>
-  )
+  );
 }
 
 function AlertIcon() {
@@ -104,14 +112,17 @@ function AlertIcon() {
       <circle cx="12" cy="17" r="0.6" fill="currentColor" />
       <circle cx="12" cy="12" r="9" />
     </svg>
-  )
+  );
 }
 
 function SpinnerIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden style={{ animation: 'spin 1s linear infinite' }}>
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      style={{ animation: "spin 1s linear infinite" }}
+    >
       <path d="M12 3a9 9 0 1 0 9 9" />
     </svg>
-  )
+  );
 }
-

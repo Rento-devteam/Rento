@@ -12,6 +12,7 @@ import { AuthService } from './auth.service';
 import { CompleteRegistrationQueryDto } from './dto/complete-registration-query.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResendConfirmationDto } from './dto/resend-confirmation.dto';
 import { TelegramAuthDto } from './dto/telegram-auth.dto';
 import { TelegramLoginConfirmDto } from './dto/telegram-login-confirm.dto';
@@ -44,6 +45,16 @@ export class AuthController {
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('auth/refresh')
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshSession(dto);
+  }
+
+  @Post('auth/logout')
+  logout(@Body() dto: RefreshTokenDto) {
+    return this.authService.logout(dto);
   }
 
   @Get('complete-registration')

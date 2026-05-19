@@ -40,6 +40,7 @@ services:
       REDIS_ENABLED: ${REDIS_ENABLED:-true}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-rento}
+      REDIS_SEARCH_CACHE_TTL_SECONDS: ${REDIS_SEARCH_CACHE_TTL_SECONDS:-60}
       # Listing text moderation (Ollama). Do NOT set localhost in deploy/.env — use http://ollama:11434 inside Docker.
       MODERATION_LLM_BASE_URL: ${MODERATION_LLM_BASE_URL:-http://ollama:11434}
       MODERATION_LLM_MODEL: ${MODERATION_LLM_MODEL:-llama3.1:8b}

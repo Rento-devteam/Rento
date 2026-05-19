@@ -84,11 +84,13 @@ Optional demo catalog when there are no ACTIVE listings: set `CATALOG_DEFAULT_SE
 
 ## Redis (safe foundation)
 
-Local compose includes Redis on **6379**. The backend has a `RedisModule` and `GET /health/redis`, but Redis is **disabled by default** in `.env.example` so local development keeps working without it.
+Local compose includes Redis on **6379**. The backend uses Redis for refresh-session rotation and short-lived search/autocomplete cache. Redis is **disabled by default** in `.env.example` so local development keeps working without it.
 
 - Enable locally: `REDIS_ENABLED=true`, `REDIS_URL=redis://localhost:6379`
 - Production compose enables Redis via `redis://redis:6379`
-- Current behavior is unchanged: sessions still use JWT + `RefreshToken` in Postgres; search still goes to Elasticsearch. Redis is the safe foundation for the next steps in `docs/redis-plan.md`.
+- Auth endpoints: `POST /auth/refresh`, `POST /auth/logout`
+- Search cache TTL: `REDIS_SEARCH_CACHE_TTL_SECONDS` (default `60`)
+- Postgres `RefreshToken` remains as fallback/audit.
 
 ## Геокодирование (Yandex, только бэкенд)
 

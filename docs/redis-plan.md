@@ -124,6 +124,13 @@ redis:
 
 ## Этап 2 — Сессии (главная цель)
 
+**Статус:** реализовано.
+
+- `POST /auth/refresh` — refresh JWT проверяется, сессия ротуются через Redis (`session:{sid}`), есть fallback на Postgres `RefreshToken`;
+- `POST /auth/logout` — удаляет Redis-сессию и revoke в Postgres;
+- frontend делает silent refresh при `401` и повторяет исходный запрос;
+- `RefreshToken` в Postgres пока остаётся как fallback/audit.
+
 ### 2.1 Модель сессии в Redis
 
 При `issueTokenPair` (login, confirm-email, telegram exchange):
@@ -196,6 +203,13 @@ sequenceDiagram
 ---
 
 ## Этап 3 — Кэш Elasticsearch / поиска
+
+**Статус:** реализовано безопасно.
+
+- `GET /search` кэшируется в Redis по hash параметров (`search:v1:*`);
+- `GET /search/autocomplete` кэшируется как `autocomplete:v1:*`;
+- TTL: `REDIS_SEARCH_CACHE_TTL_SECONDS` (по умолчанию 60);
+- при index/delete listing сбрасываются `search:v1:*` и `autocomplete:v1:*`.
 
 ### 3.1 Что кэшировать
 
