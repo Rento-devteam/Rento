@@ -51,16 +51,21 @@ describe('fuseModeration', () => {
     expect(out.status).toBe('warn');
   });
 
-  it('blocks gibberish on publish when confidence is high', () => {
+  it('blocks gibberish on publish when rules and LLM agree', () => {
+    const rules: RuleEngineResult = {
+      severity: 'warn',
+      reasons: ['rule:gibberish_heuristic(0.72)'],
+      flags: { profanity: false, gibberish: true, spamLike: false },
+    };
     const llm: LlmModerationVerdict = {
-      status: 'warn',
+      status: 'block',
       confidence: 0.9,
       reasons: ['gib'],
       flags: { profanity: false, gibberish: true, spamLike: false },
     };
     const out = fuseModeration({
       phase: 'publish',
-      rules: emptyRules,
+      rules,
       llm,
       hardBlockEnabled: true,
       thresholds,
@@ -121,6 +126,24 @@ describe('fuseModeration', () => {
       thresholds,
     });
     expect(out.status).toBe('block');
+    expect(out.usedLlm).toBe(true);
+  });
+
+  it('allows draft when rules are clean but LLM over-blocks normal copy', () => {
+    const llm: LlmModerationVerdict = {
+      status: 'block',
+      confidence: 0.85,
+      reasons: ['profanity', 'gibberish'],
+      flags: { profanity: true, gibberish: true, spamLike: false },
+    };
+    const out = fuseModeration({
+      phase: 'draft',
+      rules: emptyRules,
+      llm,
+      hardBlockEnabled: true,
+      thresholds,
+    });
+    expect(out.status).toBe('allow');
     expect(out.usedLlm).toBe(true);
   });
 

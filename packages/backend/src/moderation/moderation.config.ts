@@ -34,7 +34,7 @@ export class ModerationConfig {
     Math.max(0, this.intEnv('MODERATION_LLM_TRAFFIC_PERCENT', 100)),
   );
   /** Bump when prompt/thresholds change (stored on listing for analytics). */
-  readonly moderationVersion = this.intEnv('MODERATION_VERSION', 2);
+  readonly moderationVersion = this.intEnv('MODERATION_VERSION', 3);
 
   private boolEnv(key: string, defaultValue: boolean): boolean {
     const v = process.env[key];
