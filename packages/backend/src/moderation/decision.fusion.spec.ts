@@ -129,6 +129,28 @@ describe('fuseModeration', () => {
     expect(out.usedLlm).toBe(true);
   });
 
+  it('warns on draft when rules flag insufficient description', () => {
+    const rules: RuleEngineResult = {
+      severity: 'warn',
+      reasons: ['rule:insufficient_description'],
+      flags: { profanity: false, gibberish: false, spamLike: false },
+    };
+    const llm: LlmModerationVerdict = {
+      status: 'allow',
+      confidence: 0.95,
+      reasons: [],
+      flags: { profanity: false, gibberish: false, spamLike: false },
+    };
+    const out = fuseModeration({
+      phase: 'draft',
+      rules,
+      llm,
+      hardBlockEnabled: true,
+      thresholds,
+    });
+    expect(out.status).toBe('warn');
+  });
+
   it('allows draft when rules are clean but LLM over-blocks normal copy', () => {
     const llm: LlmModerationVerdict = {
       status: 'block',
