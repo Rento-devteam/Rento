@@ -109,7 +109,7 @@ export function fuseModeration(input: {
     llm.status === 'block' &&
     f.profanity &&
     c >= thresholds.blockThreshold &&
-    (rulesBackedProfanity || rules.severity === 'hard_block')
+    rulesBackedProfanity
   ) {
     return {
       status: hardBlockEnabled ? 'block' : 'warn',
