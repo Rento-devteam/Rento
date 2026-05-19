@@ -26,6 +26,7 @@
     "seed:demo-listing": "npx --yes tsx scripts/seed-demo-listing.ts",
     "publish:demo-listing": "npx --yes tsx scripts/publish-demo-listing.ts",
     "search:reindex": "npx --yes tsx scripts/reindex-listings-search.ts",
+    "db:reset-categories": "npx --yes tsx scripts/reset-catalog-categories.ts",
     "db:up": "docker compose -f docker-compose.dev.yml up -d",
     "db:down": "docker compose -f docker-compose.dev.yml down",
     "db:migrate": "prisma migrate dev",
